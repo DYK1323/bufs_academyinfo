@@ -967,13 +967,15 @@ const DataService = {
           );
           const needed = [...(rule.numerator || []), rule.denominator_base, ...(rule.denominator_exclude || [])];
           const fs = sumFields(filtered, needed);
-          num = (rule.numerator || []).reduce((acc, f) => acc + (fs[f] ?? 0), 0);
-          den = fs[rule.denominator_base] ?? 0;
-          for (const excl of (rule.denominator_exclude || [])) den -= (fs[excl] ?? 0);
+          num = (rule.numerator || []).reduce((acc, f) => acc + (fs[f] ?? result[f] ?? 0), 0);
+          const denBase1 = rule.denominator_base;
+          den = !isNaN(Number(denBase1)) ? Number(denBase1) : (fs[denBase1] ?? result[denBase1] ?? 0);
+          for (const excl of (rule.denominator_exclude || [])) den -= (fs[excl] ?? result[excl] ?? 0);
         } else {
-          num = (rule.numerator || []).reduce((acc, f) => acc + (summed[f] ?? 0), 0);
-          den = summed[rule.denominator_base] ?? 0;
-          for (const excl of (rule.denominator_exclude || [])) den -= (summed[excl] ?? 0);
+          num = (rule.numerator || []).reduce((acc, f) => acc + (result[f] ?? summed[f] ?? 0), 0);
+          const denBase2 = rule.denominator_base;
+          den = !isNaN(Number(denBase2)) ? Number(denBase2) : (result[denBase2] ?? summed[denBase2] ?? 0);
+          for (const excl of (rule.denominator_exclude || [])) den -= (result[excl] ?? summed[excl] ?? 0);
         }
         result[key] = den > 0 ? (num / den) * (rule.multiply ?? 1) : null;
       }
