@@ -267,8 +267,27 @@
       white-space: nowrap; align-self: center; letter-spacing: 0.01em;
     }
     .filter-divider { width: 1px; height: 20px; background: var(--border); margin: 0 2px; }
-    .filter-check { display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--text-secondary); cursor: pointer; user-select: none; white-space: nowrap; }
-    .filter-check input[type=checkbox] { accent-color: var(--primary); width: 14px; height: 14px; cursor: pointer; }
+    .filter-check {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 12.5px; color: var(--text-secondary);
+      cursor: pointer; user-select: none; white-space: nowrap;
+      margin-left: auto;
+    }
+    .filter-check input[type=checkbox] { display: none; }
+    .filter-toggle-track {
+      width: 32px; height: 18px; border-radius: 9px;
+      background: #cbd5e1; transition: background 0.18s;
+      position: relative; flex-shrink: 0;
+    }
+    .filter-toggle-track::after {
+      content: ''; position: absolute;
+      top: 2px; left: 2px;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+      transition: transform 0.18s;
+    }
+    .filter-check input:checked ~ .filter-toggle-track { background: var(--primary); }
+    .filter-check input:checked ~ .filter-toggle-track::after { transform: translateX(14px); }
 
     /* 단일 셀렉트 */
     .filter-select {
@@ -629,11 +648,6 @@
         </div>
       </div>
 
-      <label class="filter-check" id="filter-special-excl">
-        <input type="checkbox" id="chk-special-excl" checked>
-        <span>특별법·기타 제외</span>
-      </label>
-
       <div class="seg-group">
         <span class="seg-label">지역</span>
         <div class="seg-toggle" id="region-group">
@@ -643,6 +657,12 @@
           <button class="seg-btn" data-val="부산">부산</button>
         </div>
       </div>
+
+      <label class="filter-check" id="filter-special-excl">
+        <input type="checkbox" id="chk-special-excl" checked>
+        <span class="filter-toggle-track"></span>
+        <span>특별법·기타 제외</span>
+      </label>
     </div>
 
     <!-- 뷰 컨테이너 -->
@@ -757,8 +777,8 @@ const AppState = {
     sorted: [],
     currentPage: 1,
     rankKey: null,   // 순위 기준 (데이터 로드 시 고정, 변경 안 됨)
-    sortKey: null,   // 표시 정렬 기준 (헤더 클릭으로 변경)
-    sortDir: 'desc',
+    sortKey: '_rank', // 표시 정렬 기준 (헤더 클릭으로 변경)
+    sortDir: 'asc',
     nameQuery: '',   // 대학명 검색어
   },
   trend: {
@@ -1284,8 +1304,8 @@ const FilterManager = {
     const resolvedKey = itemSortKey ||
       DataService.detectPrimaryValueField(AppState.computed.aggregated, calcRules);
     AppState.computed.rankKey = resolvedKey;  // 순위 기준 — 이후 변경 안 됨
-    AppState.computed.sortKey = resolvedKey;  // 표시 정렬 초기값
-    AppState.computed.sortDir = 'desc';
+    AppState.computed.sortKey = '_rank';  // 표시 정렬 초기값: 순위 오름차순
+    AppState.computed.sortDir = 'asc';
     AppState.computed.currentPage = 1;
     this.applyFilters();
     // 추이 분석 뷰가 활성화된 경우 TrendView도 갱신
@@ -1474,7 +1494,7 @@ const RankingView = {
     };
     const thead = document.getElementById('ranking-thead');
     thead.innerHTML = `<tr>
-      <th style="width:50px;text-align:center;">순위</th>
+      <th class="sortable td-num" data-key="_rank" style="width:50px;">순위 ${makeSortIcon('_rank')}</th>
       <th class="sortable" data-key="기준대학명">대학명 ${makeSortIcon('기준대학명')}</th>
       <th class="sortable" data-key="지역">지역 ${makeSortIcon('지역')}</th>
       <th class="sortable" data-key="설립구분">설립 ${makeSortIcon('설립구분')}</th>
@@ -1562,7 +1582,7 @@ const RankingView = {
       AppState.computed.sortDir = AppState.computed.sortDir === 'asc' ? 'desc' : 'asc';
     } else {
       AppState.computed.sortKey = key;
-      AppState.computed.sortDir = 'desc';
+      AppState.computed.sortDir = key === '_rank' ? 'asc' : 'desc';
     }
     AppState.computed.currentPage = 1;
     FilterManager._sortAndRender();
