@@ -1510,8 +1510,8 @@ const TrendView = {
     const span = dataMax - dataMin || dataMax * 0.2 || 10;
     const pad  = span * 0.5;
     const mag  = Math.pow(10, Math.floor(Math.log10(span)) - 1);
-    AppState.trend.yMin = +Math.max(0, Math.floor((dataMin - pad) / mag) * mag).toFixed(2);
-    AppState.trend.yMax = +Math.ceil((dataMax + pad) / mag).toFixed(2) * mag;
+    AppState.trend.yMin = Math.round(Math.max(0, Math.floor((dataMin - pad) / mag) * mag));
+    AppState.trend.yMax = Math.round(Math.ceil((dataMax + pad) / mag) * mag);
     document.getElementById('trend-ymin').value = AppState.trend.yMin;
     document.getElementById('trend-ymax').value = AppState.trend.yMax;
   },
@@ -1529,7 +1529,7 @@ const TrendView = {
       grid: { top: 40, right: 40, bottom: 55, left: 72 },
       toolbox: { feature: { saveAsImage: { title: '이미지 저장' } }, right: 8, top: 0 },
       xAxis: { type: 'category', data: years.map(String), axisLabel: { formatter: v => `${v}년` } },
-      yAxis: { type: 'value', name: label, nameLocation: 'middle', nameGap: 50, nameTextStyle: { fontSize: 11 }, axisLabel: { formatter: v => fmt(v) }, min: AppState.trend.yMin ?? undefined, max: AppState.trend.yMax ?? undefined },
+      yAxis: { type: 'value', name: label, nameLocation: 'middle', nameGap: 50, nameTextStyle: { fontSize: 11 }, axisLabel: { formatter: v => Utils.formatValue(Math.round(v), unit, 0) }, min: AppState.trend.yMin ?? undefined, max: AppState.trend.yMax ?? undefined },
       series: series.map(s => ({
         name: s.name, type: 'line', data: s.data, connectNulls: false,
         lineStyle: { width: s.isOurs ? 3 : 1.5, type: s.isGroup ? 'dashed' : 'solid', color: s.color },
