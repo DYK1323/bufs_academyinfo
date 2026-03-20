@@ -272,15 +272,22 @@ def accumulate_json(item_key: str, df: pd.DataFrame):
     json_path.write_text(
         json.dumps(combined, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    # manifest.json 갱신 (분석 페이지에서 항목 목록 표시에 사용)
+    # manifest.json 갱신 — [{key, label}] 형식
+    # label은 처음 추가 시 item_key와 동일하게 설정 (이후 수동 수정)
     manifest_path = JSON_DIR / "manifest.json"
     manifest: list = []
     if manifest_path.exists():
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if item_key not in manifest:
-        manifest.append(item_key)
+        raw = json.loads(manifest_path.read_text(encoding="utf-8"))
+        # 구버전(문자열 배열) 자동 마이그레이션
+        manifest = [
+            e if isinstance(e, dict) else {"key": e, "label": e}
+            for e in raw
+        ]
+    if not any(e["key"] == item_key for e in manifest):
+        manifest.append({"key": item_key, "label": item_key})
+        manifest.sort(key=lambda e: e["key"])
         manifest_path.write_text(
-            json.dumps(sorted(manifest), ensure_ascii=False, indent=2), encoding="utf-8")
+            json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 
     return len(new_records), len(combined)
 

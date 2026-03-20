@@ -593,10 +593,16 @@ const Utils = {
     if (filters.지역.length) parts.push(filters.지역.join('·') + ' 소재');
     return parts.length ? parts.join(' ') : '전국';
   },
-  showLoading(containerId) {
-    const el = document.getElementById(containerId);
-    if (!el) return;
-    el.innerHTML = '<div class="loading-wrap"><div class="spinner"></div><span style="color:#64748b;font-size:13px;">데이터 불러오는 중...</span></div>';
+  showLoading() {
+    const emptyEl = document.getElementById('empty-state');
+    const tableCard = document.getElementById('table-card');
+    const kpiBar = document.getElementById('kpi-bar');
+    if (emptyEl) {
+      emptyEl.style.display = '';
+      emptyEl.innerHTML = '<div class="loading-wrap"><div class="spinner"></div><span style="color:#64748b;font-size:13px;">데이터 불러오는 중...</span></div>';
+    }
+    if (tableCard) tableCard.style.display = 'none';
+    if (kpiBar) kpiBar.innerHTML = '';
   },
   showEmptyState(reason) {
     const messages = {
@@ -838,10 +844,13 @@ const FilterManager = {
       sel.innerHTML += '<option value="" disabled>등록된 항목이 없습니다</option>';
       return;
     }
-    for (const key of manifest) {
+    for (const item of manifest) {
+      // manifest 항목은 {key, label} 객체 또는 문자열(구버전) 모두 허용
+      const key = item?.key ?? item;
+      const label = item?.label || key;
       const opt = document.createElement('option');
       opt.value = key;
-      opt.textContent = key;
+      opt.textContent = label;
       sel.appendChild(opt);
     }
   },
@@ -954,7 +963,7 @@ const FilterManager = {
       Utils.showEmptyState('no-item');
       return;
     }
-    Utils.showLoading('ranking-view');
+    Utils.showLoading();
     document.getElementById('table-card').style.display = 'none';
 
     const rows = await DataService.fetchItemData(itemKey);
