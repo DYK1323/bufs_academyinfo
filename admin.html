@@ -495,8 +495,9 @@ body { padding-bottom: 60px; }
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
     <div>
       <div style="font-size:15px;font-weight:700;color:#0f172a;">공시항목 관리</div>
-      <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px;">data/manifest.json — 항목별 라벨·컬럼·정렬·제외 조건</div>
+      <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px;">data/manifest.json — 항목별 지표·컬럼·메타데이터 관리</div>
     </div>
+    <button class="btn btn-primary" onclick="addManifestItem()">+ 공시항목 추가</button>
   </div>
 
   <div id="manifest-list"></div>
@@ -916,6 +917,11 @@ function buildRuleCard(key, rule) {
   card.className = 'rule-card';
   card.dataset.key = key;
 
+  const usedIn = rule.used_in || [];
+  const usedBadge = usedIn.length
+    ? `<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#dbeafe;color:#1d4ed8;white-space:nowrap;">${usedIn.length}개 항목 사용 중</span>`
+    : `<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#f1f5f9;color:#94a3b8;white-space:nowrap;">미사용</span>`;
+
   const header = document.createElement('div');
   header.className = 'rule-card-header';
   header.innerHTML = `
@@ -924,7 +930,8 @@ function buildRuleCard(key, rule) {
       <div class="rule-key">${esc(key)}</div>
       <div class="rule-label">${esc(rule.label || '')}</div>
     </div>
-    <span style="font-size:12px;color:var(--text-muted);">▾</span>
+    ${usedBadge}
+    <span style="font-size:12px;color:var(--text-muted);margin-left:8px;">▾</span>
   `;
   header.addEventListener('click', () => toggleCard(header));
 
@@ -1288,8 +1295,14 @@ function applyRule(btn) {
 
 function deleteRule(btn) {
   const card = btn.closest('.rule-card');
-  if (!confirm(`"${card.dataset.key}" 산식을 삭제할까요?`)) return;
-  delete calcData[card.dataset.key];
+  const key = card.dataset.key;
+  const usedIn = calcData[key]?.used_in || [];
+  if (usedIn.length > 0) {
+    alert(`"${key}" 산식은 다음 공시항목에서 사용 중이라 삭제할 수 없습니다:\n${usedIn.join('\n')}\n\n공시항목 탭에서 지표를 먼저 제거하세요.`);
+    return;
+  }
+  if (!confirm(`"${key}" 산식을 삭제할까요?`)) return;
+  delete calcData[key];
   card.remove();
   setDirty();
 }
@@ -1398,13 +1411,80 @@ function renderManifest(items) {
   }
 }
 
+/* 지표 ID 선택 드롭다운 (calc_rules 키 목록) */
+function buildCalcKeySelect(currentVal) {
+  const calcKeys = Object.keys(calcData);
+  const opts = calcKeys.map(k => {
+    const lbl = calcData[k]?.label ? ` — ${calcData[k].label}` : '';
+    return `<option value="${esc(k)}"${k === currentVal ? ' selected' : ''}>${esc(k)}${esc(lbl)}</option>`;
+  }).join('');
+  return `<select class="form-input ind-id" onchange="setDirty()">
+    <option value=""${!currentVal ? ' selected' : ''}>— 지표 ID 선택 —</option>
+    ${opts}
+  </select>`;
+}
+
+/* 단일 지표 편집기 행 HTML 생성 */
+function buildIndicatorRowHTML(ind, idx) {
+  const units = ['%', '명', '원', '만원', '개'];
+  const unitOpts = units.map(u => `<option value="${u}"${(ind.unit||'%')===u?' selected':''}>${u}</option>`).join('');
+  const exclStr = ind.exclude_rows ? JSON.stringify(ind.exclude_rows) : '';
+  const srcStr = (ind.sources || []).join(', ');
+  return `
+  <div class="indicator-row" style="border:1px solid #e2e8f0;border-radius:6px;padding:10px;margin-bottom:8px;background:#f8fafc;">
+    <div style="display:flex;gap:8px;margin-bottom:6px;align-items:flex-end;flex-wrap:wrap;">
+      <div style="flex:3;min-width:160px;">
+        <div style="font-size:10px;font-weight:600;color:#64748b;margin-bottom:3px;">지표 ID (calc_rules 키)</div>
+        ${buildCalcKeySelect(ind.id||'')}
+      </div>
+      <div style="flex:2;min-width:120px;">
+        <div style="font-size:10px;font-weight:600;color:#64748b;margin-bottom:3px;">표시명</div>
+        <input class="form-input ind-label" type="text" value="${esc(ind.label||'')}" oninput="setDirty()">
+      </div>
+      <div style="flex:1;min-width:70px;">
+        <div style="font-size:10px;font-weight:600;color:#64748b;margin-bottom:3px;">단위</div>
+        <select class="form-input ind-unit" onchange="setDirty()">${unitOpts}</select>
+      </div>
+      <div style="flex:1;min-width:60px;">
+        <div style="font-size:10px;font-weight:600;color:#64748b;margin-bottom:3px;">소수점</div>
+        <input class="form-input ind-decimal" type="number" min="0" max="4" value="${ind.decimal_places??1}" oninput="setDirty()" style="text-align:center;">
+      </div>
+      <div style="flex:2;min-width:120px;">
+        <div style="font-size:10px;font-weight:600;color:#64748b;margin-bottom:3px;">정렬</div>
+        <select class="form-input ind-sortasc" onchange="setDirty()">
+          <option value="desc"${!ind.sort_asc?' selected':''}>내림차순 (높을수록 1위)</option>
+          <option value="asc"${ind.sort_asc?' selected':''}>오름차순 (낮을수록 1위)</option>
+        </select>
+      </div>
+      <div style="min-width:60px;text-align:center;">
+        <div style="font-size:10px;font-weight:600;color:#64748b;margin-bottom:3px;">대표</div>
+        <input type="radio" class="ind-primary" name="primary-${idx}" ${ind.is_primary?'checked':''} onchange="setDirty()" style="width:18px;height:18px;cursor:pointer;" title="대표 지표 (순위 기준)">
+      </div>
+      <div style="align-self:flex-end;">
+        <button class="btn btn-danger btn-sm" onclick="deleteIndicatorRow(this)" title="지표 삭제">−</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <div style="flex:3;min-width:200px;">
+        <div style="font-size:10px;font-weight:600;color:#64748b;margin-bottom:3px;">소스 파일 (콤마로 구분, 복수 가능)</div>
+        <input class="form-input ind-sources" type="text" value="${esc(srcStr)}" placeholder="공시항목 JSON 파일명" oninput="setDirty()">
+      </div>
+      <div style="flex:2;min-width:160px;">
+        <div style="font-size:10px;font-weight:600;color:#64748b;margin-bottom:3px;">행 제외 (exclude_rows, JSON)</div>
+        <input class="form-input ind-excl" type="text" value="${esc(exclStr)}" placeholder='예: {"계열":["의학계열"]}' oninput="setDirty()">
+      </div>
+    </div>
+  </div>`;
+}
+
 function buildManifestCard(item, idx) {
   const card = document.createElement('div');
   card.className = 'manifest-card';
   card.dataset.idx = idx;
 
   const cols = item.columns || [];
-  const excl = item.exclude_rows ? JSON.stringify(item.exclude_rows) : '';
+  const indicators = item.indicators || [];
+  const indCount = indicators.length;
 
   card.innerHTML = `
     <div class="manifest-card-header" onclick="toggleCard(this)">
@@ -1412,32 +1492,37 @@ function buildManifestCard(item, idx) {
         <div class="manifest-label">${esc(item.label||item.key||'')}</div>
         <div class="manifest-key">${esc(item.key||'')}</div>
       </div>
-      <span style="font-size:12px;color:var(--text-muted);">컬럼 ${cols.length}개 &nbsp; ▾</span>
+      <span style="font-size:12px;color:var(--text-muted);">지표 ${indCount}개 · 컬럼 ${cols.length}개</span>
+      <button class="btn btn-danger btn-sm" onclick="deleteManifestCard(this)" style="margin-left:8px;" title="항목 삭제">삭제</button>
+      <span style="font-size:12px;color:var(--text-muted);margin-left:8px;">▾</span>
     </div>
     <div class="manifest-card-body">
-      <div class="form-row">
+
+      <!-- Section A: 기본 정보 -->
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">기본 정보</div>
+      <div class="form-row" style="margin-bottom:12px;">
         <div class="form-group" style="flex:2;">
           <label>표시명 (label)</label>
           <input class="form-input mf-label" type="text" value="${esc(item.label||'')}" oninput="setDirty()">
         </div>
         <div class="form-group" style="flex:2;">
-          <label>정렬 기준 필드 (sort_key)</label>
-          <input class="form-input mf-sortkey" type="text" value="${esc(item.sort_key||'')}" oninput="setDirty()">
+          <label>공시시기</label>
+          <input class="form-input mf-disclosure-period" type="text" value="${esc(item.disclosure_period||'')}" placeholder="예: 매년 4월" oninput="setDirty()">
         </div>
-        <div class="form-group" style="flex:1;">
-          <label>순위 방향</label>
-          <select class="form-input mf-sortasc" onchange="setDirty()">
-            <option value="desc" ${!item.sort_asc ? 'selected' : ''}>내림차순 (높을수록 1위)</option>
-            <option value="asc"  ${item.sort_asc  ? 'selected' : ''}>오름차순 (낮을수록 1위)</option>
-          </select>
+        <div class="form-group" style="flex:3;">
+          <label>자료기준일</label>
+          <input class="form-input mf-reference-period" type="text" value="${esc(item.reference_period||'')}" placeholder="예: 당해연도 4월 1일 기준" oninput="setDirty()">
         </div>
-      </div>
-      <div class="form-group" style="margin-bottom:12px;">
-        <label>행 제외 조건 (exclude_rows, JSON)</label>
-        <input class="form-input mf-excl" type="text" value="${esc(excl)}" placeholder='예: {"계열":["의학계열"]}' oninput="setDirty()">
-        <div class="form-hint">비어 있으면 제외 없음. 잘못된 JSON은 저장 시 오류 발생.</div>
       </div>
 
+      <!-- Section B: 지표 목록 -->
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">지표 목록 <span style="font-weight:400;font-size:10px;">(대표 지표가 순위 기준)</span></div>
+      <div class="ind-list">
+        ${indicators.map(ind => buildIndicatorRowHTML(ind, idx)).join('')}
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="addIndicatorRow(this)" style="margin-bottom:16px;">+ 지표 추가</button>
+
+      <!-- Section C: 표시 컬럼 -->
       <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">표시 컬럼</div>
       <div class="table-wrap">
         <table class="col-table">
@@ -1462,6 +1547,21 @@ function buildManifestCard(item, idx) {
   return card;
 }
 
+function addIndicatorRow(btn) {
+  const card = btn.closest('.manifest-card');
+  const idx = +card.dataset.idx;
+  const indList = card.querySelector('.ind-list');
+  const div = document.createElement('div');
+  div.innerHTML = buildIndicatorRowHTML({ id:'', label:'', unit:'%', decimal_places:1, sort_asc:false, is_primary:false, sources:[], exclude_rows:null }, idx);
+  indList.appendChild(div.firstElementChild);
+  setDirty();
+}
+
+function deleteIndicatorRow(btn) {
+  btn.closest('.indicator-row').remove();
+  setDirty();
+}
+
 function addColRow(btn) {
   const tbody = btn.closest('.manifest-card-body').querySelector('.col-tbody');
   const tr = document.createElement('tr');
@@ -1479,23 +1579,70 @@ function deleteColRow(btn) {
   btn.closest('tr').remove(); setDirty();
 }
 
+function deleteManifestCard(btn) {
+  const card = btn.closest('.manifest-card');
+  const idx = +card.dataset.idx;
+  const label = manifestData[idx]?.label || manifestData[idx]?.key || `항목 ${idx}`;
+  if (!confirm(`"${label}" 공시항목을 삭제할까요?`)) return;
+  manifestData.splice(idx, 1);
+  // 인덱스 재할당
+  card.parentElement.removeChild(card);
+  document.querySelectorAll('.manifest-card').forEach((c, i) => { c.dataset.idx = i; });
+  setDirty();
+}
+
+function addManifestItem() {
+  const newItem = { key: '', label: '', disclosure_period: '', reference_period: '', description: '', indicators: [], columns: [] };
+  manifestData.push(newItem);
+  const container = document.getElementById('manifest-list');
+  const newCard = buildManifestCard(newItem, manifestData.length - 1);
+  container.appendChild(newCard);
+  // 카드 열기
+  newCard.querySelector('.manifest-card-body').style.display = '';
+  newCard.querySelector('input.mf-label').focus();
+  setDirty();
+}
+
 function applyManifestCard(btn) {
   const card = btn.closest('.manifest-card');
   const idx  = +card.dataset.idx;
   const item = manifestData[idx];
   const msgEl = card.querySelector('.mf-apply-msg');
 
-  const label   = card.querySelector('.mf-label').value.trim();
-  const sortKey = card.querySelector('.mf-sortkey').value.trim();
-  const sortAsc = card.querySelector('.mf-sortasc').value === 'asc';
-  const exclStr = card.querySelector('.mf-excl').value.trim();
+  const label = card.querySelector('.mf-label').value.trim();
+  const disclosurePeriod = card.querySelector('.mf-disclosure-period').value.trim();
+  const referencePeriod = card.querySelector('.mf-reference-period').value.trim();
 
-  let exclude_rows = undefined;
-  if (exclStr) {
-    try { exclude_rows = JSON.parse(exclStr); }
-    catch { alert(`exclude_rows JSON 오류:\n${exclStr}`); return; }
-  }
+  // 지표 목록 수집
+  const indicators = [];
+  const radioName = `primary-${idx}`;
+  card.querySelectorAll('.indicator-row').forEach(row => {
+    const id = row.querySelector('.ind-id').value.trim();
+    if (!id) return;
+    const exclStr = row.querySelector('.ind-excl').value.trim();
+    let exclude_rows = undefined;
+    if (exclStr) {
+      try { exclude_rows = JSON.parse(exclStr); }
+      catch { alert(`지표 "${id}"의 exclude_rows JSON 오류:\n${exclStr}`); return; }
+    }
+    const sourcesRaw = row.querySelector('.ind-sources').value.trim();
+    const sources = sourcesRaw ? sourcesRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const ind = {
+      id,
+      label: row.querySelector('.ind-label').value.trim(),
+      unit: row.querySelector('.ind-unit').value,
+      decimal_places: parseInt(row.querySelector('.ind-decimal').value, 10) || 1,
+      sort_asc: row.querySelector('.ind-sortasc').value === 'asc',
+      is_primary: row.querySelector('.ind-primary').checked,
+      sources: sources.length ? sources : [item.key || ''],
+    };
+    if (exclude_rows) ind.exclude_rows = exclude_rows;
+    indicators.push(ind);
+  });
+  // 대표 지표가 없으면 첫 번째를 대표로
+  if (indicators.length && !indicators.some(i => i.is_primary)) indicators[0].is_primary = true;
 
+  // 표시 컬럼 수집
   const cols = [];
   card.querySelectorAll('.col-tbody tr').forEach(tr => {
     const k = tr.querySelector('.col-key').value.trim();
@@ -1503,11 +1650,11 @@ function applyManifestCard(btn) {
     if (k) cols.push({ key: k, label: l });
   });
 
-  const result = { ...item, label, sort_key: sortKey, columns: cols };
-  if (sortAsc) result.sort_asc = true;
-  else delete result.sort_asc;
-  if (exclude_rows) result.exclude_rows = exclude_rows;
-  else delete result.exclude_rows;
+  const result = { ...item, label, disclosure_period: disclosurePeriod, reference_period: referencePeriod, indicators, columns: cols };
+  // 구버전 필드 제거
+  delete result.sort_key;
+  delete result.sort_asc;
+  delete result.exclude_rows;
 
   manifestData[idx] = result;
   msgEl.textContent = '적용됨 ✓';
@@ -1516,6 +1663,18 @@ function applyManifestCard(btn) {
 }
 
 function collectManifest() {
+  // used_in 자동 재계산: 각 지표 ID가 어느 manifest 항목에 쓰이는지 calcData에 반영
+  const usedIn = {};
+  for (const item of manifestData) {
+    for (const ind of (item.indicators || [])) {
+      if (!ind.id) continue;
+      if (!usedIn[ind.id]) usedIn[ind.id] = [];
+      if (!usedIn[ind.id].includes(item.key)) usedIn[ind.id].push(item.key);
+    }
+  }
+  for (const key of Object.keys(calcData)) {
+    calcData[key] = { ...calcData[key], used_in: usedIn[key] || [] };
+  }
   return manifestData;
 }
 

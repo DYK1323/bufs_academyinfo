@@ -1,80 +1,86 @@
 {
   "전임교원 확보율_학생정원 기준(B/Cx100)": {
-    "label": "전임교원 확보율(학생정원, %)",
-    "exclude_rows": {
-      "계열": [
-        "의학계열"
-      ]
-    },
+    "label": "전임교원 확보율(학생정원)",
+    "visible": false,
     "numerator": [
       "전임교원 현황_학생정원 기준 전임교원(B)"
     ],
     "denominator_base": "교원 법정정원_계_학생정원 기준(C)",
     "denominator_exclude": [],
-    "multiply": 100
+    "multiply": 100,
+    "used_in": ["대학_6-나-(1). 전임교원 1인당 학생 수 및 전임교원 확보율_학과별자료"]
   },
   "전임교원 확보율_재학생 기준(B`/C`x100)": {
-    "label": "전임교원 확보율(재학생, %)",
-    "exclude_rows": {
-      "계열": [
-        "의학계열"
-      ]
-    },
+    "label": "전임교원 확보율(재학생)",
+    "visible": false,
     "numerator": [
       "전임교원 현황_재학생 기준 전임교원(B`)"
     ],
     "denominator_base": "교원 법정정원_계_재학생 기준(C`)",
     "denominator_exclude": [],
-    "multiply": 100
+    "multiply": 100,
+    "used_in": ["대학_6-나-(1). 전임교원 1인당 학생 수 및 전임교원 확보율_학과별자료"]
   },
   "전임교원 확보율": {
-    "label": "전임교원 확보율(%)",
+    "label": "전임교원 확보율",
+    "visible": true,
     "min_of": [
       "전임교원 확보율_학생정원 기준(B/Cx100)",
       "전임교원 확보율_재학생 기준(B`/C`x100)"
-    ]
+    ],
+    "used_in": ["대학_6-나-(1). 전임교원 1인당 학생 수 및 전임교원 확보율_학과별자료"]
   },
   "정원내 입학자": {
     "label": "정원내 입학자",
+    "visible": false,
     "numerator": [
       "입학자_정원내(D)_남",
       "입학자_정원내(D)_여"
     ],
     "denominator_base": "1",
-    "multiply": 1
+    "multiply": 1,
+    "used_in": ["대학_4-다. 신입생 충원 현황_학과별자료"]
   },
   "정원외 입학자": {
     "label": "정원외 입학자",
+    "visible": false,
     "numerator": [
       "입학자_정원외_남",
       "입학자_정원외_여"
     ],
     "denominator_base": "1",
-    "multiply": 1
+    "multiply": 1,
+    "used_in": ["대학_4-다. 신입생 충원 현황_학과별자료"]
   },
   "정원내 신입생 충원율": {
-    "label": "신입생 충원율(%)",
+    "label": "신입생 충원율",
+    "visible": true,
     "numerator": [
       "입학자_정원내(D)_남",
       "입학자_정원내(D)_여"
     ],
     "denominator_base": "모집인원_정원내 (B)",
-    "multiply": 100
+    "multiply": 100,
+    "used_in": ["대학_4-다. 신입생 충원 현황_학과별자료"]
   },
   "중도탈락률(재학생)": {
-    "label": "재학생 중도탈락률(%)",
+    "label": "재학생 중도탈락률",
+    "visible": true,
     "numerator": [
       "사유별 중도탈락 학생_계(B)"
     ],
     "denominator_base": "재적학생 (A)",
-    "multiply": 100
+    "multiply": 100,
+    "used_in": ["대학_4-사. 중도탈락 학생 현황_학교별자료"]
   },
   "중도탈락률(신입생)": {
-    "label": "신입생 중도탈락률(%)",
+    "label": "신입생 중도탈락률",
+    "visible": true,
     "numerator": [
       "사유별 중도탈락 학생(신입생)_계(B`)"
     ],
     "denominator_base": "재적학생 (신입생) (A`)",
-    "multiply": 100
+    "multiply": 100,
+    "used_in": ["대학_4-사. 중도탈락 학생 현황_학교별자료"]
   }
 }

@@ -804,6 +804,22 @@ const Utils = {
     if (n == null || isNaN(n)) return '-';
     return n.toLocaleString('ko-KR', { maximumFractionDigits: decimals, minimumFractionDigits: decimals }) + '%';
   },
+  // 단위 인식 포매터 — unit: '%', '명', '원', '만원', '개' 등
+  formatValue(n, unit, decimals) {
+    if (n == null || isNaN(n)) return '-';
+    if (unit === '%') {
+      const d = decimals ?? 1;
+      return n.toLocaleString('ko-KR', { maximumFractionDigits: d, minimumFractionDigits: d }) + '%';
+    }
+    if (unit === '만원' || unit === '원') {
+      return Math.round(n).toLocaleString('ko-KR') + unit;
+    }
+    if (unit === '명' || unit === '개') {
+      return Math.round(n).toLocaleString('ko-KR') + unit;
+    }
+    const d = decimals ?? 0;
+    return n.toLocaleString('ko-KR', { maximumFractionDigits: d, minimumFractionDigits: d });
+  },
   formatDelta(cur, prev) {
     if (cur == null || prev == null || isNaN(cur) || isNaN(prev)) return '<span class="delta-none">-</span>';
     const diff = cur - prev;
@@ -874,6 +890,36 @@ const Utils = {
   },
 };
 
+// 공시항목 item에서 대표 지표(is_primary) 반환 (없으면 첫 번째, 구버전이면 sort_key 기반 가상 지표)
+function getPrimaryIndicator(item) {
+  if (!item) return null;
+  if (item.indicators?.length) return item.indicators.find(i => i.is_primary) || item.indicators[0];
+  // 구버전 manifest (indicators 없음) → 가상 지표 생성
+  if (item.sort_key) return { id: item.sort_key, unit: '%', decimal_places: 2, sort_asc: item.sort_asc || false };
+  return null;
+}
+
+// 지표(indicators)의 exclude_rows를 calcRules에 주입하여 집계 시 적용
+// min_of 산식의 경우 하위 산식에도 전파
+function buildCalcRulesForItem(calcRules, item) {
+  const indicators = item?.indicators || [];
+  if (!indicators.some(i => i.exclude_rows)) return calcRules;
+  const merged = { ...calcRules };
+  for (const ind of indicators) {
+    if (!ind.exclude_rows) continue;
+    const rule = merged[ind.id];
+    if (!rule) continue;
+    if (rule.min_of) {
+      for (const childKey of rule.min_of) {
+        if (merged[childKey]) merged[childKey] = { ...merged[childKey], exclude_rows: ind.exclude_rows };
+      }
+    } else {
+      merged[ind.id] = { ...rule, exclude_rows: ind.exclude_rows };
+    }
+  }
+  return merged;
+}
+
 /* ═══════════════════════════════════════════════════════
    DataService
 ═══════════════════════════════════════════════════════ */
@@ -906,15 +952,29 @@ const DataService = {
     }
     return map;
   },
-  async fetchItemData(itemKey) {
-    const encodedKey = encodeURIComponent(itemKey);
-    try {
-      const res = await fetch(`${DATA_PATH}${encodedKey}.json`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
-    } catch {
-      return null;
+  async fetchItemData(item) {
+    // item: manifest 항목 객체 또는 문자열 key (하위 호환)
+    const itemKey = typeof item === 'string' ? item : (item?.key ?? '');
+    const indicators = typeof item === 'object' ? (item?.indicators || []) : [];
+    const sources = indicators.length
+      ? [...new Set(indicators.flatMap(ind => ind.sources?.length ? ind.sources : [itemKey]))]
+      : [itemKey];
+
+    if (sources.length === 1) {
+      return this.fetchJSON(`${DATA_PATH}${encodeURIComponent(sources[0])}.json`, null);
     }
+
+    // 복수 소스: 병렬 fetch 후 연도 교집합 필터링
+    const results = await Promise.all(
+      sources.map(src => this.fetchJSON(`${DATA_PATH}${encodeURIComponent(src)}.json`, null))
+    );
+    if (results.some(r => r === null)) return null;
+
+    const getYear = r => parseInt(r['기준연도'] ?? r['기준년도'], 10);
+    const yearSets = results.map(rows => new Set(rows.map(getYear).filter(y => !isNaN(y))));
+    const commonYears = yearSets.reduce((a, b) => new Set([...a].filter(y => b.has(y))));
+
+    return results.flatMap(rows => rows.filter(r => commonYears.has(getYear(r))));
   },
   buildBaseUnivMap(rows) {
     // key: 원본 캠퍼스명(대학명) → value: { 기준대학명 }
@@ -1257,7 +1317,7 @@ const FilterManager = {
     Utils.showLoading();
     document.getElementById('table-card').style.display = 'none';
 
-    const rows = await DataService.fetchItemData(itemKey);
+    const rows = await DataService.fetchItemData(AppState.raw.currentItem || itemKey);
     AppState.raw.항목데이터 = rows || [];
 
     if (!rows) {
@@ -1289,22 +1349,16 @@ const FilterManager = {
       Utils.showEmptyState('no-data');
       return;
     }
-    // 항목별 행 제외 필터 적용 (예: 의학계열 제외)
-    let rows = 항목데이터;
-    const excludeRows = currentItem?.exclude_rows;
-    if (excludeRows) {
-      rows = rows.filter(row =>
-        Object.entries(excludeRows).every(([field, vals]) => !vals.includes(row[field]))
-      );
-    }
+    // 지표의 exclude_rows를 calcRules에 주입 (산식 계산 시 적용)
+    const calcRulesForItem = buildCalcRulesForItem(calcRules, currentItem);
     AppState.computed.aggregated = DataService.aggregateByUniversity(
-      rows, year, calcRules, AppState._baseUnivMap, year - 1, AppState._univInfoMap
+      항목데이터, year, calcRulesForItem, AppState._baseUnivMap, year - 1, AppState._univInfoMap
     );
     // 지역 필터 옵션을 집계 결과에서 갱신
     this.renderAllMultiSelects(AppState.computed.aggregated);
-    // rankKey: manifest sort_key 우선, 없으면 자동 감지 → 데이터 로드 시 고정
-    const itemSortKey = AppState.raw.currentItem?.sort_key || null;
-    const resolvedKey = itemSortKey ||
+    // rankKey: 대표 지표(is_primary) 우선, 없으면 자동 감지 → 데이터 로드 시 고정
+    const primaryInd = getPrimaryIndicator(currentItem);
+    const resolvedKey = primaryInd?.id ||
       DataService.detectPrimaryValueField(AppState.computed.aggregated, calcRules);
     AppState.computed.rankKey = resolvedKey;  // 순위 기준 — 이후 변경 안 됨
     AppState.computed.sortKey = '_rank';  // 표시 정렬 초기값: 순위 오름차순
@@ -1347,7 +1401,7 @@ const FilterManager = {
     // 1단계: rankKey 기준으로 _rank 부여 — 표시 정렬과 무관하게 고정
     // sort_asc=true이면 오름차순(낮을수록 1위), 기본은 내림차순(높을수록 1위)
     if (rankKey) {
-      const sortAsc = AppState.raw.currentItem?.sort_asc === true;
+      const sortAsc = getPrimaryIndicator(AppState.raw.currentItem)?.sort_asc === true;
       const forRank = [...filtered].sort((a, b) => {
         const av = a[rankKey] ?? (sortAsc ? Infinity : -Infinity);
         const bv = b[rankKey] ?? (sortAsc ? Infinity : -Infinity);
@@ -1434,6 +1488,11 @@ const RankingView = {
     const rank = ourRow._rank ?? (ourIdx + 1);  // 고정 순위 사용
     const topPct = Utils.calcTopPercent(rank, total);
     const rankVal = rankKey ? ourRow[rankKey] : null;
+    const primaryInd = getPrimaryIndicator(AppState.raw.currentItem);
+    const rankUnit = primaryInd?.unit || '%';
+    const rankDecimals = primaryInd?.decimal_places ?? 1;
+    const rankValFormatted = Utils.formatValue(rankVal, rankUnit, rankDecimals);
+    const rankValNum = rankValFormatted !== '-' ? rankValFormatted.replace(rankUnit, '') : '-';
 
     kpiEl.innerHTML = `
       <div class="card kpi-card">
@@ -1457,7 +1516,7 @@ const RankingView = {
           ${rankVal != null ? `
           <div class="kpi-stat">
             <div class="kpi-stat-pre">&nbsp;</div>
-            <div class="kpi-stat-value">${Utils.formatPercent(rankVal).replace('%','')}<span class="kpi-stat-unit">%</span></div>
+            <div class="kpi-stat-value">${rankValNum}<span class="kpi-stat-unit">${rankUnit}</span></div>
             <div class="kpi-stat-label">${rankLabel}</div>
           </div>` : ''}
         </div>
@@ -1486,9 +1545,16 @@ const RankingView = {
       ];
     }
 
-    // 숫자/비율 판단 (서식용)
+    // 숫자/비율 판단 (서식용) — indicators에서 단위 조회, 없으면 calcRules 기반 판단
     const ratioKeySet = new Set(Object.keys(calcRules));
     const isRatioCol = (key) => ratioKeySet.has(key) && (calcRules[key]?.multiply ?? 1) > 1;
+    const colIndicatorMap = new Map();
+    for (const ind of (itemConfig?.indicators || [])) colIndicatorMap.set(ind.id, ind);
+    const formatCell = (key, val) => {
+      const ind = colIndicatorMap.get(key);
+      if (ind) return Utils.formatValue(val, ind.unit, ind.decimal_places);
+      return isRatioCol(key) ? Utils.formatPercent(val) : Utils.formatNumber(val);
+    };
 
     // 헤더
     const makeSortIcon = (key) => {
@@ -1540,7 +1606,7 @@ const RankingView = {
         <td class="td-univ">${row.기준대학명}${row._isOurs ? '<span class="our-tag">우리</span>' : ''}</td>
         <td>${row.지역 || '-'}</td>
         <td>${row.설립구분 || '-'}</td>
-        ${columns.map(c => `<td class="td-num">${isRatioCol(c.key) ? Utils.formatPercent(row[c.key]) : Utils.formatNumber(row[c.key])}</td>`).join('')}
+        ${columns.map(c => `<td class="td-num">${formatCell(c.key, row[c.key])}</td>`).join('')}
         <td class="td-delta">${deltaVal}</td>
         <td class="td-percent">${topPct}%</td>`;
       tbody.appendChild(tr);
@@ -1648,19 +1714,12 @@ const TrendView = {
     const currentItem = AppState.raw.currentItem;
     if (!rows.length) return;
 
-    let filteredRows = rows;
-    const excl = currentItem?.exclude_rows;
-    if (excl) {
-      filteredRows = rows.filter(r =>
-        Object.entries(excl).every(([f,vs]) => !vs.includes(r[f]))
-      );
-    }
-
+    const calcRulesForItem = buildCalcRulesForItem(calcRules, currentItem);
     const years = DataService.extractYears(rows);
     const allYears = new Map();
     for (const year of years) {
       const agg = DataService.aggregateByUniversity(
-        filteredRows, year, calcRules, baseUnivMap, null, univInfoMap
+        rows, year, calcRulesForItem, baseUnivMap, null, univInfoMap
       );
       allYears.set(year, agg);
     }
@@ -1738,10 +1797,11 @@ const TrendView = {
       series.push({ name: univName, data, color: CUSTOM_COLORS[idx % CUSTOM_COLORS.length] });
     });
 
+    const trendUnit = getPrimaryIndicator(AppState.raw.currentItem)?.unit || '%';
     this._lastSeries = series;
     if (AppState.trend.yMin === null && AppState.trend.yMax === null) this._applyAutoRange(series);
-    this._renderChart(years, series, label);
-    this._renderTable(years, series);
+    this._renderChart(years, series, label, trendUnit);
+    this._renderTable(years, series, trendUnit);
   },
 
   _applyAutoRange(series) {
@@ -1760,16 +1820,19 @@ const TrendView = {
     document.getElementById('trend-ymax').value = AppState.trend.yMax;
   },
 
-  _renderChart(years, series, label) {
+  _renderChart(years, series, label, unit = '%') {
     const el = document.getElementById('trend-chart');
     if (!el) return;
     if (!this._chart) this._chart = echarts.init(el);
+    const primaryInd = getPrimaryIndicator(AppState.raw.currentItem);
+    const dp = primaryInd?.decimal_places ?? 2;
+    const fmt = v => Utils.formatValue(+v, unit, dp);
     this._chart.setOption({
       tooltip: {
         trigger: 'axis', axisPointer: { type: 'cross' },
         formatter(params) {
           let html = `<b>${params[0].axisValue}년</b><br>`;
-          params.forEach(p => { if (p.value != null) html += `${p.marker}${p.seriesName}: <b>${(+p.value).toFixed(2)}%</b><br>`; });
+          params.forEach(p => { if (p.value != null) html += `${p.marker}${p.seriesName}: <b>${fmt(p.value)}</b><br>`; });
           return html;
         },
       },
@@ -1780,7 +1843,7 @@ const TrendView = {
       yAxis: {
         type: 'value', name: label,
         nameLocation: 'middle', nameGap: 50, nameTextStyle: { fontSize: 11 },
-        axisLabel: { formatter: v => `${(+v).toFixed(2)}%` },
+        axisLabel: { formatter: v => fmt(v) },
         min: AppState.trend.yMin ?? undefined,
         max: AppState.trend.yMax ?? undefined,
       },
@@ -1791,17 +1854,20 @@ const TrendView = {
         symbol: s.isOurs ? 'circle' : 'emptyCircle',
         symbolSize: s.isOurs ? 7 : 5,
         label: s.isOurs ? { show: true, position: 'top', fontSize: 10, color: '#2563EB',
-          formatter: p => p.value != null ? `${(+p.value).toFixed(2)}%` : '' } : { show: false },
+          formatter: p => p.value != null ? fmt(p.value) : '' } : { show: false },
       })),
     }, true);
   },
 
-  _renderTable(years, series) {
+  _renderTable(years, series, unit = '%') {
     const wrap = document.getElementById('trend-table-wrap');
     if (!wrap) return;
+    const primaryInd = getPrimaryIndicator(AppState.raw.currentItem);
+    const dp = primaryInd?.decimal_places ?? 2;
+    const fmt = v => Utils.formatValue(+v, unit, dp);
     const headers = ['<th></th>', ...years.map(y=>`<th>${y}년</th>`)].join('');
     const rows = series.map(s => {
-      const cells = s.data.map(v=>`<td>${v!=null?(+v).toFixed(2)+'%':'-'}</td>`).join('');
+      const cells = s.data.map(v=>`<td>${v!=null?fmt(v):'-'}</td>`).join('');
       return `<tr class="${s.isOurs?'our-row':''}"><td>${s.name}</td>${cells}</tr>`;
     }).join('');
     wrap.innerHTML = `<table class="trend-summary-table"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>`;
