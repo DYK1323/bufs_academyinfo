@@ -10,33 +10,75 @@
   <style>
     /* ── 전역 리셋 ─────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; font-family: 'Pretendard', 'Malgun Gothic', sans-serif; font-size: 14px; color: #2B304A; background: #F0F4FF; }
+    html, body { height: 100%; font-family: 'Pretendard', 'Malgun Gothic', sans-serif; font-size: 14px; color: var(--text-body); background: var(--page-bg); }
 
-    /* ── 색상 토큰 ─────────────────────────────────── */
+    /* ══════════════════════════════════════════════
+       색상 토큰
+    ══════════════════════════════════════════════ */
     :root {
-      --primary: #26C6DA;
-      --primary-dark: #00B8CC;
-      --primary-light: #E0F7FA;
-      --primary-muted: #B2EBF2;
-      --sidebar-bg: #ffffff;
-      --sidebar-border: #e8edf5;
-      --sidebar-active-bg: #E0F7FA;
-      --sidebar-active-bar: #26C6DA;
-      --sidebar-hover: #f5f8ff;
-      --sidebar-text: #64748b;
-      --sidebar-text-active: #007F8C;
-      --page-bg: #F0F4FF;
-      --card-bg: #ffffff;
-      --border: #e2e8f0;
-      --border-light: #f0f4ff;
-      --text-primary: #1B2559;
+      /* ── Primary (청록) ── */
+      --primary:        #118AB2;
+      --primary-dark:   #0C637F;   /* hover */
+      --primary-light:  #E0F7FA;   /* 강조 배경 (our-bg, sidebar-active-bg) */
+      --primary-muted:  #B2EBF2;   /* 뱃지·태그 배경 */
+
+      /* ── 텍스트 ── */
+      --text-body:      #2B304A;   /* body 기본 텍스트 */
+      --text-primary:   #1B2559;   /* 헤딩·강조 */
       --text-secondary: #4A5070;
-      --text-muted: #94a3b8;
-      --up-color: #28C76F;
+      --text-muted:     #94a3b8;
+
+      /* ── 배경 ── */
+      --page-bg:        #F0F4FF;   /* 앱 전체 배경 */
+      --card-bg:        #ffffff;
+      --surface-1:      #f8fafc;   /* 카드 내부·input·thead 배경 (row-alt 통합) */
+      --surface-2:      #f1f5f9;   /* hover 배경 */
+
+      /* ── 테두리 ── */
+      --border:         #e2e8f0;
+      --border-mid:     #cbd5e1;   /* 토글 off·btn hover 테두리 */
+      --border-light:   #f0f4ff;
+
+      /* ── 사이드바 ── */
+      --sidebar-text:        #64748b;
+      --sidebar-text-active: #007F8C;
+
+      /* ── 상태 ── */
+      --up-color:   #28C76F;
       --down-color: #EA5455;
-      --our-bg: #E0F7FA;
-      --our-border: #26C6DA;
-      --row-alt: #f8fafd;
+
+      /* ── 경고 배너 (CORS) ── */
+      --warning-bg:       #fffbeb;
+      --warning-border:   #fcd34d;
+      --warning-text:     #78350f;
+      --warning-code-bg:  #fef3c7;
+
+      /* ── 주의 텍스트 (KPI warn) ── */
+      --caution-text:   #92400e;
+
+      /* ── 인터랙션 ── */
+      --focus-ring:     rgba(37, 99, 235, 0.1);
+      --shadow-toggle:  rgba(0, 0, 0, 0.18);
+
+      /* ── 우리 대학 강조 ── */
+      --our-border:   #26C6DA;   /* = --primary */
+      --our-color:    #2563EB;   /* 추이 차트 우리 대학 라인 */
+
+      /* ── 추이 분석 그룹 색상 ── */
+      --trend-national:   #94a3b8;   /* 전국 평균  = --text-muted */
+      --trend-private:    #f59e0b;   /* 전국 사립 */
+      --trend-non-metro:  #10b981;   /* 비수도권  */
+      --trend-dongnam:    #8b5cf6;   /* 동남권    */
+      --trend-busan:      #ef4444;   /* 부산      */
+
+      /* ── 추이 커스텀 대학 시리즈 ── */
+      --series-1: #f97316;
+      --series-2: #06b6d4;
+      --series-3: #84cc16;
+      --series-4: #ec4899;
+      --series-5: #6366f1;
+
+      /* ── 그림자 ── */
       --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
       --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
     }
@@ -52,8 +94,8 @@
     #sidebar {
       width: 216px;
       min-width: 216px;
-      background: var(--sidebar-bg);
-      border-right: 1px solid var(--sidebar-border);
+      background: var(--card-bg);
+      border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       transition: width 0.22s cubic-bezier(.4,0,.2,1), min-width 0.22s cubic-bezier(.4,0,.2,1);
@@ -68,7 +110,7 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      border-bottom: 1px solid var(--sidebar-border);
+      border-bottom: 1px solid var(--border);
       flex-shrink: 0;
     }
     .sidebar-logo-icon {
@@ -107,10 +149,10 @@
       white-space: nowrap;
       position: relative;
     }
-    .nav-item:hover:not(.disabled) { background: var(--sidebar-hover); }
+    .nav-item:hover:not(.disabled) { background: var(--surface-1); }
     .nav-item.active {
-      background: var(--sidebar-active-bg);
-      box-shadow: inset 3px 0 0 var(--sidebar-active-bar);
+      background: var(--primary-light);
+      box-shadow: inset 3px 0 0 var(--primary);
     }
 
     .nav-icon {
@@ -130,19 +172,19 @@
 
     .sidebar-toggle {
       padding: 10px 10px;
-      border-top: 1px solid var(--sidebar-border);
+      border-top: 1px solid var(--border);
       display: flex; justify-content: flex-end;
       flex-shrink: 0;
     }
     .toggle-btn {
       width: 26px; height: 26px;
-      border: 1px solid var(--border); background: #fff;
+      border: 1px solid var(--border); background: var(--card-bg);
       border-radius: 6px; cursor: pointer;
       color: var(--text-muted); font-size: 13px;
       display: flex; align-items: center; justify-content: center;
       transition: background 0.12s ease, border-color 0.12s ease;
     }
-    .toggle-btn:hover { background: var(--sidebar-hover); border-color: #cbd5e1; }
+    .toggle-btn:hover { background: var(--surface-1); border-color: var(--border-mid); }
 
     /* ── 추이 분석 패널 공통 스타일 ─────────────────── */
     .trend-section-label {
@@ -157,7 +199,7 @@
       transition: background .1s; user-select: none;
       border: 1px solid transparent;
     }
-    .trend-check-item:hover { background: #f8fafc; }
+    .trend-check-item:hover { background: var(--surface-1); }
     .trend-check-item.is-checked {
       background: var(--primary-light);
       border-color: var(--primary-muted);
@@ -167,8 +209,8 @@
     .trend-check-item input[type="checkbox"] { display: none; }
     .chk-dot {
       width: 10px; height: 10px; border-radius: 50%;
-      flex-shrink: 0; background: var(--dot-color, #94a3b8);
-      border: 2px solid var(--dot-color, #94a3b8);
+      flex-shrink: 0; background: var(--dot-color, var(--text-muted));
+      border: 2px solid var(--dot-color, var(--text-muted));
       transition: transform .1s;
     }
     .trend-check-item.is-checked .chk-dot { transform: scale(1.2); }
@@ -176,12 +218,12 @@
       width: 0; flex: 1; height: 28px; padding: 0 6px;
       border: 1px solid var(--border); border-radius: 6px;
       font-size: 12px; font-family: inherit; outline: none;
-      background: #f8fafc;
+      background: var(--surface-1);
     }
-    .trend-axis-input:focus { border-color: var(--primary); background: #fff; }
+    .trend-axis-input:focus { border-color: var(--primary); background: var(--card-bg); }
     .trend-apply-btn {
       width: 100%; height: 28px; border: 1px solid var(--primary);
-      border-radius: 6px; background: var(--primary); color: #fff;
+      border-radius: 6px; background: var(--primary); color: var(--card-bg);
       font-size: 12px; font-family: inherit; font-weight: 600;
       cursor: pointer; margin-top: 6px;
     }
@@ -193,9 +235,9 @@
       width: 100%; height: 28px; padding: 0 8px;
       border: 1px solid var(--border); border-radius: 6px;
       font-size: 12.5px; font-family: inherit; outline: none;
-      background: #f8fafc; margin-bottom: 6px;
+      background: var(--surface-1); margin-bottom: 6px;
     }
-    .trend-univ-input:focus { border-color: var(--primary); background: #fff; }
+    .trend-univ-input:focus { border-color: var(--primary); background: var(--card-bg); }
     .trend-univ-tag {
       display: flex; align-items: center; justify-content: space-between;
       padding: 3px 8px; margin-bottom: 4px;
@@ -217,7 +259,7 @@
     #trend-chart { width: 100%; height: 380px; }
     .trend-summary-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 4px; }
     .trend-summary-table th {
-      background: #f8fafc; padding: 7px 12px; text-align: center;
+      background: var(--surface-1); padding: 7px 12px; text-align: center;
       font-size: 11px; font-weight: 600; color: var(--text-muted);
       border-bottom: 1px solid var(--border); white-space: nowrap;
     }
@@ -226,7 +268,7 @@
       padding: 6px 12px; text-align: center; border-bottom: 1px solid var(--border-light);
     }
     .trend-summary-table td:first-child { text-align: left; font-weight: 500; }
-    .trend-summary-table tr.our-row td { background: var(--our-bg); font-weight: 600; color: var(--primary); }
+    .trend-summary-table tr.our-row td { background: var(--primary-light); font-weight: 600; color: var(--primary); }
     .trend-empty {
       text-align: center; padding: 60px 20px;
       font-size: 13px; color: var(--text-muted);
@@ -245,12 +287,12 @@
     /* ── CORS 경고 배너 ─────────────────────────────── */
     #cors-warning {
       display: none;
-      background: #fffbeb; border-bottom: 1px solid #fcd34d;
+      background: var(--warning-bg); border-bottom: 1px solid var(--warning-border);
       padding: 9px 24px;
-      font-size: 12.5px; color: #78350f;
+      font-size: 12.5px; color: var(--warning-text);
     }
     #cors-warning code {
-      background: #fef3c7; padding: 1px 6px;
+      background: var(--warning-code-bg); padding: 1px 6px;
       border-radius: 3px; font-family: monospace; font-size: 12px;
     }
 
@@ -276,14 +318,14 @@
     .filter-check input[type=checkbox] { display: none; }
     .filter-toggle-track {
       width: 32px; height: 18px; border-radius: 9px;
-      background: #cbd5e1; transition: background 0.18s;
+      background: var(--border-mid); transition: background 0.18s;
       position: relative; flex-shrink: 0;
     }
     .filter-toggle-track::after {
       content: ''; position: absolute;
       top: 2px; left: 2px;
       width: 14px; height: 14px; border-radius: 50%;
-      background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+      background: var(--card-bg); box-shadow: 0 1px 3px var(--shadow-toggle);
       transition: transform 0.18s;
     }
     .filter-check input:checked ~ .filter-toggle-track { background: var(--primary); }
@@ -293,31 +335,31 @@
     .filter-select {
       height: 32px; padding: 0 8px;
       border: 1px solid var(--border); border-radius: 6px;
-      background: var(--row-alt); font-size: 13px; color: var(--text-primary);
+      background: var(--surface-1); font-size: 13px; color: var(--text-primary);
       cursor: pointer; min-width: 140px;
       font-family: inherit;
       transition: border-color 0.12s;
     }
-    .filter-select:hover { border-color: #cbd5e1; }
-    .filter-select:focus { outline: none; border-color: var(--primary); background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+    .filter-select:hover { border-color: var(--border-mid); }
+    .filter-select:focus { outline: none; border-color: var(--primary); background: var(--card-bg); box-shadow: 0 0 0 3px var(--focus-ring); }
 
     /* 커스텀 멀티셀렉트 */
     .multi-select { position: relative; }
     .multi-select-trigger {
       height: 32px; padding: 0 10px;
       border: 1px solid var(--border); border-radius: 6px;
-      background: var(--row-alt); font-size: 13px; color: var(--text-primary);
+      background: var(--surface-1); font-size: 13px; color: var(--text-primary);
       cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 6px;
       font-family: inherit; min-width: 100px;
       transition: border-color 0.12s, background 0.12s;
     }
-    .multi-select-trigger:hover { border-color: #cbd5e1; background: #f1f5f9; }
-    .multi-select-trigger.open { border-color: var(--primary); background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+    .multi-select-trigger:hover { border-color: var(--border-mid); background: var(--surface-2); }
+    .multi-select-trigger.open { border-color: var(--primary); background: var(--card-bg); box-shadow: 0 0 0 3px var(--focus-ring); }
     .multi-select-trigger .arrow { margin-left: auto; font-size: 9px; color: var(--text-muted); }
 
     .multi-select-dropdown {
       display: none; position: absolute; top: calc(100% + 4px); left: 0;
-      background: #fff; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px;
       box-shadow: var(--shadow-md);
       z-index: 200; min-width: 160px; padding: 4px;
       max-height: 280px; overflow-y: auto;
@@ -328,7 +370,7 @@
       padding: 7px 10px; border-radius: 5px;
       cursor: pointer; font-size: 13px; color: var(--text-primary);
     }
-    .multi-select-item:hover { background: var(--row-alt); }
+    .multi-select-item:hover { background: var(--surface-1); }
     .multi-select-item input[type="checkbox"] { accent-color: var(--primary); width: 14px; height: 14px; cursor: pointer; }
     .multi-select-divider { height: 1px; background: var(--border-light); margin: 4px 0; }
 
@@ -338,7 +380,7 @@
       height: 26px; padding: 0 10px;
       border: 1.5px solid var(--border); border-radius: 20px;
       font-size: 12px; font-weight: 500; color: var(--text-muted);
-      background: var(--row-alt);
+      background: var(--surface-1);
       cursor: pointer; user-select: none; white-space: nowrap;
       transition: border-color 0.12s, background 0.12s, color 0.12s;
     }
@@ -351,14 +393,14 @@
 
     /* 세그먼트 토글 */
     .seg-group { display: flex; align-items: center; gap: 6px; }
-    .seg-toggle { display: flex; background: var(--row-alt); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; padding: 2px; gap: 2px; }
+    .seg-toggle { display: flex; background: var(--surface-1); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; padding: 2px; gap: 2px; }
     .seg-btn {
       height: 26px; padding: 0 10px;
       border: none; background: transparent; font-size: 12.5px; color: var(--text-secondary);
       cursor: pointer; font-family: inherit; white-space: nowrap;
       border-radius: 4px; transition: background 0.12s, color 0.12s;
     }
-    .seg-btn.active { background: #fff; color: var(--primary); font-weight: 600; box-shadow: var(--shadow-sm); }
+    .seg-btn.active { background: var(--card-bg); color: var(--primary); font-weight: 600; box-shadow: var(--shadow-sm); }
     .seg-btn:hover:not(.active) { background: rgba(255,255,255,0.6); color: var(--text-primary); }
     .seg-label { font-size: 11px; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
 
@@ -406,7 +448,7 @@
     .kpi-stat-unit { font-size: 14px; font-weight: 600; color: var(--primary); letter-spacing: 0; }
     .kpi-stat-label { font-size: 10.5px; color: var(--text-muted); margin-top: 5px; font-weight: 500; }
     .kpi-rank-detail { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
-    .kpi-warn { font-size: 12.5px; color: #92400e; }
+    .kpi-warn { font-size: 12.5px; color: var(--caution-text); }
 
     /* ── 테이블 컨트롤 ───────────────────────────────── */
     #table-controls {
@@ -419,25 +461,24 @@
       height: 30px; padding: 0 10px 0 30px;
       border: 1px solid var(--border); border-radius: 6px;
       font-size: 13px; font-family: inherit; color: var(--text-primary);
-      background: #f8fafc url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 9px center;
+      background: var(--surface-1) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 9px center;
       outline: none; width: 180px; flex-shrink: 0;
       transition: border-color 0.12s, width 0.2s;
     }
-    #table-search:focus { border-color: var(--primary); background-color: #fff; width: 220px; }
+    #table-search:focus { border-color: var(--primary); background-color: var(--card-bg); width: 220px; }
     .table-info { font-size: 12px; color: var(--text-muted); flex: 1; }
-    .table-info { font-size: 12px; color: var(--text-muted); }
     .table-info strong { color: var(--text-secondary); font-weight: 600; }
     .btn {
       height: 30px; padding: 0 12px;
       border: 1px solid var(--border); border-radius: 6px;
-      background: #fff; font-size: 12.5px; color: var(--text-secondary);
+      background: var(--card-bg); font-size: 12.5px; color: var(--text-secondary);
       cursor: pointer; display: flex; align-items: center; gap: 5px;
       font-family: inherit; white-space: nowrap;
       transition: background 0.12s, border-color 0.12s;
     }
-    .btn:hover { background: var(--row-alt); border-color: #cbd5e1; }
+    .btn:hover { background: var(--surface-1); border-color: var(--border-mid); }
     .btn-primary {
-      background: var(--primary); color: #fff; border-color: var(--primary);
+      background: var(--primary); color: var(--card-bg); border-color: var(--primary);
     }
     .btn-primary:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
 
@@ -448,14 +489,14 @@
     }
     #ranking-table thead th {
       position: sticky; top: 0; z-index: 10;
-      background: #f8fafc; border-bottom: 1px solid var(--border);
+      background: var(--surface-1); border-bottom: 1px solid var(--border);
       padding: 9px 14px; text-align: left;
       font-size: 11.5px; font-weight: 600; color: var(--text-muted);
       white-space: nowrap; user-select: none;
       text-transform: uppercase; letter-spacing: 0.04em;
     }
     #ranking-table thead th.sortable { cursor: pointer; }
-    #ranking-table thead th.sortable:hover { color: var(--primary); background: #f1f5f9; }
+    #ranking-table thead th.sortable:hover { color: var(--primary); background: var(--surface-2); }
     #ranking-table thead th.sort-active { color: var(--primary); }
     .sort-icon { font-size: 9px; margin-left: 4px; color: var(--text-muted); }
     .sort-icon.asc::after { content: '▲'; }
@@ -464,9 +505,9 @@
 
     #ranking-table tbody tr { border-bottom: 1px solid var(--border-light); transition: background 0.08s; }
     #ranking-table tbody tr:last-child { border-bottom: none; }
-    #ranking-table tbody tr:hover { background: #f8fafc; }
+    #ranking-table tbody tr:hover { background: var(--surface-1); }
     #ranking-table tbody tr.our-university {
-      background: var(--our-bg) !important;
+      background: var(--primary-light) !important;
     }
     #ranking-table tbody tr.our-university td:first-child {
       box-shadow: inset 2px 0 0 var(--our-border);
@@ -477,13 +518,11 @@
       font-size: 12.5px; font-weight: 600; color: var(--text-muted);
       text-align: center; min-width: 42px;
     }
-    .td-rank.top3 {
-      color: var(--primary); font-weight: 700;
-    }
+    .td-rank.top3 { color: var(--primary); font-weight: 700; }
     .td-univ { font-weight: 500; color: var(--text-primary); }
     .td-univ .our-tag {
       display: inline-block;
-      font-size: 9.5px; background: var(--primary); color: #fff;
+      font-size: 9.5px; background: var(--primary); color: var(--card-bg);
       padding: 1px 5px; border-radius: 3px; margin-left: 6px;
       font-weight: 700; vertical-align: middle;
     }
@@ -503,23 +542,21 @@
     .page-btn {
       min-width: 30px; height: 30px; padding: 0 7px;
       border: 1px solid var(--border); border-radius: 6px;
-      background: #fff; font-size: 12.5px; color: var(--text-secondary);
+      background: var(--card-bg); font-size: 12.5px; color: var(--text-secondary);
       cursor: pointer; display: flex; align-items: center; justify-content: center;
       font-family: inherit; transition: background 0.1s, border-color 0.1s;
     }
-    .page-btn:hover:not(:disabled):not(.active) { background: var(--row-alt); border-color: #cbd5e1; }
-    .page-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 600; }
+    .page-btn:hover:not(:disabled):not(.active) { background: var(--surface-1); border-color: var(--border-mid); }
+    .page-btn.active { background: var(--primary); color: var(--card-bg); border-color: var(--primary); font-weight: 600; }
     .page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
     /* ── 빈 상태 ─────────────────────────────────────── */
-    .empty-state {
-      padding: 56px 24px; text-align: center;
-    }
+    .empty-state { padding: 56px 24px; text-align: center; }
     .empty-icon { font-size: 40px; margin-bottom: 14px; opacity: 0.6; }
     .empty-title { font-size: 15px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
     .empty-desc { font-size: 13px; color: var(--text-muted); line-height: 1.7; }
     .empty-desc code {
-      background: var(--row-alt); padding: 2px 6px;
+      background: var(--surface-1); padding: 2px 6px;
       border-radius: 4px; font-family: monospace; font-size: 12px;
       color: var(--text-secondary);
     }
@@ -541,8 +578,8 @@
     /* ── 모바일 네비 바 ── */
     #mobile-nav {
       display: none;
-      background: var(--sidebar-bg);
-      border-bottom: 1px solid var(--sidebar-border);
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
       padding: 0 14px;
       gap: 4px;
     }
@@ -587,8 +624,8 @@
       </div>
     </div>
 
-    <div style="padding: 8px 10px; border-top: 1px solid var(--sidebar-border);">
-      <a href="admin.html" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;font-size:12px;color:var(--text-muted);text-decoration:none;transition:background 0.1s;" onmouseover="this.style.background='var(--sidebar-hover)'" onmouseout="this.style.background=''">
+    <div style="padding: 8px 10px; border-top: 1px solid var(--border);">
+      <a href="admin.html" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;font-size:12px;color:var(--text-muted);text-decoration:none;transition:background 0.1s;" onmouseover="this.style.background='var(--surface-1)'" onmouseout="this.style.background=''">
         <span>⚙️</span>
         <span class="nav-label">관리자</span>
       </a>
@@ -669,10 +706,8 @@
 
       <!-- 순위보기 뷰 -->
       <div id="ranking-view">
-        <!-- KPI 바 -->
         <div id="kpi-bar"></div>
 
-        <!-- 테이블 카드 -->
         <div class="card" id="table-card" style="display:none;">
           <div id="table-controls">
             <div class="table-info" id="table-info"></div>
@@ -688,7 +723,6 @@
           <div id="pagination"></div>
         </div>
 
-        <!-- 빈 상태 -->
         <div id="empty-state" class="card">
           <div class="empty-state">
             <div class="empty-icon">📋</div>
@@ -700,14 +734,13 @@
 
       <!-- 추이 분석 뷰 -->
       <div id="trend-view">
-        <!-- 좌측 패널 -->
         <div id="trend-side-panel" class="card">
           <div class="trend-section-label">비교 그룹</div>
-          <label class="trend-check-item is-checked" style="--dot-color:#94a3b8"><input type="checkbox" data-group="전국 평균" checked><span class="chk-dot"></span>전국 평균</label>
-          <label class="trend-check-item is-checked" style="--dot-color:#f59e0b"><input type="checkbox" data-group="전국 사립" checked><span class="chk-dot"></span>전국 사립 평균</label>
-          <label class="trend-check-item is-checked" style="--dot-color:#10b981"><input type="checkbox" data-group="비수도권" checked><span class="chk-dot"></span>비수도권 평균</label>
-          <label class="trend-check-item is-checked" style="--dot-color:#8b5cf6"><input type="checkbox" data-group="동남권" checked><span class="chk-dot"></span>동남권 평균</label>
-          <label class="trend-check-item" style="--dot-color:#ef4444"><input type="checkbox" data-group="부산"><span class="chk-dot"></span>부산 평균</label>
+          <label class="trend-check-item is-checked" style="--dot-color:var(--trend-national)"><input type="checkbox" data-group="전국 평균" checked><span class="chk-dot"></span>전국 평균</label>
+          <label class="trend-check-item is-checked" style="--dot-color:var(--trend-private)"><input type="checkbox" data-group="전국 사립" checked><span class="chk-dot"></span>전국 사립 평균</label>
+          <label class="trend-check-item is-checked" style="--dot-color:var(--trend-non-metro)"><input type="checkbox" data-group="비수도권" checked><span class="chk-dot"></span>비수도권 평균</label>
+          <label class="trend-check-item is-checked" style="--dot-color:var(--trend-dongnam)"><input type="checkbox" data-group="동남권" checked><span class="chk-dot"></span>동남권 평균</label>
+          <label class="trend-check-item" style="--dot-color:var(--trend-busan)"><input type="checkbox" data-group="부산"><span class="chk-dot"></span>부산 평균</label>
           <div class="trend-section-label" style="margin-top:14px;">대학 추가 비교</div>
           <input class="trend-univ-input" id="trend-univ-input" list="trend-univ-list" placeholder="대학명 검색…" autocomplete="off">
           <datalist id="trend-univ-list"></datalist>
@@ -744,6 +777,11 @@
 'use strict';
 
 /* ═══════════════════════════════════════════════════════
+   CSS 변수 읽기 헬퍼 — JS에서 토큰을 단일 소스로 참조
+═══════════════════════════════════════════════════════ */
+const cssVar = (token) => getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+
+/* ═══════════════════════════════════════════════════════
    상수
 ═══════════════════════════════════════════════════════ */
 const OUR_UNIV = '부산외국어대학교';
@@ -758,38 +796,38 @@ const AppState = {
     항목키: null,
     연도: null,
     지역: [],
-    설립Quick: '전체',     // '전체' | '사립'
-    특별법제외: true,      // 특별법국립·특별법법인·기타 제외 여부
-    지역그룹: '전국',      // '전국' | '비수도권' | '동남권' | '부산'
-    대학구분그룹: '일반대학', // '전체' | '일반대학' | '교육대학포함'
+    설립Quick: '전체',
+    특별법제외: true,
+    지역그룹: '전국',
+    대학구분그룹: '일반대학',
   },
   raw: {
     manifest: [],
     기준대학: [],
     항목데이터: [],
     calcRules: {},
-    currentItem: null,   // 현재 선택된 manifest 항목 {key, label, columns?, sort_key?}
+    currentItem: null,
   },
   computed: {
     aggregated: [],
     filtered: [],
     sorted: [],
     currentPage: 1,
-    rankKey: null,   // 순위 기준 (데이터 로드 시 고정, 변경 안 됨)
-    sortKey: '_rank', // 표시 정렬 기준 (헤더 클릭으로 변경)
+    rankKey: null,
+    sortKey: '_rank',
     sortDir: 'asc',
-    nameQuery: '',   // 대학명 검색어
+    nameQuery: '',
   },
   trend: {
     groups: new Set(['전국 평균', '전국 사립', '비수도권', '동남권']),
     customUnivs: [],
-    allYears: null,     // Map<year, university[]>
-    selectedYears: new Set(), // 비어있으면 전체 연도
+    allYears: null,
+    selectedYears: new Set(),
     yMin: null,
     yMax: null,
   },
   _baseUnivMap: new Map(),
-  _univInfoMap: new Map(),  // 학교명 → { 지역, 설립구분, 대학구분 }
+  _univInfoMap: new Map(),
 };
 
 /* ═══════════════════════════════════════════════════════
@@ -804,19 +842,14 @@ const Utils = {
     if (n == null || isNaN(n)) return '-';
     return n.toLocaleString('ko-KR', { maximumFractionDigits: decimals, minimumFractionDigits: decimals }) + '%';
   },
-  // 단위 인식 포매터 — unit: '%', '명', '원', '만원', '개' 등
   formatValue(n, unit, decimals) {
     if (n == null || isNaN(n)) return '-';
     if (unit === '%') {
       const d = decimals ?? 1;
       return n.toLocaleString('ko-KR', { maximumFractionDigits: d, minimumFractionDigits: d }) + '%';
     }
-    if (unit === '만원' || unit === '원') {
-      return Math.round(n).toLocaleString('ko-KR') + unit;
-    }
-    if (unit === '명' || unit === '개') {
-      return Math.round(n).toLocaleString('ko-KR') + unit;
-    }
+    if (unit === '만원' || unit === '원') return Math.round(n).toLocaleString('ko-KR') + unit;
+    if (unit === '명' || unit === '개') return Math.round(n).toLocaleString('ko-KR') + unit;
     const d = decimals ?? 0;
     return n.toLocaleString('ko-KR', { maximumFractionDigits: d, minimumFractionDigits: d });
   },
@@ -846,16 +879,16 @@ const Utils = {
     const kpiBar = document.getElementById('kpi-bar');
     if (emptyEl) {
       emptyEl.style.display = '';
-      emptyEl.innerHTML = '<div class="loading-wrap"><div class="spinner"></div><span style="color:#64748b;font-size:13px;">데이터 불러오는 중...</span></div>';
+      emptyEl.innerHTML = '<div class="loading-wrap"><div class="spinner"></div><span style="font-size:13px;color:var(--sidebar-text)">데이터 불러오는 중...</span></div>';
     }
     if (tableCard) tableCard.style.display = 'none';
     if (kpiBar) kpiBar.innerHTML = '';
   },
   showEmptyState(reason) {
     const messages = {
-      'no-item': { icon: '📋', title: '공시 항목을 선택해 주세요', desc: '상단 필터에서 공시 항목을 선택하면<br>전국 대학 순위 데이터가 표시됩니다.' },
-      'no-data': { icon: '📂', title: '데이터가 없습니다', desc: '<code>normalize_gui.py</code>로 데이터를 먼저 처리해 주세요.<br>처리 후 <code>data/</code> 폴더에 JSON 파일이 생성됩니다.' },
-      'fetch-error': { icon: '⚠️', title: '데이터를 불러오지 못했습니다', desc: '로컬에서 실행 중이라면:<br><code>python -m http.server 8080</code> 실행 후<br><code>http://localhost:8080</code>으로 접속하세요.' },
+      'no-item':    { icon: '📋', title: '공시 항목을 선택해 주세요', desc: '상단 필터에서 공시 항목을 선택하면<br>전국 대학 순위 데이터가 표시됩니다.' },
+      'no-data':    { icon: '📂', title: '데이터가 없습니다', desc: '<code>normalize_gui.py</code>로 데이터를 먼저 처리해 주세요.<br>처리 후 <code>data/</code> 폴더에 JSON 파일이 생성됩니다.' },
+      'fetch-error':{ icon: '⚠️', title: '데이터를 불러오지 못했습니다', desc: '로컬에서 실행 중이라면:<br><code>python -m http.server 8080</code> 실행 후<br><code>http://localhost:8080</code>으로 접속하세요.' },
       'no-results': { icon: '🔍', title: '조건에 해당하는 대학이 없습니다', desc: '필터 조건을 조정해 보세요.' },
     };
     const m = messages[reason] || messages['no-item'];
@@ -881,26 +914,19 @@ const Utils = {
     const blob = new Blob([BOM + header + '\n' + body], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
   },
 };
 
-// 공시항목 item에서 대표 지표(is_primary) 반환 (없으면 첫 번째, 구버전이면 sort_key 기반 가상 지표)
 function getPrimaryIndicator(item) {
   if (!item) return null;
   if (item.indicators?.length) return item.indicators.find(i => i.is_primary) || item.indicators[0];
-  // 구버전 manifest (indicators 없음) → 가상 지표 생성
   if (item.sort_key) return { id: item.sort_key, unit: '%', decimal_places: 2, sort_asc: item.sort_asc || false };
   return null;
 }
 
-// 지표(indicators)의 exclude_rows를 calcRules에 주입하여 집계 시 적용
-// min_of 산식의 경우 하위 산식에도 전파
 function buildCalcRulesForItem(calcRules, item) {
   const indicators = item?.indicators || [];
   if (!indicators.some(i => i.exclude_rows)) return calcRules;
@@ -929,60 +955,34 @@ const DataService = {
       const res = await fetch(path);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.json();
-    } catch {
-      return fallback;
-    }
+    } catch { return fallback; }
   },
-  async fetchManifest() {
-    return this.fetchJSON(`${DATA_PATH}manifest.json`, []);
-  },
-  async fetchBaseUnivData() {
-    return this.fetchJSON(`${DATA_PATH}기준대학.json`, []);
-  },
-  async fetchCalcRules() {
-    return this.fetchJSON('./calc_rules.json', {});
-  },
-  async fetchUnivInfo() {
-    return this.fetchJSON(`${DATA_PATH}대학기본정보.json`, []);
-  },
+  async fetchManifest()    { return this.fetchJSON(`${DATA_PATH}manifest.json`, []); },
+  async fetchBaseUnivData(){ return this.fetchJSON(`${DATA_PATH}기준대학.json`, []); },
+  async fetchCalcRules()   { return this.fetchJSON('./calc_rules.json', {}); },
+  async fetchUnivInfo()    { return this.fetchJSON(`${DATA_PATH}대학기본정보.json`, []); },
   buildUnivInfoMap(rows) {
     const map = new Map();
-    for (const row of rows) {
-      if (row['학교명']) map.set(row['학교명'], row);
-    }
+    for (const row of rows) { if (row['학교명']) map.set(row['학교명'], row); }
     return map;
   },
   async fetchItemData(item) {
-    // item: manifest 항목 객체 또는 문자열 key (하위 호환)
     const itemKey = typeof item === 'string' ? item : (item?.key ?? '');
     const indicators = typeof item === 'object' ? (item?.indicators || []) : [];
     const sources = indicators.length
       ? [...new Set(indicators.flatMap(ind => ind.sources?.length ? ind.sources : [itemKey]))]
       : [itemKey];
-
-    if (sources.length === 1) {
-      return this.fetchJSON(`${DATA_PATH}${encodeURIComponent(sources[0])}.json`, null);
-    }
-
-    // 복수 소스: 병렬 fetch 후 연도 교집합 필터링
-    const results = await Promise.all(
-      sources.map(src => this.fetchJSON(`${DATA_PATH}${encodeURIComponent(src)}.json`, null))
-    );
+    if (sources.length === 1) return this.fetchJSON(`${DATA_PATH}${encodeURIComponent(sources[0])}.json`, null);
+    const results = await Promise.all(sources.map(src => this.fetchJSON(`${DATA_PATH}${encodeURIComponent(src)}.json`, null)));
     if (results.some(r => r === null)) return null;
-
     const getYear = r => parseInt(r['기준연도'] ?? r['기준년도'], 10);
     const yearSets = results.map(rows => new Set(rows.map(getYear).filter(y => !isNaN(y))));
     const commonYears = yearSets.reduce((a, b) => new Set([...a].filter(y => b.has(y))));
-
     return results.flatMap(rows => rows.filter(r => commonYears.has(getYear(r))));
   },
   buildBaseUnivMap(rows) {
-    // key: 원본 캠퍼스명(대학명) → value: { 기준대학명 }
     const map = new Map();
-    for (const row of rows) {
-      const key = row['대학명'];
-      if (key) map.set(key, row);
-    }
+    for (const row of rows) { const key = row['대학명']; if (key) map.set(key, row); }
     return map;
   },
   extractYears(rows) {
@@ -992,23 +992,17 @@ const DataService = {
     }).filter(y => y != null && !isNaN(y)))];
     return years.sort((a, b) => b - a);
   },
-  // 학과별 행 → 대학+연도 단위 SUM 집계 + 비율 계산 + 기준대학 JOIN
   aggregateByUniversity(rows, targetYear, calcRules, baseUnivMap, prevYear = null, univInfoMap = new Map()) {
-    // 비율 키 목록 (SUM 제외 대상)
     const ratioKeys = new Set(Object.keys(calcRules));
-
-    // 대상 연도 필터
     const getYear = r => parseInt(r['기준연도'] ?? r['기준년도'], 10);
     const yearRows = rows.filter(r => getYear(r) === targetYear);
     const prevRows = prevYear != null ? rows.filter(r => getYear(r) === prevYear) : [];
-
     const METRO_REGIONS = new Set(['서울', '경기', '인천']);
+
     const groupBy = (rowSet) => {
       const groups = new Map();
       for (const row of rowSet) {
-        // normalize_gui.py가 파싱한 '대학명' 우선, 없으면 '학교' fallback
         const parsedName = row['대학명'] || row['학교'] || '(미확인)';
-        // 통폐합 등 기준대학.json에 등록된 경우 기준대학명으로 치환
         const key = baseUnivMap.get(parsedName)?.['기준대학명'] || parsedName;
         if (!groups.has(key)) groups.set(key, []);
         groups.get(key).push(row);
@@ -1021,18 +1015,13 @@ const DataService = {
       const result = {};
       const firstRow = groupRows[0];
       for (const field of Object.keys(firstRow)) {
-        if (ratioKeys.has(field)) continue; // 비율 필드 SUM 제외
+        if (ratioKeys.has(field)) continue;
         const nums = groupRows.map(r => r[field]).filter(v => typeof v === 'number' && !isNaN(v));
-        if (nums.length > 0) {
-          result[field] = nums.reduce((a, b) => a + b, 0);
-        } else {
-          result[field] = firstRow[field]; // 문자열 필드: 첫 행 값 유지
-        }
+        result[field] = nums.length > 0 ? nums.reduce((a, b) => a + b, 0) : firstRow[field];
       }
       return result;
     };
 
-    // 특정 필드들을 raw rows에서 합산 (exclude_rows 적용 후)
     const sumFields = (filteredRows, fields) => {
       const result = {};
       for (const field of fields) {
@@ -1044,15 +1033,11 @@ const DataService = {
 
     const applyCalcRules = (summed, rawRows) => {
       const result = { ...summed };
-      // 1단계: 일반 산식 (numerator/denominator)
       for (const [key, rule] of Object.entries(calcRules)) {
         if (rule.min_of) continue;
         let num, den;
-        // calc_rule에 exclude_rows가 있으면 raw rows를 필터 후 별도 합산
         if (rule.exclude_rows && rawRows) {
-          const filtered = rawRows.filter(r =>
-            Object.entries(rule.exclude_rows).every(([f, vs]) => !vs.includes(r[f]))
-          );
+          const filtered = rawRows.filter(r => Object.entries(rule.exclude_rows).every(([f, vs]) => !vs.includes(r[f])));
           const needed = [...(rule.numerator || []), rule.denominator_base, ...(rule.denominator_exclude || [])];
           const fs = sumFields(filtered, needed);
           num = (rule.numerator || []).reduce((acc, f) => acc + (fs[f] ?? result[f] ?? 0), 0);
@@ -1067,7 +1052,6 @@ const DataService = {
         }
         result[key] = den > 0 ? (num / den) * (rule.multiply ?? 1) : null;
       }
-      // 2단계: min_of (1단계 결과를 참조)
       for (const [key, rule] of Object.entries(calcRules)) {
         if (!rule.min_of) continue;
         const vals = rule.min_of.map(k => result[k]).filter(v => v != null && !isNaN(v));
@@ -1078,43 +1062,28 @@ const DataService = {
 
     const currentGroups = groupBy(yearRows);
     const prevGroups = prevYear != null ? groupBy(prevRows) : new Map();
-
     const result = [];
     for (const [univName, univRows] of currentGroups) {
       const summed = sumGroup(univRows);
       const withRatios = applyCalcRules(summed, univRows);
-
-      // 속성: 대학기본정보.json(본교 기준) 우선, 없으면 raw data fallback
       const info = univInfoMap.get(univName) || {};
       const 지역 = info['지역'] || univRows[0]['지역'] || '미확인';
       const 설립구분 = info['설립구분'] || univRows[0]['설립구분'] || '미확인';
       const 대학구분 = info['대학구분'] || univRows[0]['학교종류'] || '미확인';
       const 수도권여부 = METRO_REGIONS.has(지역) ? 'Y' : 'N';
-
-      // 전년도 집계
       let prevSummed = null;
       if (prevGroups.has(univName)) {
         const ps = sumGroup(prevGroups.get(univName));
         prevSummed = applyCalcRules(ps, prevGroups.get(univName));
       }
-
-      result.push({
-        기준대학명: univName,
-        지역, 설립구분, 대학구분, 수도권여부,
-        ...withRatios,
-        _prev: prevSummed,
-        _isOurs: univName === OUR_UNIV,
-      });
+      result.push({ 기준대학명: univName, 지역, 설립구분, 대학구분, 수도권여부, ...withRatios, _prev: prevSummed, _isOurs: univName === OUR_UNIV });
     }
     return result;
   },
-  // 어떤 필드를 기본 정렬 기준으로 쓸지 결정
   detectPrimaryValueField(aggregated, calcRules) {
     if (!aggregated.length) return null;
     const calcKeys = Object.keys(calcRules);
-    // 비율 지표가 있으면 첫 번째를 기본 정렬
     if (calcKeys.length) return calcKeys[0];
-    // 없으면 숫자 필드 중 첫 번째
     const sample = aggregated[0];
     for (const [k, v] of Object.entries(sample)) {
       if (k.startsWith('_') || ['기준대학명','지역','설립구분','대학구분','수도권여부','기준연도'].includes(k)) continue;
@@ -1129,44 +1098,18 @@ const DataService = {
 ═══════════════════════════════════════════════════════ */
 const FilterManager = {
   _msState: {},
-
   init() {
-    // 항목 드롭다운
-    document.getElementById('filter-item').addEventListener('change', e => {
-      this.onItemChange(e.target.value || null);
-    });
-    // 연도 드롭다운
-    document.getElementById('filter-year').addEventListener('change', e => {
-      this.onYearChange(e.target.value ? parseInt(e.target.value) : null);
-    });
-    // 대학구분 그룹 토글
+    document.getElementById('filter-item').addEventListener('change', e => this.onItemChange(e.target.value || null));
+    document.getElementById('filter-year').addEventListener('change', e => this.onYearChange(e.target.value ? parseInt(e.target.value) : null));
     document.getElementById('univ-type-group').addEventListener('click', e => {
-      const btn = e.target.closest('.seg-btn');
-      if (!btn) return;
+      const btn = e.target.closest('.seg-btn'); if (!btn) return;
       AppState.filters.대학구분그룹 = btn.dataset.val;
-      document.querySelectorAll('#univ-type-group .seg-btn').forEach(b => {
-        b.classList.toggle('active', b.dataset.val === btn.dataset.val);
-      });
+      document.querySelectorAll('#univ-type-group .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.val === btn.dataset.val));
       this._triggerRender();
     });
-    // 설립구분 퀵 토글
-    document.getElementById('found-quick').addEventListener('click', e => {
-      const btn = e.target.closest('.seg-btn');
-      if (!btn) return;
-      this.onFoundQuick(btn.dataset.val);
-    });
-    // 특별법·기타 제외 체크박스
-    document.getElementById('chk-special-excl').addEventListener('change', e => {
-      AppState.filters.특별법제외 = e.target.checked;
-      FilterManager.applyFilters();
-    });
-    // 지역그룹 토글
-    document.getElementById('region-group').addEventListener('click', e => {
-      const btn = e.target.closest('.seg-btn');
-      if (!btn) return;
-      this.onRegionGroup(btn.dataset.val);
-    });
-    // 멀티셀렉트 외부 클릭 닫기
+    document.getElementById('found-quick').addEventListener('click', e => { const btn = e.target.closest('.seg-btn'); if (btn) this.onFoundQuick(btn.dataset.val); });
+    document.getElementById('chk-special-excl').addEventListener('change', e => { AppState.filters.특별법제외 = e.target.checked; FilterManager.applyFilters(); });
+    document.getElementById('region-group').addEventListener('click', e => { const btn = e.target.closest('.seg-btn'); if (btn) this.onRegionGroup(btn.dataset.val); });
     document.addEventListener('click', e => {
       for (const msId of Object.keys(this._msState)) {
         const el = document.getElementById(msId);
@@ -1177,211 +1120,80 @@ const FilterManager = {
       }
     });
   },
-
   renderItemSelect(manifest) {
     const sel = document.getElementById('filter-item');
     sel.innerHTML = '<option value="">— 항목 선택 —</option>';
-    if (!manifest.length) {
-      sel.innerHTML += '<option value="" disabled>등록된 항목이 없습니다</option>';
-      return;
-    }
+    if (!manifest.length) { sel.innerHTML += '<option value="" disabled>등록된 항목이 없습니다</option>'; return; }
     for (const item of manifest) {
-      // manifest 항목은 {key, label} 객체 또는 문자열(구버전) 모두 허용
-      const key = item?.key ?? item;
-      const label = item?.label || key;
-      const opt = document.createElement('option');
-      opt.value = key;
-      opt.textContent = label;
+      const key = item?.key ?? item; const label = item?.label || key;
+      const opt = document.createElement('option'); opt.value = key; opt.textContent = label;
       sel.appendChild(opt);
     }
   },
-
   renderYearSelect(years) {
     const sel = document.getElementById('filter-year');
     sel.innerHTML = '';
     for (const y of years) {
-      const opt = document.createElement('option');
-      opt.value = y;
-      opt.textContent = y + '년';
-      sel.appendChild(opt);
+      const opt = document.createElement('option'); opt.value = y; opt.textContent = y + '년'; sel.appendChild(opt);
     }
-    if (years.length) {
-      AppState.filters.연도 = years[0];
-      sel.value = years[0];
-    }
+    if (years.length) { AppState.filters.연도 = years[0]; sel.value = years[0]; }
   },
-
-  renderMultiSelect(msId, options) {
-    const config = this._msState[msId];
-    const container = document.getElementById(msId);
-    const trigger = container.querySelector('.multi-select-trigger');
-    const dropdown = container.querySelector('.multi-select-dropdown');
-
-    // 드롭다운 내용
-    dropdown.innerHTML = `
-      <div class="multi-select-item" data-all>
-        <input type="checkbox" id="${msId}-all" checked>
-        <label for="${msId}-all" style="cursor:pointer;flex:1;">전체 선택</label>
-      </div>
-      <div class="multi-select-divider"></div>
-    `;
-
-    for (const opt of options) {
-      const id = `${msId}-${opt}`;
-      const item = document.createElement('div');
-      item.className = 'multi-select-item';
-      item.innerHTML = `<input type="checkbox" id="${id}" value="${opt}" checked><label for="${id}" style="cursor:pointer;flex:1;">${opt}</label>`;
-      dropdown.appendChild(item);
-    }
-
-    // 토글 열기/닫기
-    trigger.addEventListener('click', e => {
-      e.stopPropagation();
-      const isOpen = dropdown.classList.toggle('open');
-      trigger.classList.toggle('open', isOpen);
-    });
-
-    // 전체 선택 체크박스
-    const allChk = dropdown.querySelector(`#${msId}-all`);
-    allChk.addEventListener('change', () => {
-      const checked = allChk.checked;
-      dropdown.querySelectorAll('input[type="checkbox"]:not([id$="-all"])').forEach(cb => cb.checked = checked);
-      AppState.filters[config.key] = checked ? [] : options.slice();
-      this._updateTriggerLabel(msId);
-      this._triggerRender();
-    });
-
-    // 개별 체크박스
-    dropdown.querySelectorAll(`input[type="checkbox"]:not([id$="-all"])`).forEach(cb => {
-      cb.addEventListener('change', () => {
-        const selected = [...dropdown.querySelectorAll(`input[type="checkbox"]:not([id$="-all"])`)]
-          .filter(c => c.checked).map(c => c.value);
-        AppState.filters[config.key] = selected.length === options.length ? [] : selected;
-        allChk.checked = selected.length === options.length;
-        this._updateTriggerLabel(msId);
-        this._triggerRender();
-      });
-    });
-
-    this._updateTriggerLabel(msId);
-  },
-
-  renderAllMultiSelects(aggregated = null) {
-    // 멀티셀렉트 제거 후 no-op (확장 시 이 함수에 추가)
-  },
-
-  _updateTriggerLabel(msId) {
-    const config = this._msState[msId];
-    const container = document.getElementById(msId);
-    const trigger = container.querySelector('.multi-select-trigger .ms-label');
-    const selected = AppState.filters[config.key];
-    if (!selected.length) {
-      trigger.textContent = config.label;
-    } else {
-      trigger.textContent = `${config.label} (${selected.length}개)`;
-    }
-  },
-
+  renderAllMultiSelects(aggregated = null) { /* 확장 시 추가 */ },
   onFoundQuick(val) {
     AppState.filters.설립Quick = val;
-    document.querySelectorAll('#found-quick .seg-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.val === val);
-    });
+    document.querySelectorAll('#found-quick .seg-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.val === val));
     this._triggerRender();
   },
-
   onRegionGroup(val) {
     AppState.filters.지역그룹 = val;
-    document.querySelectorAll('#region-group .seg-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.val === val);
-    });
+    document.querySelectorAll('#region-group .seg-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.val === val));
     this._triggerRender();
   },
-
   async onItemChange(itemKey) {
     AppState.filters.항목키 = itemKey;
-    // 현재 항목 메타 저장 (columns, sort_key 등 설정 포함)
-    AppState.raw.currentItem = AppState.raw.manifest.find(
-      m => (m?.key ?? m) === itemKey
-    ) || null;
-    AppState.trend.allYears = null;       // 항목 변경 시 추이 캐시 초기화
-    AppState.trend.selectedYears.clear(); // 연도 선택 초기화
-    AppState.trend.yMin = null;           // Y축 범위 초기화 → 자동 계산
-    AppState.trend.yMax = null;
+    AppState.raw.currentItem = AppState.raw.manifest.find(m => (m?.key ?? m) === itemKey) || null;
+    AppState.trend.allYears = null;
+    AppState.trend.selectedYears.clear();
+    AppState.trend.yMin = null; AppState.trend.yMax = null;
     document.getElementById('trend-ymin').value = '';
     document.getElementById('trend-ymax').value = '';
-    if (!itemKey) {
-      Utils.showEmptyState('no-item');
-      return;
-    }
+    if (!itemKey) { Utils.showEmptyState('no-item'); return; }
     Utils.showLoading();
     document.getElementById('table-card').style.display = 'none';
-
     const rows = await DataService.fetchItemData(AppState.raw.currentItem || itemKey);
     AppState.raw.항목데이터 = rows || [];
-
-    if (!rows) {
-      Utils.showEmptyState('fetch-error');
-      return;
-    }
-    if (!rows.length) {
-      Utils.showEmptyState('no-data');
-      return;
-    }
-
-    // 연도 드롭다운 갱신
+    if (!rows) { Utils.showEmptyState('fetch-error'); return; }
+    if (!rows.length) { Utils.showEmptyState('no-data'); return; }
     const years = DataService.extractYears(rows);
     this.renderYearSelect(years);
-
-    // 집계 → 필터 → 렌더
     this._reAggregate();
   },
-
-  onYearChange(year) {
-    AppState.filters.연도 = year;
-    this._reAggregate();
-  },
-
+  onYearChange(year) { AppState.filters.연도 = year; this._reAggregate(); },
   _reAggregate() {
     const { 항목데이터, calcRules, currentItem } = AppState.raw;
     const year = AppState.filters.연도;
-    if (!year || !항목데이터.length) {
-      Utils.showEmptyState('no-data');
-      return;
-    }
-    // 지표의 exclude_rows를 calcRules에 주입 (산식 계산 시 적용)
+    if (!year || !항목데이터.length) { Utils.showEmptyState('no-data'); return; }
     const calcRulesForItem = buildCalcRulesForItem(calcRules, currentItem);
-    AppState.computed.aggregated = DataService.aggregateByUniversity(
-      항목데이터, year, calcRulesForItem, AppState._baseUnivMap, year - 1, AppState._univInfoMap
-    );
-    // 지역 필터 옵션을 집계 결과에서 갱신
+    AppState.computed.aggregated = DataService.aggregateByUniversity(항목데이터, year, calcRulesForItem, AppState._baseUnivMap, year - 1, AppState._univInfoMap);
     this.renderAllMultiSelects(AppState.computed.aggregated);
-    // rankKey: 대표 지표(is_primary) 우선, 없으면 자동 감지 → 데이터 로드 시 고정
     const primaryInd = getPrimaryIndicator(currentItem);
-    const resolvedKey = primaryInd?.id ||
-      DataService.detectPrimaryValueField(AppState.computed.aggregated, calcRules);
-    AppState.computed.rankKey = resolvedKey;  // 순위 기준 — 이후 변경 안 됨
-    AppState.computed.sortKey = '_rank';  // 표시 정렬 초기값: 순위 오름차순
+    const resolvedKey = primaryInd?.id || DataService.detectPrimaryValueField(AppState.computed.aggregated, calcRules);
+    AppState.computed.rankKey = resolvedKey;
+    AppState.computed.sortKey = '_rank';
     AppState.computed.sortDir = 'asc';
     AppState.computed.currentPage = 1;
     this.applyFilters();
-    // 추이 분석 뷰가 활성화된 경우 TrendView도 갱신
-    if (document.getElementById('trend-view')?.classList.contains('visible')) {
-      TrendView.activate();
-    }
+    if (document.getElementById('trend-view')?.classList.contains('visible')) TrendView.activate();
   },
-
   applyFilters() {
     const { aggregated } = AppState.computed;
     const f = AppState.filters;
     const METRO = new Set(['서울', '경기', '인천']);
     const DONGNAM = new Set(['부산', '울산', '경남']);
-    // 대학구분 그룹 필터
-    const 허용대학구분 = f.대학구분그룹 === '전체'        ? null
+    const 허용대학구분 = f.대학구분그룹 === '전체' ? null
                       : f.대학구분그룹 === '교육대학포함' ? new Set(['대학교', '산업대학', '교육대학'])
-                      :                                    new Set(['대학교', '산업대학']);
-
-    let filtered = aggregated.filter(row => {
+                      : new Set(['대학교', '산업대학']);
+    AppState.computed.filtered = aggregated.filter(row => {
       if (허용대학구분 && row.대학구분 && row.대학구분 !== '미확인' && !허용대학구분.has(row.대학구분)) return false;
       if (f.지역.length && !f.지역.includes(row.지역)) return false;
       if (f.설립Quick === '사립' && row.설립구분 !== '사립') return false;
@@ -1391,15 +1203,10 @@ const FilterManager = {
       if (f.지역그룹 === '부산' && row.지역 !== '부산') return false;
       return true;
     });
-    AppState.computed.filtered = filtered;
     this._sortAndRender();
   },
-
   _sortAndRender() {
     const { filtered, sortKey, sortDir, rankKey } = AppState.computed;
-
-    // 1단계: rankKey 기준으로 _rank 부여 — 표시 정렬과 무관하게 고정
-    // sort_asc=true이면 오름차순(낮을수록 1위), 기본은 내림차순(높을수록 1위)
     if (rankKey) {
       const sortAsc = getPrimaryIndicator(AppState.raw.currentItem)?.sort_asc === true;
       const forRank = [...filtered].sort((a, b) => {
@@ -1413,15 +1220,10 @@ const FilterManager = {
     } else {
       filtered.forEach((row, i) => { row._rank = i + 1; });
     }
-
-    // 2단계: 사용자 선택 기준으로 표시 정렬
     if (sortKey) {
       AppState.computed.sorted = [...filtered].sort((a, b) => {
-        const av = a[sortKey] ?? -Infinity;
-        const bv = b[sortKey] ?? -Infinity;
-        if (typeof av === 'string') {
-          return sortDir === 'asc' ? av.localeCompare(bv, 'ko') : bv.localeCompare(av, 'ko');
-        }
+        const av = a[sortKey] ?? -Infinity; const bv = b[sortKey] ?? -Infinity;
+        if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv, 'ko') : bv.localeCompare(av, 'ko');
         return sortDir === 'asc' ? av - bv : bv - av;
       });
     } else {
@@ -1429,10 +1231,7 @@ const FilterManager = {
     }
     RankingView.render();
   },
-
-  _triggerRender() {
-    this.applyFilters();
-  },
+  _triggerRender() { this.applyFilters(); },
 };
 
 /* ═══════════════════════════════════════════════════════
@@ -1440,24 +1239,17 @@ const FilterManager = {
 ═══════════════════════════════════════════════════════ */
 const RankingView = {
   render() {
-    const { sorted, filtered, currentPage } = AppState.computed;
+    const { sorted, currentPage } = AppState.computed;
     const emptyEl = document.getElementById('empty-state');
     const tableCard = document.getElementById('table-card');
-
-    if (!sorted.length) {
-      Utils.showEmptyState('no-results');
-      return;
-    }
-
+    if (!sorted.length) { Utils.showEmptyState('no-results'); return; }
     if (emptyEl) emptyEl.style.display = 'none';
     if (tableCard) tableCard.style.display = '';
-
-    this.renderKpiBar(sorted, filtered);
+    this.renderKpiBar(sorted);
     this.renderTable(sorted, currentPage);
     this.renderPagination(sorted.length, currentPage);
   },
-
-  renderKpiBar(sorted, filtered) {
+  renderKpiBar(sorted) {
     const kpiEl = document.getElementById('kpi-bar');
     const ourIdx = sorted.findIndex(r => r._isOurs);
     const total = sorted.length;
@@ -1465,27 +1257,14 @@ const RankingView = {
     const itemKey = AppState.filters.항목키 || '';
     const year = AppState.filters.연도 || '';
     const calcRules = AppState.raw.calcRules;
-    const rankKey = AppState.computed.rankKey;  // 고정 순위 기준
-
-    const rankLabel = rankKey && calcRules[rankKey]
-      ? calcRules[rankKey].label
-      : rankKey || '';
-
+    const rankKey = AppState.computed.rankKey;
+    const rankLabel = rankKey && calcRules[rankKey] ? calcRules[rankKey].label : rankKey || '';
     if (ourIdx === -1) {
-      kpiEl.innerHTML = `
-        <div class="card kpi-card">
-          <div class="kpi-badge">🏫</div>
-          <div class="kpi-info">
-            <div class="kpi-univ">${OUR_UNIV}</div>
-            <div class="kpi-context">${filterDesc} · ${year}년 · ${itemKey}</div>
-          </div>
-          <div class="kpi-warn">현재 필터 조건에 ${OUR_UNIV}이(가) 포함되어 있지 않습니다.</div>
-        </div>`;
+      kpiEl.innerHTML = `<div class="card kpi-card"><div class="kpi-badge">🏫</div><div class="kpi-info"><div class="kpi-univ">${OUR_UNIV}</div><div class="kpi-context">${filterDesc} · ${year}년 · ${itemKey}</div></div><div class="kpi-warn">현재 필터 조건에 ${OUR_UNIV}이(가) 포함되어 있지 않습니다.</div></div>`;
       return;
     }
-
     const ourRow = sorted[ourIdx];
-    const rank = ourRow._rank ?? (ourIdx + 1);  // 고정 순위 사용
+    const rank = ourRow._rank ?? (ourIdx + 1);
     const topPct = Utils.calcTopPercent(rank, total);
     const rankVal = rankKey ? ourRow[rankKey] : null;
     const primaryInd = getPrimaryIndicator(AppState.raw.currentItem);
@@ -1493,7 +1272,6 @@ const RankingView = {
     const rankDecimals = primaryInd?.decimal_places ?? 1;
     const rankValFormatted = Utils.formatValue(rankVal, rankUnit, rankDecimals);
     const rankValNum = rankValFormatted !== '-' ? rankValFormatted.replace(rankUnit, '') : '-';
-
     kpiEl.innerHTML = `
       <div class="card kpi-card">
         <div class="kpi-badge">🏫</div>
@@ -1503,40 +1281,22 @@ const RankingView = {
           <div class="kpi-rank-detail">${total}개교 중 순위 기준: ${rankLabel || itemKey}</div>
         </div>
         <div class="kpi-stats">
-          <div class="kpi-stat">
-            <div class="kpi-stat-pre">&nbsp;</div>
-            <div class="kpi-stat-value">${topPct}<span class="kpi-stat-unit">%</span></div>
-            <div class="kpi-stat-label">상위 백분율</div>
-          </div>
-          <div class="kpi-stat">
-            <div class="kpi-stat-pre">&nbsp;</div>
-            <div class="kpi-stat-value">${rank}<span class="kpi-stat-unit">위</span></div>
-            <div class="kpi-stat-label">순위 (${total}개교 중)</div>
-          </div>
-          ${rankVal != null ? `
-          <div class="kpi-stat">
-            <div class="kpi-stat-pre">&nbsp;</div>
-            <div class="kpi-stat-value">${rankValNum}<span class="kpi-stat-unit">${rankUnit}</span></div>
-            <div class="kpi-stat-label">${rankLabel}</div>
-          </div>` : ''}
+          <div class="kpi-stat"><div class="kpi-stat-pre">&nbsp;</div><div class="kpi-stat-value">${topPct}<span class="kpi-stat-unit">%</span></div><div class="kpi-stat-label">상위 백분율</div></div>
+          <div class="kpi-stat"><div class="kpi-stat-pre">&nbsp;</div><div class="kpi-stat-value">${rank}<span class="kpi-stat-unit">위</span></div><div class="kpi-stat-label">순위 (${total}개교 중)</div></div>
+          ${rankVal != null ? `<div class="kpi-stat"><div class="kpi-stat-pre">&nbsp;</div><div class="kpi-stat-value">${rankValNum}<span class="kpi-stat-unit">${rankUnit}</span></div><div class="kpi-stat-label">${rankLabel}</div></div>` : ''}
         </div>
       </div>`;
   },
-
   renderTable(sorted, page) {
     const calcRules = AppState.raw.calcRules;
     const { sortKey, sortDir } = AppState.computed;
     const itemConfig = AppState.raw.currentItem;
-
-    // 표시 컬럼 결정: manifest에 columns 설정이 있으면 사용, 없으면 자동 감지
     let columns;
     if (itemConfig?.columns?.length) {
-      columns = itemConfig.columns; // [{key, label}]
+      columns = itemConfig.columns;
     } else {
-      // 자동 감지 (하위 호환)
       const metaFields = new Set(['기준대학명', '지역', '설립구분', '대학구분', '수도권여부', '기준연도']);
-      const numericFields = Object.keys(sorted[0] || {})
-        .filter(k => !k.startsWith('_') && !metaFields.has(k) && typeof sorted[0][k] === 'number');
+      const numericFields = Object.keys(sorted[0] || {}).filter(k => !k.startsWith('_') && !metaFields.has(k) && typeof sorted[0][k] === 'number');
       const ratioKeys = Object.keys(calcRules);
       const rawFields = numericFields.filter(k => !ratioKeys.includes(k));
       columns = [
@@ -1544,8 +1304,6 @@ const RankingView = {
         ...(ratioKeys.length ? [{ key: ratioKeys[0], label: calcRules[ratioKeys[0]]?.label || ratioKeys[0] }] : []),
       ];
     }
-
-    // 숫자/비율 판단 (서식용) — indicators에서 단위 조회, 없으면 calcRules 기반 판단
     const ratioKeySet = new Set(Object.keys(calcRules));
     const isRatioCol = (key) => ratioKeySet.has(key) && (calcRules[key]?.multiply ?? 1) > 1;
     const colIndicatorMap = new Map();
@@ -1555,12 +1313,7 @@ const RankingView = {
       if (ind) return Utils.formatValue(val, ind.unit, ind.decimal_places);
       return isRatioCol(key) ? Utils.formatPercent(val) : Utils.formatNumber(val);
     };
-
-    // 헤더
-    const makeSortIcon = (key) => {
-      if (key !== sortKey) return '<span class="sort-icon none"></span>';
-      return `<span class="sort-icon ${sortDir}"></span>`;
-    };
+    const makeSortIcon = (key) => key !== sortKey ? '<span class="sort-icon none"></span>' : `<span class="sort-icon ${sortDir}"></span>`;
     const thead = document.getElementById('ranking-thead');
     thead.innerHTML = `<tr>
       <th class="sortable td-num" data-key="_rank" style="width:50px;">순위 ${makeSortIcon('_rank')}</th>
@@ -1568,39 +1321,24 @@ const RankingView = {
       <th class="sortable" data-key="지역">지역 ${makeSortIcon('지역')}</th>
       <th class="sortable" data-key="설립구분">설립 ${makeSortIcon('설립구분')}</th>
       ${columns.map(c => `<th class="sortable td-num" data-key="${c.key}">${c.label} ${makeSortIcon(c.key)}</th>`).join('')}
-      <th class="td-num">전년대비</th>
-      <th class="td-num">상위%</th>
+      <th class="td-num">전년대비</th><th class="td-num">상위%</th>
     </tr>`;
-
-    // 헤더 클릭 이벤트
-    thead.querySelectorAll('th.sortable').forEach(th => {
-      th.addEventListener('click', () => this.onHeaderClick(th.dataset.key));
-    });
-
-    // 바디
-    // 대학명 검색 필터
+    thead.querySelectorAll('th.sortable').forEach(th => th.addEventListener('click', () => this.onHeaderClick(th.dataset.key)));
     const nameQuery = AppState.computed.nameQuery;
-    const displayRows = nameQuery
-      ? sorted.filter(r => (r.기준대학명 || '').toLowerCase().includes(nameQuery))
-      : sorted;
-
+    const displayRows = nameQuery ? sorted.filter(r => (r.기준대학명 || '').toLowerCase().includes(nameQuery)) : sorted;
     const start = (page - 1) * ROWS_PER_PAGE;
     const pageRows = displayRows.slice(start, start + ROWS_PER_PAGE);
     const total = displayRows.length;
     const deltaKey = sortKey;
-
     const tbody = document.getElementById('ranking-tbody');
     tbody.innerHTML = '';
     pageRows.forEach((row, i) => {
       const rank = row._rank ?? (start + i + 1);
       const tr = document.createElement('tr');
       if (row._isOurs) tr.classList.add('our-university');
-
       const topPct = Utils.calcTopPercent(rank, total);
-      const prevRow = row._prev;
-      const deltaVal = deltaKey ? Utils.formatDelta(row[deltaKey], prevRow?.[deltaKey] ?? null) : '-';
+      const deltaVal = deltaKey ? Utils.formatDelta(row[deltaKey], row._prev?.[deltaKey] ?? null) : '-';
       const rankClass = rank <= 3 ? ' top3' : '';
-
       tr.innerHTML = `
         <td class="td-rank${rankClass}">${rank}</td>
         <td class="td-univ">${row.기준대학명}${row._isOurs ? '<span class="our-tag">우리</span>' : ''}</td>
@@ -1611,52 +1349,35 @@ const RankingView = {
         <td class="td-percent">${topPct}%</td>`;
       tbody.appendChild(tr);
     });
-
-    // 테이블 정보
     const infoEl = document.getElementById('table-info');
     if (infoEl) {
-      const totalAll = sorted.length;
       infoEl.innerHTML = nameQuery
-        ? `검색 결과 <strong>${total.toLocaleString()}</strong>개교 / 전체 ${totalAll.toLocaleString()}개교 · ${AppState.filters.연도}년`
+        ? `검색 결과 <strong>${total.toLocaleString()}</strong>개교 / 전체 ${sorted.length.toLocaleString()}개교 · ${AppState.filters.연도}년`
         : `총 <strong>${total.toLocaleString()}</strong>개교 · ${AppState.filters.연도}년 기준`;
     }
   },
-
   renderPagination(total, currentPage) {
     const totalPages = Math.ceil(total / ROWS_PER_PAGE);
     const pagEl = document.getElementById('pagination');
     if (totalPages <= 1) { pagEl.innerHTML = ''; return; }
-
     const maxBtns = 7;
     let start = Math.max(1, currentPage - Math.floor(maxBtns / 2));
     let end = Math.min(totalPages, start + maxBtns - 1);
     if (end - start < maxBtns - 1) start = Math.max(1, end - maxBtns + 1);
-
     let html = `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} data-page="${currentPage - 1}">‹</button>`;
-    if (start > 1) html += `<button class="page-btn" data-page="1">1</button><span style="color:#94a3b8;padding:0 4px;">…</span>`;
-    for (let p = start; p <= end; p++) {
-      html += `<button class="page-btn ${p === currentPage ? 'active' : ''}" data-page="${p}">${p}</button>`;
-    }
-    if (end < totalPages) html += `<span style="color:#94a3b8;padding:0 4px;">…</span><button class="page-btn" data-page="${totalPages}">${totalPages}</button>`;
+    if (start > 1) html += `<button class="page-btn" data-page="1">1</button><span style="color:var(--text-muted);padding:0 4px;">…</span>`;
+    for (let p = start; p <= end; p++) html += `<button class="page-btn ${p === currentPage ? 'active' : ''}" data-page="${p}">${p}</button>`;
+    if (end < totalPages) html += `<span style="color:var(--text-muted);padding:0 4px;">…</span><button class="page-btn" data-page="${totalPages}">${totalPages}</button>`;
     html += `<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} data-page="${currentPage + 1}">›</button>`;
-
     pagEl.innerHTML = html;
-    pagEl.querySelectorAll('.page-btn:not(:disabled)').forEach(btn => {
-      btn.addEventListener('click', () => this.onPageChange(parseInt(btn.dataset.page)));
-    });
+    pagEl.querySelectorAll('.page-btn:not(:disabled)').forEach(btn => btn.addEventListener('click', () => this.onPageChange(parseInt(btn.dataset.page))));
   },
-
   onHeaderClick(key) {
-    if (AppState.computed.sortKey === key) {
-      AppState.computed.sortDir = AppState.computed.sortDir === 'asc' ? 'desc' : 'asc';
-    } else {
-      AppState.computed.sortKey = key;
-      AppState.computed.sortDir = key === '_rank' ? 'asc' : 'desc';
-    }
+    if (AppState.computed.sortKey === key) AppState.computed.sortDir = AppState.computed.sortDir === 'asc' ? 'desc' : 'asc';
+    else { AppState.computed.sortKey = key; AppState.computed.sortDir = key === '_rank' ? 'asc' : 'desc'; }
     AppState.computed.currentPage = 1;
     FilterManager._sortAndRender();
   },
-
   onPageChange(page) {
     AppState.computed.currentPage = page;
     this.renderTable(AppState.computed.sorted, page);
@@ -1666,36 +1387,35 @@ const RankingView = {
 };
 
 /* ═══════════════════════════════════════════════════════
-   TrendView
+   TrendView — 색상은 모두 CSS 변수에서 읽어옴
 ═══════════════════════════════════════════════════════ */
 const TREND_GROUPS = {
-  '전국 평균':  () => true,
-  '전국 사립':  r => r.설립구분 === '사립',
-  '비수도권':   r => r.수도권여부 === 'N',
-  '동남권':     r => ['부산','울산','경남'].includes(r.지역),
-  '부산':       r => r.지역 === '부산',
+  '전국 평균': () => true,
+  '전국 사립': r => r.설립구분 === '사립',
+  '비수도권':  r => r.수도권여부 === 'N',
+  '동남권':    r => ['부산','울산','경남'].includes(r.지역),
+  '부산':      r => r.지역 === '부산',
 };
-const TREND_COLORS = {
-  '전국 평균':  '#94a3b8',
-  '전국 사립':  '#f59e0b',
-  '비수도권':   '#10b981',
-  '동남권':     '#8b5cf6',
-  '부산':       '#ef4444',
-};
-const CUSTOM_COLORS = ['#f97316','#06b6d4','#84cc16','#ec4899','#6366f1'];
+
+const getTrendColors = () => ({
+  '전국 평균': cssVar('--trend-national'),
+  '전국 사립': cssVar('--trend-private'),
+  '비수도권':  cssVar('--trend-non-metro'),
+  '동남권':    cssVar('--trend-dongnam'),
+  '부산':      cssVar('--trend-busan'),
+});
+const getCustomColors = () => [
+  cssVar('--series-1'), cssVar('--series-2'), cssVar('--series-3'),
+  cssVar('--series-4'), cssVar('--series-5'),
+];
 
 const TrendView = {
   _chart: null,
   _lastSeries: [],
-
   _baseFilter(r) {
-    // 원시 데이터는 '국립'/'공립'/'국립대법인' 등으로 저장될 수 있으므로
-    // 대학기본정보.json 정규화 여부와 무관하게 국공립 계열을 모두 허용
     const 국공립계열 = ['국공립','국립','공립','국립대법인'];
-    return (국공립계열.includes(r.설립구분) || r.설립구분 === '사립') &&
-           ['대학교','산업대학'].includes(r.대학구분);
+    return (국공립계열.includes(r.설립구분) || r.설립구분 === '사립') && ['대학교','산업대학'].includes(r.대학구분);
   },
-
   _groupAvg(univRows, rankKey, extraFilter) {
     const rows = univRows.filter(r => this._baseFilter(r) && extraFilter(r));
     const vals = rows.map(r => r[rankKey]).filter(v => v != null && !isNaN(v));
@@ -1705,43 +1425,29 @@ const TrendView = {
     const clean = std > 0 ? vals.filter(v => Math.abs(v-mean) <= 3*std) : vals;
     return clean.length ? clean.reduce((a,b)=>a+b,0)/clean.length : null;
   },
-
   buildAllYears() {
     const rows = AppState.raw.항목데이터;
-    const calcRules = AppState.raw.calcRules;
-    const baseUnivMap = AppState._baseUnivMap;
-    const univInfoMap = AppState._univInfoMap;
-    const currentItem = AppState.raw.currentItem;
     if (!rows.length) return;
-
-    const calcRulesForItem = buildCalcRulesForItem(calcRules, currentItem);
+    const calcRulesForItem = buildCalcRulesForItem(AppState.raw.calcRules, AppState.raw.currentItem);
     const years = DataService.extractYears(rows);
     const allYears = new Map();
     for (const year of years) {
-      const agg = DataService.aggregateByUniversity(
-        rows, year, calcRulesForItem, baseUnivMap, null, univInfoMap
-      );
-      allYears.set(year, agg);
+      allYears.set(year, DataService.aggregateByUniversity(rows, year, calcRulesForItem, AppState._baseUnivMap, null, AppState._univInfoMap));
     }
     AppState.trend.allYears = allYears;
   },
-
   updateYearChecks() {
     const allYears = AppState.trend.allYears;
     if (!allYears) return;
-    const years = [...allYears.keys()].sort((a,b)=>b-a); // 내림차순
+    const years = [...allYears.keys()].sort((a,b)=>b-a);
     const container = document.getElementById('trend-year-checks');
     if (!container) return;
-    // 첫 빌드 시 최근 5년 선택
-    if (AppState.trend.selectedYears.size === 0) {
-      years.slice(0, 5).forEach(y => AppState.trend.selectedYears.add(y));
-    }
+    if (AppState.trend.selectedYears.size === 0) years.slice(0, 5).forEach(y => AppState.trend.selectedYears.add(y));
     container.innerHTML = years.map(y => {
       const checked = AppState.trend.selectedYears.has(y);
-      return `<label class="trend-check-item${checked ? ' is-checked' : ''}" style="--dot-color:#64748b"><input type="checkbox" data-year="${y}"${checked ? ' checked' : ''}><span class="chk-dot"></span>${y}년</label>`;
+      return `<label class="trend-check-item${checked ? ' is-checked' : ''}" style="--dot-color:var(--sidebar-text)"><input type="checkbox" data-year="${y}"${checked ? ' checked' : ''}><span class="chk-dot"></span>${y}년</label>`;
     }).join('');
   },
-
   updateDatalist() {
     const allYears = AppState.trend.allYears;
     if (!allYears) return;
@@ -1750,76 +1456,50 @@ const TrendView = {
     const dl = document.getElementById('trend-univ-list');
     if (dl) dl.innerHTML = [...names].sort().map(n => `<option value="${n}">`).join('');
   },
-
   render() {
     const allYears = AppState.trend.allYears;
     const chartEl = document.getElementById('trend-chart');
-    if (!allYears || !chartEl) {
-      if (chartEl) chartEl.innerHTML = '<div class="trend-empty">공시 항목을 먼저 선택하세요.</div>';
-      return;
-    }
+    if (!allYears || !chartEl) { if (chartEl) chartEl.innerHTML = '<div class="trend-empty">공시 항목을 먼저 선택하세요.</div>'; return; }
     const rankKey = AppState.computed.rankKey;
     if (!rankKey) return;
-
     let years = [...allYears.keys()].sort((a,b)=>a-b);
-    if (AppState.trend.selectedYears.size > 0) {
-      years = years.filter(y => AppState.trend.selectedYears.has(y));
-    }
-    const calcRules = AppState.raw.calcRules;
-    const label = calcRules[rankKey]?.label || rankKey;
+    if (AppState.trend.selectedYears.size > 0) years = years.filter(y => AppState.trend.selectedYears.has(y));
+    const label = AppState.raw.calcRules[rankKey]?.label || rankKey;
     const series = [];
-
+    const TREND_COLORS = getTrendColors();
+    const CUSTOM_COLORS = getCustomColors();
     // 우리 대학
-    const ourData = years.map(y => {
-      const row = (allYears.get(y)||[]).find(r=>r.기준대학명===OUR_UNIV);
-      const v = row?.[rankKey];
-      return v != null && !isNaN(v) ? +v.toFixed(2) : null;
+    series.push({
+      name: OUR_UNIV, isOurs: true, color: cssVar('--our-color'),
+      data: years.map(y => { const row = (allYears.get(y)||[]).find(r=>r.기준대학명===OUR_UNIV); const v = row?.[rankKey]; return v != null && !isNaN(v) ? +v.toFixed(2) : null; }),
     });
-    series.push({ name: OUR_UNIV, data: ourData, isOurs: true, color: '#2563EB' });
-
     // 그룹 평균
     for (const [gName, gFilter] of Object.entries(TREND_GROUPS)) {
       if (!AppState.trend.groups.has(gName)) continue;
-      const data = years.map(y => {
-        const avg = this._groupAvg(allYears.get(y)||[], rankKey, gFilter);
-        return avg != null ? +avg.toFixed(2) : null;
-      });
-      series.push({ name: gName, data, isGroup: true, color: TREND_COLORS[gName] });
+      series.push({ name: gName, isGroup: true, color: TREND_COLORS[gName], data: years.map(y => { const avg = this._groupAvg(allYears.get(y)||[], rankKey, gFilter); return avg != null ? +avg.toFixed(2) : null; }) });
     }
-
     // 추가 대학
     AppState.trend.customUnivs.forEach((univName, idx) => {
-      const data = years.map(y => {
-        const row = (allYears.get(y)||[]).find(r=>r.기준대학명===univName);
-        const v = row?.[rankKey];
-        return v != null && !isNaN(v) ? +v.toFixed(2) : null;
-      });
-      series.push({ name: univName, data, color: CUSTOM_COLORS[idx % CUSTOM_COLORS.length] });
+      series.push({ name: univName, color: CUSTOM_COLORS[idx % CUSTOM_COLORS.length], data: years.map(y => { const row = (allYears.get(y)||[]).find(r=>r.기준대학명===univName); const v = row?.[rankKey]; return v != null && !isNaN(v) ? +v.toFixed(2) : null; }) });
     });
-
     const trendUnit = getPrimaryIndicator(AppState.raw.currentItem)?.unit || '%';
     this._lastSeries = series;
     if (AppState.trend.yMin === null && AppState.trend.yMax === null) this._applyAutoRange(series);
     this._renderChart(years, series, label, trendUnit);
     this._renderTable(years, series, trendUnit);
   },
-
   _applyAutoRange(series) {
     const vals = series.flatMap(s => s.data).filter(v => v != null && !isNaN(v));
     if (!vals.length) return;
-    const dataMin = Math.min(...vals);
-    const dataMax = Math.max(...vals);
-    const span    = dataMax - dataMin || dataMax * 0.2 || 10;
-    const pad     = span * 0.5;
-    const mag     = Math.pow(10, Math.floor(Math.log10(span)) - 1);
-    const niceMin = Math.max(0, Math.floor((dataMin - pad) / mag) * mag);
-    const niceMax = Math.ceil((dataMax + pad) / mag) * mag;
-    AppState.trend.yMin = +niceMin.toFixed(2);
-    AppState.trend.yMax = +niceMax.toFixed(2);
+    const dataMin = Math.min(...vals); const dataMax = Math.max(...vals);
+    const span = dataMax - dataMin || dataMax * 0.2 || 10;
+    const pad  = span * 0.5;
+    const mag  = Math.pow(10, Math.floor(Math.log10(span)) - 1);
+    AppState.trend.yMin = +Math.max(0, Math.floor((dataMin - pad) / mag) * mag).toFixed(2);
+    AppState.trend.yMax = +Math.ceil((dataMax + pad) / mag).toFixed(2) * mag;
     document.getElementById('trend-ymin').value = AppState.trend.yMin;
     document.getElementById('trend-ymax').value = AppState.trend.yMax;
   },
-
   _renderChart(years, series, label, unit = '%') {
     const el = document.getElementById('trend-chart');
     if (!el) return;
@@ -1827,38 +1507,23 @@ const TrendView = {
     const primaryInd = getPrimaryIndicator(AppState.raw.currentItem);
     const dp = primaryInd?.decimal_places ?? 2;
     const fmt = v => Utils.formatValue(+v, unit, dp);
+    const ourColor = cssVar('--our-color');
     this._chart.setOption({
-      tooltip: {
-        trigger: 'axis', axisPointer: { type: 'cross' },
-        formatter(params) {
-          let html = `<b>${params[0].axisValue}년</b><br>`;
-          params.forEach(p => { if (p.value != null) html += `${p.marker}${p.seriesName}: <b>${fmt(p.value)}</b><br>`; });
-          return html;
-        },
-      },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, formatter(params) { let html = `<b>${params[0].axisValue}년</b><br>`; params.forEach(p => { if (p.value != null) html += `${p.marker}${p.seriesName}: <b>${fmt(p.value)}</b><br>`; }); return html; } },
       legend: { bottom: 0, type: 'scroll', textStyle: { fontSize: 11 } },
       grid: { top: 40, right: 40, bottom: 55, left: 72 },
       toolbox: { feature: { saveAsImage: { title: '이미지 저장' } }, right: 8, top: 0 },
       xAxis: { type: 'category', data: years.map(String), axisLabel: { formatter: v => `${v}년` } },
-      yAxis: {
-        type: 'value', name: label,
-        nameLocation: 'middle', nameGap: 50, nameTextStyle: { fontSize: 11 },
-        axisLabel: { formatter: v => fmt(v) },
-        min: AppState.trend.yMin ?? undefined,
-        max: AppState.trend.yMax ?? undefined,
-      },
+      yAxis: { type: 'value', name: label, nameLocation: 'middle', nameGap: 50, nameTextStyle: { fontSize: 11 }, axisLabel: { formatter: v => fmt(v) }, min: AppState.trend.yMin ?? undefined, max: AppState.trend.yMax ?? undefined },
       series: series.map(s => ({
         name: s.name, type: 'line', data: s.data, connectNulls: false,
         lineStyle: { width: s.isOurs ? 3 : 1.5, type: s.isGroup ? 'dashed' : 'solid', color: s.color },
         itemStyle: { color: s.color },
-        symbol: s.isOurs ? 'circle' : 'emptyCircle',
-        symbolSize: s.isOurs ? 7 : 5,
-        label: s.isOurs ? { show: true, position: 'top', fontSize: 10, color: '#2563EB',
-          formatter: p => p.value != null ? fmt(p.value) : '' } : { show: false },
+        symbol: s.isOurs ? 'circle' : 'emptyCircle', symbolSize: s.isOurs ? 7 : 5,
+        label: s.isOurs ? { show: true, position: 'top', fontSize: 10, color: ourColor, formatter: p => p.value != null ? fmt(p.value) : '' } : { show: false },
       })),
     }, true);
   },
-
   _renderTable(years, series, unit = '%') {
     const wrap = document.getElementById('trend-table-wrap');
     if (!wrap) return;
@@ -1866,13 +1531,9 @@ const TrendView = {
     const dp = primaryInd?.decimal_places ?? 2;
     const fmt = v => Utils.formatValue(+v, unit, dp);
     const headers = ['<th></th>', ...years.map(y=>`<th>${y}년</th>`)].join('');
-    const rows = series.map(s => {
-      const cells = s.data.map(v=>`<td>${v!=null?fmt(v):'-'}</td>`).join('');
-      return `<tr class="${s.isOurs?'our-row':''}"><td>${s.name}</td>${cells}</tr>`;
-    }).join('');
+    const rows = series.map(s => `<tr class="${s.isOurs?'our-row':''}"><td>${s.name}</td>${s.data.map(v=>`<td>${v!=null?fmt(v):'-'}</td>`).join('')}</tr>`).join('');
     wrap.innerHTML = `<table class="trend-summary-table"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>`;
   },
-
   activate() {
     if (!AppState.raw.항목데이터.length) {
       const el = document.getElementById('trend-chart');
@@ -1893,37 +1554,25 @@ const TrendView = {
 ═══════════════════════════════════════════════════════ */
 const App = {
   async init() {
-    // file:// 프로토콜 감지
-    if (location.protocol === 'file:') {
-      document.getElementById('cors-warning').style.display = 'block';
-    }
+    if (location.protocol === 'file:') document.getElementById('cors-warning').style.display = 'block';
 
-    // 사이드바 접기 상태 복원
     const sidebarCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
     if (sidebarCollapsed) document.getElementById('sidebar').classList.add('collapsed');
-
     document.getElementById('sidebar-toggle').addEventListener('click', () => {
-      const sidebar = document.getElementById('sidebar');
-      const isCollapsed = sidebar.classList.toggle('collapsed');
+      const isCollapsed = document.getElementById('sidebar').classList.toggle('collapsed');
       localStorage.setItem('sidebar-collapsed', isCollapsed);
       if (TrendView._chart) setTimeout(() => TrendView._chart.resize(), 60);
     });
 
-    // ── 뷰 전환 ──
     const switchView = (viewName) => {
-      document.querySelectorAll('.nav-item[data-view], .mobile-nav-item[data-view]').forEach(el => {
-        el.classList.toggle('active', el.dataset.view === viewName);
-      });
+      document.querySelectorAll('.nav-item[data-view], .mobile-nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === viewName));
       document.getElementById('ranking-view').classList.toggle('hidden-view', viewName !== 'ranking');
       document.getElementById('trend-view').classList.toggle('visible', viewName === 'trend');
       document.getElementById('filter-bar').classList.toggle('trend-mode', viewName === 'trend');
       if (viewName === 'trend') TrendView.activate();
     };
-    document.querySelectorAll('.nav-item[data-view], .mobile-nav-item[data-view]').forEach(el => {
-      el.addEventListener('click', () => switchView(el.dataset.view));
-    });
+    document.querySelectorAll('.nav-item[data-view], .mobile-nav-item[data-view]').forEach(el => el.addEventListener('click', () => switchView(el.dataset.view)));
 
-    // 대학명 검색
     document.getElementById('table-search').addEventListener('input', e => {
       AppState.computed.nameQuery = e.target.value.trim().toLowerCase();
       AppState.computed.currentPage = 1;
@@ -1931,71 +1580,53 @@ const App = {
       RankingView.renderPagination(AppState.computed.sorted.length, 1);
     });
 
-    // CSV 버튼
     document.getElementById('btn-csv').addEventListener('click', () => {
       const { sorted } = AppState.computed;
       const calcRules = AppState.raw.calcRules;
-      const ratioKeys = Object.keys(calcRules);
       const metaFields = new Set(['기준대학명', '지역', '설립구분', '대학구분', '수도권여부', '기준연도']);
-      const numFields = Object.keys(sorted[0] || {})
-        .filter(k => !k.startsWith('_') && !metaFields.has(k) && typeof sorted[0][k] === 'number');
-
+      const numFields = Object.keys(sorted[0] || {}).filter(k => !k.startsWith('_') && !metaFields.has(k) && typeof sorted[0][k] === 'number');
       const columns = [
-        { key: '_rank', label: '순위' },
-        { key: '기준대학명', label: '대학명' },
-        { key: '지역', label: '지역' },
-        { key: '설립구분', label: '설립구분' },
-        { key: '대학구분', label: '대학구분' },
-        ...numFields.map(k => ({
-          key: k,
-          label: calcRules[k]?.label || k,
-        })),
+        { key: '_rank', label: '순위' }, { key: '기준대학명', label: '대학명' },
+        { key: '지역', label: '지역' }, { key: '설립구분', label: '설립구분' }, { key: '대학구분', label: '대학구분' },
+        ...numFields.map(k => ({ key: k, label: calcRules[k]?.label || k })),
       ];
-
-      const filename = `순위_${AppState.filters.항목키}_${AppState.filters.연도}_${new Date().toISOString().slice(0,10)}.csv`;
-      Utils.exportCSV(sorted, columns, filename);
+      Utils.exportCSV(sorted, columns, `순위_${AppState.filters.항목키}_${AppState.filters.연도}_${new Date().toISOString().slice(0,10)}.csv`);
     });
 
-    // ── 추이 패널 이벤트 ──
-    // 그룹 체크박스
+    // 추이 패널 — 그룹 체크박스
     document.querySelectorAll('#trend-side-panel input[type="checkbox"][data-group]').forEach(cb => {
       cb.addEventListener('change', () => {
-        const g = cb.dataset.group;
-        const item = cb.closest('.trend-check-item');
+        const g = cb.dataset.group; const item = cb.closest('.trend-check-item');
         if (cb.checked) { AppState.trend.groups.add(g); item.classList.add('is-checked'); }
         else { AppState.trend.groups.delete(g); item.classList.remove('is-checked'); }
         if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
       });
     });
 
-    // 연도 체크박스 (동적 생성이므로 위임)
+    // 추이 패널 — 연도 체크박스 (위임)
     document.getElementById('trend-year-checks').addEventListener('change', e => {
       const cb = e.target;
       if (cb.type !== 'checkbox' || !cb.dataset.year) return;
-      const y = +cb.dataset.year;
-      const item = cb.closest('.trend-check-item');
+      const y = +cb.dataset.year; const item = cb.closest('.trend-check-item');
       if (cb.checked) { AppState.trend.selectedYears.add(y); item.classList.add('is-checked'); }
       else { AppState.trend.selectedYears.delete(y); item.classList.remove('is-checked'); }
       if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
     });
 
-    // Y축 범위 적용
+    // Y축
     document.getElementById('trend-apply-axis').addEventListener('click', () => {
-      const minVal = parseFloat(document.getElementById('trend-ymin').value);
-      const maxVal = parseFloat(document.getElementById('trend-ymax').value);
-      AppState.trend.yMin = isNaN(minVal) ? null : minVal;
-      AppState.trend.yMax = isNaN(maxVal) ? null : maxVal;
+      AppState.trend.yMin = parseFloat(document.getElementById('trend-ymin').value) || null;
+      AppState.trend.yMax = parseFloat(document.getElementById('trend-ymax').value) || null;
       if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
     });
     document.getElementById('trend-auto-axis').addEventListener('click', () => {
-      AppState.trend.yMin = null;
-      AppState.trend.yMax = null;
+      AppState.trend.yMin = null; AppState.trend.yMax = null;
       document.getElementById('trend-ymin').value = '';
       document.getElementById('trend-ymax').value = '';
       if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
     });
 
-    // 대학 추가 검색
+    // 대학 추가
     const univInput = document.getElementById('trend-univ-input');
     if (univInput) {
       univInput.addEventListener('change', () => {
@@ -2003,49 +1634,40 @@ const App = {
         if (!name || AppState.trend.customUnivs.includes(name)) { univInput.value = ''; return; }
         AppState.trend.customUnivs.push(name);
         univInput.value = '';
-        // 태그 렌더
         const tags = document.getElementById('trend-univ-tags');
         const tag = document.createElement('div');
-        tag.className = 'trend-univ-tag';
-        tag.dataset.name = name;
+        tag.className = 'trend-univ-tag'; tag.dataset.name = name;
         tag.innerHTML = `<span>${name}</span><button onclick="removeTrendUniv('${name.replace(/'/g,"\\'")}')">×</button>`;
         tags.appendChild(tag);
         if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
       });
     }
 
-    // 초기 데이터 병렬 로드
+    // 초기 데이터 로드
     const [manifest, 기준대학, calcRules, univInfo] = await Promise.all([
-      DataService.fetchManifest(),
-      DataService.fetchBaseUnivData(),
-      DataService.fetchCalcRules(),
-      DataService.fetchUnivInfo(),
+      DataService.fetchManifest(), DataService.fetchBaseUnivData(),
+      DataService.fetchCalcRules(), DataService.fetchUnivInfo(),
     ]);
-
     AppState.raw.manifest = manifest;
     AppState.raw.기준대학 = 기준대학;
     AppState.raw.calcRules = calcRules;
     AppState._baseUnivMap = DataService.buildBaseUnivMap(기준대학);
     AppState._univInfoMap = DataService.buildUnivInfoMap(univInfo);
 
-    // 필터 UI 초기화
     FilterManager.init();
     FilterManager.renderItemSelect(manifest);
     FilterManager.renderAllMultiSelects();
-
-    // 초기 빈 상태
     Utils.showEmptyState('no-item');
   },
 };
 
 function removeTrendUniv(name) {
-  AppState.trend.customUnivs = AppState.trend.customUnivs.filter(n=>n!==name);
+  AppState.trend.customUnivs = AppState.trend.customUnivs.filter(n => n !== name);
   const tag = document.querySelector(`#trend-univ-tags .trend-univ-tag[data-name="${name}"]`);
   if (tag) tag.remove();
   if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
 }
 
-// 시작
 document.addEventListener('DOMContentLoaded', () => App.init());
 </script>
 </body>
