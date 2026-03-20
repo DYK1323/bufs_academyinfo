@@ -223,6 +223,18 @@ tbody td { padding: 6px 8px; vertical-align: middle; }
 .form-hint { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 .form-actions { display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end; }
 
+/* ── 행 필터 섹션 ── */
+.section-divider {
+  font-size: 10.5px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .06em;
+  display: flex; align-items: center; gap: 8px;
+  margin: 12px 0 8px;
+}
+.section-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.excl-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+.excl-row .excl-field { flex: 1; min-width: 0; }
+.excl-row .excl-vals  { flex: 2; min-width: 0; }
+
 /* ── 공시항목 카드 ── */
 .manifest-card {
   background: #fff; border: 1px solid var(--border); border-radius: 8px;
@@ -733,6 +745,22 @@ function buildRuleCard(key, rule) {
   return card;
 }
 
+function buildExclSection(excludeRows) {
+  const entries = excludeRows ? Object.entries(excludeRows) : [];
+  const rowsHtml = entries.map(([field, vals]) => `
+    <div class="excl-row">
+      <input class="form-input excl-field" type="text" value="${esc(field)}" placeholder="필드명 (예: 계열)" oninput="setDirty()">
+      <input class="form-input excl-vals" type="text" value="${esc(vals.join(', '))}" placeholder="제외값 (쉼표 구분)" oninput="setDirty()">
+      <button class="btn btn-danger btn-sm" onclick="this.closest('.excl-row').remove();setDirty()">−</button>
+    </div>`).join('');
+  return `
+    <div class="section-divider">행 필터</div>
+    <div class="excl-rows-wrap">${rowsHtml}</div>
+    <div style="margin-bottom:4px;">
+      <button class="btn btn-secondary btn-sm" onclick="addExclRow(this)">+ 조건 추가</button>
+    </div>`;
+}
+
 function buildRuleForm(key, rule, isMin) {
   const labelRow = `
     <div class="form-row">
@@ -759,7 +787,10 @@ function buildRuleForm(key, rule, isMin) {
       </div>`;
   }
 
-  return labelRow + `
+  return labelRow
+    + buildExclSection(rule.exclude_rows)
+    + `
+    <div class="section-divider">산식</div>
     <div class="form-row">
       <div class="form-group" style="flex:3;">
         <label>분자 필드 (한 줄에 하나씩)</label>
@@ -786,6 +817,20 @@ function buildRuleForm(key, rule, isMin) {
     </div>`;
 }
 
+function addExclRow(btn) {
+  const wrap = btn.closest('.rule-card-body').querySelector('.excl-rows-wrap');
+  const div = document.createElement('div');
+  div.className = 'excl-row';
+  div.innerHTML = `
+    <input class="form-input excl-field" type="text" placeholder="필드명 (예: 계열)" oninput="setDirty()">
+    <input class="form-input excl-vals" type="text" placeholder="제외값 (쉼표 구분)" oninput="setDirty()">
+    <button class="btn btn-danger btn-sm" onclick="this.closest('.excl-row').remove();setDirty()">−</button>
+  `;
+  wrap.appendChild(div);
+  div.querySelector('input').focus();
+  setDirty();
+}
+
 function toggleCard(header) {
   header.closest('.rule-card, .manifest-card').classList.toggle('open');
 }
@@ -804,11 +849,20 @@ function applyRule(btn) {
     const minof = minofEl.value.split('\n').map(s=>s.trim()).filter(Boolean);
     rule = { label, min_of: minof };
   } else {
+    // 행 필터 (exclude_rows) 수집
+    const excludeRows = {};
+    card.querySelectorAll('.excl-row').forEach(exRow => {
+      const field = exRow.querySelector('.excl-field').value.trim();
+      const vals  = exRow.querySelector('.excl-vals').value.split(',').map(s=>s.trim()).filter(Boolean);
+      if (field && vals.length) excludeRows[field] = vals;
+    });
+
     const numerator = card.querySelector('.rule-field-numerator').value.split('\n').map(s=>s.trim()).filter(Boolean);
     const denBase   = card.querySelector('.rule-field-den-base').value.trim();
     const multiply  = parseFloat(card.querySelector('.rule-field-multiply').value) || 1;
     const denExcl   = card.querySelector('.rule-field-den-excl').value.split('\n').map(s=>s.trim()).filter(Boolean);
     rule = { label, numerator, denominator_base: denBase, multiply };
+    if (Object.keys(excludeRows).length) rule.exclude_rows = excludeRows;
     if (denExcl.length) rule.denominator_exclude = denExcl;
   }
 

@@ -795,16 +795,36 @@ const DataService = {
       return result;
     };
 
-    const applyCalcRules = (summed) => {
+    // 특정 필드들을 raw rows에서 합산 (exclude_rows 적용 후)
+    const sumFields = (filteredRows, fields) => {
+      const result = {};
+      for (const field of fields) {
+        const nums = filteredRows.map(r => r[field]).filter(v => typeof v === 'number' && !isNaN(v));
+        result[field] = nums.length ? nums.reduce((a, b) => a + b, 0) : 0;
+      }
+      return result;
+    };
+
+    const applyCalcRules = (summed, rawRows) => {
       const result = { ...summed };
       // 1단계: 일반 산식 (numerator/denominator)
       for (const [key, rule] of Object.entries(calcRules)) {
         if (rule.min_of) continue;
-        const numerators = rule.numerator || [];
-        const num = numerators.reduce((acc, f) => acc + (summed[f] ?? 0), 0);
-        let den = summed[rule.denominator_base] ?? 0;
-        for (const excl of (rule.denominator_exclude || [])) {
-          den -= (summed[excl] ?? 0);
+        let num, den;
+        // calc_rule에 exclude_rows가 있으면 raw rows를 필터 후 별도 합산
+        if (rule.exclude_rows && rawRows) {
+          const filtered = rawRows.filter(r =>
+            Object.entries(rule.exclude_rows).every(([f, vs]) => !vs.includes(r[f]))
+          );
+          const needed = [...(rule.numerator || []), rule.denominator_base, ...(rule.denominator_exclude || [])];
+          const fs = sumFields(filtered, needed);
+          num = (rule.numerator || []).reduce((acc, f) => acc + (fs[f] ?? 0), 0);
+          den = fs[rule.denominator_base] ?? 0;
+          for (const excl of (rule.denominator_exclude || [])) den -= (fs[excl] ?? 0);
+        } else {
+          num = (rule.numerator || []).reduce((acc, f) => acc + (summed[f] ?? 0), 0);
+          den = summed[rule.denominator_base] ?? 0;
+          for (const excl of (rule.denominator_exclude || [])) den -= (summed[excl] ?? 0);
         }
         result[key] = den > 0 ? (num / den) * (rule.multiply ?? 1) : null;
       }
@@ -823,7 +843,7 @@ const DataService = {
     const result = [];
     for (const [univName, univRows] of currentGroups) {
       const summed = sumGroup(univRows);
-      const withRatios = applyCalcRules(summed);
+      const withRatios = applyCalcRules(summed, univRows);
 
       // 속성: 대학기본정보.json(본교 기준) 우선, 없으면 raw data fallback
       const info = univInfoMap.get(univName) || {};
@@ -836,7 +856,7 @@ const DataService = {
       let prevSummed = null;
       if (prevGroups.has(univName)) {
         const ps = sumGroup(prevGroups.get(univName));
-        prevSummed = applyCalcRules(ps);
+        prevSummed = applyCalcRules(ps, prevGroups.get(univName));
       }
 
       result.push({
