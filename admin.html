@@ -352,6 +352,42 @@ select.cell-input { appearance: none; -webkit-appearance: none; cursor: pointer;
 
 /* 하단 바 높이만큼 패딩 */
 body { padding-bottom: 60px; }
+
+/* ── 데이터 조회 탭 ── */
+.dv-top { display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; margin-bottom:14px; }
+.dv-item-wrap { position:relative; flex:0 0 260px; }
+.dv-item-input { width:100%; }
+.dv-dropdown {
+  position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:100;
+  background:#fff; border:1px solid var(--border); border-radius:6px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.10); max-height:220px; overflow-y:auto;
+  display:none;
+}
+.dv-dropdown.open { display:block; }
+.dv-dd-item { padding:8px 12px; cursor:pointer; font-size:13px; }
+.dv-dd-item:hover, .dv-dd-item.active { background:var(--primary-light); color:var(--primary); }
+.dv-filters { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.dv-filters select, .dv-filters input { height:34px; padding:0 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; background:#fff; }
+.dv-filters select { min-width:90px; }
+.dv-filters input { min-width:140px; }
+.dv-count { font-size:12px; color:var(--text-muted); white-space:nowrap; align-self:center; }
+.dv-table-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:8px; background:#fff; }
+.dv-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+.dv-table thead th {
+  position:sticky; top:0; background:#f8fafc; z-index:2;
+  padding:8px 12px; text-align:left; font-size:11px; font-weight:700;
+  color:var(--text-muted); border-bottom:2px solid var(--border); white-space:nowrap;
+}
+.dv-table tbody td { padding:7px 12px; border-bottom:1px solid #f1f5f9; white-space:nowrap; }
+.dv-table tbody tr:last-child td { border-bottom:none; }
+.dv-table tbody tr:hover { background:#f8fafc; }
+.dv-table tbody tr.dv-our td { background:#eff6ff; font-weight:600; }
+.dv-table tbody tr.dv-our td:first-child { border-left:3px solid var(--primary); }
+.dv-pagination { display:flex; gap:6px; align-items:center; justify-content:center; padding:12px 0 0; flex-wrap:wrap; }
+.dv-page-btn { padding:4px 10px; border:1px solid var(--border); border-radius:5px; background:#fff; font-size:12px; cursor:pointer; }
+.dv-page-btn:hover { background:var(--primary-light); border-color:var(--primary); color:var(--primary); }
+.dv-page-btn.cur { background:var(--primary); color:#fff; border-color:var(--primary); font-weight:700; }
+.dv-empty { padding:40px; text-align:center; color:var(--text-muted); font-size:13px; }
 </style>
 </head>
 <body>
@@ -381,6 +417,7 @@ body { padding-bottom: 60px; }
   <button class="tab-btn active" onclick="switchTab('기준대학', this)">기준대학 매핑</button>
   <button class="tab-btn" onclick="switchTab('calc', this)">산식 관리</button>
   <button class="tab-btn" onclick="switchTab('manifest', this)">공시항목</button>
+  <button class="tab-btn" onclick="switchTab('data', this); DataViewer.init()">데이터 조회</button>
 </div>
 
 <!-- ══════════════════════════════════════════
@@ -463,6 +500,35 @@ body { padding-bottom: 60px; }
   </div>
 
   <div id="manifest-list"></div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     탭 4: 데이터 조회
+══════════════════════════════════════════ -->
+<div class="tab-content" id="tab-data">
+  <div style="font-size:15px;font-weight:700;color:#0f172a;margin-bottom:4px;">데이터 조회</div>
+  <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:14px;">data/*.json — 공시항목별 원시 데이터 조회</div>
+
+  <div class="dv-top">
+    <!-- 공시항목 선택 -->
+    <div class="dv-item-wrap">
+      <input class="form-input dv-item-input" id="dv-item-input" placeholder="공시항목 선택…" autocomplete="off"
+        oninput="DataViewer.filterDropdown(this.value)" onfocus="DataViewer.openDropdown()" onblur="setTimeout(()=>DataViewer.closeDropdown(),150)">
+      <div class="dv-dropdown" id="dv-dropdown"></div>
+    </div>
+    <!-- 필터 -->
+    <div class="dv-filters">
+      <select id="dv-flt-year" onchange="DataViewer.applyFilter()"><option value="">연도 전체</option></select>
+      <select id="dv-flt-setup" onchange="DataViewer.applyFilter()"><option value="">설립구분 전체</option></select>
+      <select id="dv-flt-region" onchange="DataViewer.applyFilter()"><option value="">지역 전체</option></select>
+      <input id="dv-flt-univ" type="search" placeholder="대학명 검색" oninput="DataViewer.applyFilter()">
+    </div>
+    <span class="dv-count" id="dv-count"></span>
+  </div>
+
+  <div id="dv-body">
+    <div class="dv-empty">공시항목을 선택하세요.</div>
+  </div>
 </div>
 
 <!-- ── 저장 바 ── -->
@@ -1452,6 +1518,177 @@ function applyManifestCard(btn) {
 function collectManifest() {
   return manifestData;
 }
+
+/* ══════════════════════════════════════════
+   데이터 조회
+══════════════════════════════════════════ */
+const DataViewer = {
+  _items: [],       // manifest 항목 목록
+  _raw: [],         // 로드된 원시 데이터
+  _filtered: [],    // 필터 적용 후
+  _cols: [],        // 표시 컬럼 키 목록
+  _page: 1,
+  PAGE_SIZE: 50,
+  META_COLS: ['기준연도','대학명','학교','설립구분','지역','학교종류','대학구분','본분교','캠퍼스','상태'],
+  OUR_UNIV: '부산외국어대학교',
+
+  init() {
+    if (this._items.length) return; // 이미 초기화됨
+    const manifest = State.original.manifest;
+    if (!manifest || !manifest.length) {
+      document.getElementById('dv-body').innerHTML = '<div class="dv-empty">먼저 GitHub에 연결하세요.</div>';
+      return;
+    }
+    this._items = manifest.map(m => ({ key: m.key, label: m.label }));
+    this._buildDropdown('');
+  },
+
+  _buildDropdown(q) {
+    const dd = document.getElementById('dv-dropdown');
+    const filtered = q
+      ? this._items.filter(m => m.label.includes(q) || m.key.includes(q))
+      : this._items;
+    dd.innerHTML = filtered.map(m =>
+      `<div class="dv-dd-item" onmousedown="DataViewer.selectItem('${esc(m.key)}','${esc(m.label)}')">${esc(m.label)}<span style="margin-left:6px;font-size:11px;color:var(--text-muted);">${esc(m.key)}</span></div>`
+    ).join('') || '<div class="dv-dd-item" style="color:var(--text-muted)">검색 결과 없음</div>';
+  },
+
+  filterDropdown(q) { this._buildDropdown(q); this.openDropdown(); },
+  openDropdown()  { document.getElementById('dv-dropdown').classList.add('open'); },
+  closeDropdown() { document.getElementById('dv-dropdown').classList.remove('open'); },
+
+  async selectItem(key, label) {
+    document.getElementById('dv-item-input').value = label;
+    this.closeDropdown();
+    document.getElementById('dv-body').innerHTML = '<div class="dv-empty">데이터 로딩 중…</div>';
+    document.getElementById('dv-count').textContent = '';
+    try {
+      const data = await this._fetchLarge(`data/${key}.json`);
+      this._raw = Array.isArray(data) ? data : [];
+      this._buildCols();
+      this._buildFilterOptions();
+      this.applyFilter();
+    } catch(e) {
+      document.getElementById('dv-body').innerHTML = `<div class="dv-empty" style="color:#dc2626;">로드 실패: ${esc(e.message)}</div>`;
+    }
+  },
+
+  async _fetchLarge(path) {
+    const metaRes = await fetch(
+      `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${encodeURIComponent(path)}`,
+      { headers: GH.headers() }
+    );
+    if (!metaRes.ok) throw new Error(`${metaRes.status} — ${path}`);
+    const meta = await metaRes.json();
+    if (meta.content) {
+      return JSON.parse(decodeURIComponent(escape(atob(meta.content.replace(/\n/g,'')))));
+    }
+    // 1MB 초과: git blobs API (raw)
+    const blobRes = await fetch(
+      `https://api.github.com/repos/${GH.owner}/${GH.repo}/git/blobs/${meta.sha}`,
+      { headers: { ...GH.headers(), Accept: 'application/vnd.github.raw+json' } }
+    );
+    if (!blobRes.ok) throw new Error(`blob ${blobRes.status}`);
+    return await blobRes.json();
+  },
+
+  _buildCols() {
+    if (!this._raw.length) { this._cols = []; return; }
+    const sample = this._raw[0];
+    const meta = this.META_COLS.filter(c => c in sample);
+    const rest = Object.keys(sample).filter(c => !this.META_COLS.includes(c));
+    this._cols = [...meta, ...rest];
+  },
+
+  _buildFilterOptions() {
+    const years  = [...new Set(this._raw.map(r => r['기준연도']).filter(Boolean))].sort((a,b)=>b-a);
+    const setups = [...new Set(this._raw.map(r => r['설립구분']).filter(Boolean))].sort();
+    const regions= [...new Set(this._raw.map(r => r['지역']).filter(Boolean))].sort();
+
+    const fill = (id, vals) => {
+      const el = document.getElementById(id);
+      const cur = el.value;
+      el.innerHTML = `<option value="">${el.options[0].text}</option>` +
+        vals.map(v => `<option value="${esc(v)}"${v==cur?'selected':''}>${esc(v)}</option>`).join('');
+    };
+    fill('dv-flt-year',  years);
+    fill('dv-flt-setup', setups);
+    fill('dv-flt-region',regions);
+    document.getElementById('dv-flt-univ').value = '';
+  },
+
+  applyFilter() {
+    const year  = document.getElementById('dv-flt-year').value;
+    const setup = document.getElementById('dv-flt-setup').value;
+    const region= document.getElementById('dv-flt-region').value;
+    const univ  = document.getElementById('dv-flt-univ').value.trim();
+
+    this._filtered = this._raw.filter(r => {
+      if (year   && String(r['기준연도']) !== year) return false;
+      if (setup  && r['설립구분'] !== setup) return false;
+      if (region && r['지역'] !== region) return false;
+      if (univ) {
+        const name = r['대학명'] || r['학교'] || '';
+        if (!name.includes(univ)) return false;
+      }
+      return true;
+    });
+    this._page = 1;
+    this._render();
+  },
+
+  _render() {
+    const total = this._filtered.length;
+    document.getElementById('dv-count').textContent = `${total.toLocaleString()}행`;
+
+    if (!total) {
+      document.getElementById('dv-body').innerHTML = '<div class="dv-empty">조건에 맞는 데이터가 없습니다.</div>';
+      return;
+    }
+
+    const totalPages = Math.ceil(total / this.PAGE_SIZE);
+    const page = Math.min(this._page, totalPages);
+    const start = (page - 1) * this.PAGE_SIZE;
+    const rows = this._filtered.slice(start, start + this.PAGE_SIZE);
+
+    const thead = this._cols.map(c => `<th>${esc(c)}</th>`).join('');
+    const tbody = rows.map(r => {
+      const isOur = (r['대학명'] || r['학교'] || '') === this.OUR_UNIV;
+      const cells = this._cols.map(c => {
+        const v = r[c];
+        return `<td>${v == null ? '' : esc(String(v))}</td>`;
+      }).join('');
+      return `<tr${isOur ? ' class="dv-our"' : ''}>${cells}</tr>`;
+    }).join('');
+
+    // 페이지네이션 (최대 7개 버튼)
+    let pageHtml = '';
+    if (totalPages > 1) {
+      const range = [];
+      const delta = 3;
+      for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= page - delta && i <= page + delta)) range.push(i);
+        else if (range[range.length-1] !== '…') range.push('…');
+      }
+      pageHtml = range.map(p =>
+        p === '…'
+          ? `<span style="padding:4px 4px;color:var(--text-muted)">…</span>`
+          : `<button class="dv-page-btn${p===page?' cur':''}" onclick="DataViewer._goPage(${p})">${p}</button>`
+      ).join('');
+    }
+
+    document.getElementById('dv-body').innerHTML = `
+      <div class="dv-table-wrap" style="max-height:520px;overflow-y:auto;">
+        <table class="dv-table">
+          <thead><tr>${thead}</tr></thead>
+          <tbody>${tbody}</tbody>
+        </table>
+      </div>
+      <div class="dv-pagination">${pageHtml}</div>`;
+  },
+
+  _goPage(p) { this._page = p; this._render(); },
+};
 
 /* ══════════════════════════════════════════
    유틸
