@@ -1446,7 +1446,7 @@ const RankingView = {
 
     // 숫자/비율 판단 (서식용)
     const ratioKeySet = new Set(Object.keys(calcRules));
-    const isRatioCol = (key) => ratioKeySet.has(key);
+    const isRatioCol = (key) => ratioKeySet.has(key) && (calcRules[key]?.multiply ?? 1) > 1;
 
     // 헤더
     const makeSortIcon = (key) => {
