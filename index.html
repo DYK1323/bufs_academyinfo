@@ -311,11 +311,21 @@
 
     /* ── 테이블 컨트롤 ───────────────────────────────── */
     #table-controls {
-      display: flex; align-items: center; justify-content: space-between;
+      display: flex; align-items: center; gap: 10px;
       padding: 11px 16px;
       border-bottom: 1px solid var(--border-light);
       background: var(--card-bg);
     }
+    #table-search {
+      height: 30px; padding: 0 10px 0 30px;
+      border: 1px solid var(--border); border-radius: 6px;
+      font-size: 13px; font-family: inherit; color: var(--text-primary);
+      background: #f8fafc url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 9px center;
+      outline: none; width: 180px; flex-shrink: 0;
+      transition: border-color 0.12s, width 0.2s;
+    }
+    #table-search:focus { border-color: var(--primary); background-color: #fff; width: 220px; }
+    .table-info { font-size: 12px; color: var(--text-muted); flex: 1; }
     .table-info { font-size: 12px; color: var(--text-muted); }
     .table-info strong { color: var(--text-secondary); font-weight: 600; }
     .btn {
@@ -556,6 +566,7 @@
         <div class="card" id="table-card" style="display:none;">
           <div id="table-controls">
             <div class="table-info" id="table-info"></div>
+            <input type="search" id="table-search" placeholder="대학명 검색…">
             <button class="btn" id="btn-csv">⬇ CSV 다운로드</button>
           </div>
           <div id="ranking-table-wrap">
@@ -618,6 +629,7 @@ const AppState = {
     rankKey: null,   // 순위 기준 (데이터 로드 시 고정, 변경 안 됨)
     sortKey: null,   // 표시 정렬 기준 (헤더 클릭으로 변경)
     sortDir: 'desc',
+    nameQuery: '',   // 대학명 검색어
   },
   _baseUnivMap: new Map(),
   _univInfoMap: new Map(),  // 학교명 → { 지역, 설립구분, 대학구분 }
@@ -1321,9 +1333,15 @@ const RankingView = {
     });
 
     // 바디
+    // 대학명 검색 필터
+    const nameQuery = AppState.computed.nameQuery;
+    const displayRows = nameQuery
+      ? sorted.filter(r => (r.기준대학명 || '').toLowerCase().includes(nameQuery))
+      : sorted;
+
     const start = (page - 1) * ROWS_PER_PAGE;
-    const pageRows = sorted.slice(start, start + ROWS_PER_PAGE);
-    const total = sorted.length;
+    const pageRows = displayRows.slice(start, start + ROWS_PER_PAGE);
+    const total = displayRows.length;
     const deltaKey = sortKey;
 
     const tbody = document.getElementById('ranking-tbody');
@@ -1352,7 +1370,10 @@ const RankingView = {
     // 테이블 정보
     const infoEl = document.getElementById('table-info');
     if (infoEl) {
-      infoEl.innerHTML = `총 <strong>${total.toLocaleString()}</strong>개교 · ${AppState.filters.연도}년 기준`;
+      const totalAll = sorted.length;
+      infoEl.innerHTML = nameQuery
+        ? `검색 결과 <strong>${total.toLocaleString()}</strong>개교 / 전체 ${totalAll.toLocaleString()}개교 · ${AppState.filters.연도}년`
+        : `총 <strong>${total.toLocaleString()}</strong>개교 · ${AppState.filters.연도}년 기준`;
     }
   },
 
@@ -1417,6 +1438,14 @@ const App = {
       const sidebar = document.getElementById('sidebar');
       const isCollapsed = sidebar.classList.toggle('collapsed');
       localStorage.setItem('sidebar-collapsed', isCollapsed);
+    });
+
+    // 대학명 검색
+    document.getElementById('table-search').addEventListener('input', e => {
+      AppState.computed.nameQuery = e.target.value.trim().toLowerCase();
+      AppState.computed.currentPage = 1;
+      RankingView.renderTable(AppState.computed.sorted, 1);
+      RankingView.renderPagination(AppState.computed.sorted.length, 1);
     });
 
     // CSV 버튼
