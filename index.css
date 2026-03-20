@@ -528,7 +528,7 @@ html, body { height: 100%; font-family: 'Pretendard', 'Malgun Gothic', sans-seri
 .td-univ { font-weight: 500; color: var(--text-primary); }
 .td-univ .our-tag {
   display: inline-block;
-  font-size: 9.5px; background: var(--primary); color: var(--card-bg);
+  font-size: 9.5px; background: var(--text-primary); color: var(--card-bg);
   padding: 1px 5px; border-radius: 3px; margin-left: 6px;
   font-weight: 700; vertical-align: middle;
 }
