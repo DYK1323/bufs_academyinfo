@@ -233,16 +233,35 @@
     .multi-select-item input[type="checkbox"] { accent-color: var(--primary); width: 14px; height: 14px; cursor: pointer; }
     .multi-select-divider { height: 1px; background: var(--border-light); margin: 4px 0; }
 
-    /* 수도권 토글 */
-    .metro-toggle { display: flex; background: var(--row-alt); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; padding: 2px; gap: 2px; }
-    .metro-btn {
+    /* 필터 뱃지 */
+    .filter-badge {
+      display: inline-flex; align-items: center;
+      height: 26px; padding: 0 10px;
+      border: 1.5px solid var(--border); border-radius: 20px;
+      font-size: 12px; font-weight: 500; color: var(--text-muted);
+      background: var(--row-alt);
+      cursor: pointer; user-select: none; white-space: nowrap;
+      transition: border-color 0.12s, background 0.12s, color 0.12s;
+    }
+    .filter-badge:hover { border-color: var(--primary); color: var(--primary); }
+    .filter-badge.active {
+      border-color: var(--primary); background: var(--primary-muted);
+      color: var(--primary); font-weight: 600;
+    }
+    .filter-badge.active::before { content: '✓ '; font-size: 11px; }
+
+    /* 세그먼트 토글 */
+    .seg-group { display: flex; align-items: center; gap: 6px; }
+    .seg-toggle { display: flex; background: var(--row-alt); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; padding: 2px; gap: 2px; }
+    .seg-btn {
       height: 26px; padding: 0 10px;
       border: none; background: transparent; font-size: 12.5px; color: var(--text-secondary);
       cursor: pointer; font-family: inherit; white-space: nowrap;
       border-radius: 4px; transition: background 0.12s, color 0.12s;
     }
-    .metro-btn.active { background: #fff; color: var(--primary); font-weight: 600; box-shadow: var(--shadow-sm); }
-    .metro-btn:hover:not(.active) { background: rgba(255,255,255,0.6); color: var(--text-primary); }
+    .seg-btn.active { background: #fff; color: var(--primary); font-weight: 600; box-shadow: var(--shadow-sm); }
+    .seg-btn:hover:not(.active) { background: rgba(255,255,255,0.6); color: var(--text-primary); }
+    .seg-label { font-size: 11px; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
 
     /* ── 뷰 컨테이너 ─────────────────────────────────── */
     #view-container {
@@ -494,14 +513,7 @@
         </button>
         <div class="multi-select-dropdown"></div>
       </div>
-
-      <div class="multi-select" id="ms-found-type">
-        <button class="multi-select-trigger" type="button">
-          <span class="ms-label">설립구분</span>
-          <span class="arrow">▾</span>
-        </button>
-        <div class="multi-select-dropdown"></div>
-      </div>
+      <span class="filter-badge" id="badge-교육대학" title="교육대학 포함/제외">교육대학</span>
 
       <div class="multi-select" id="ms-region">
         <button class="multi-select-trigger" type="button">
@@ -513,10 +525,22 @@
 
       <div class="filter-divider"></div>
 
-      <div class="metro-toggle" id="metro-toggle">
-        <button class="metro-btn active" data-val="전체">전체</button>
-        <button class="metro-btn" data-val="수도권">수도권</button>
-        <button class="metro-btn" data-val="비수도권">비수도권</button>
+      <div class="seg-group">
+        <span class="seg-label">설립</span>
+        <div class="seg-toggle" id="found-quick">
+          <button class="seg-btn active" data-val="전체">전체</button>
+          <button class="seg-btn" data-val="사립">사립</button>
+        </div>
+      </div>
+
+      <div class="seg-group">
+        <span class="seg-label">지역</span>
+        <div class="seg-toggle" id="region-group">
+          <button class="seg-btn active" data-val="전국">전국</button>
+          <button class="seg-btn" data-val="비수도권">비수도권</button>
+          <button class="seg-btn" data-val="동남권">동남권</button>
+          <button class="seg-btn" data-val="부산">부산</button>
+        </div>
       </div>
     </div>
 
@@ -575,9 +599,10 @@ const AppState = {
     항목키: null,
     연도: null,
     대학구분: [],   // [] = 전체
-    설립구분: [],
     지역: [],
-    수도권여부: '전체',
+    설립Quick: '전체',   // '전체' | '사립'
+    지역그룹: '전국',    // '전국' | '비수도권' | '동남권' | '부산'
+    교육대학포함: false,
   },
   raw: {
     manifest: [],
@@ -595,6 +620,7 @@ const AppState = {
     sortDir: 'desc',
   },
   _baseUnivMap: new Map(),
+  _univInfoMap: new Map(),  // 학교명 → { 지역, 설립구분, 대학구분 }
 };
 
 /* ═══════════════════════════════════════════════════════
@@ -623,11 +649,11 @@ const Utils = {
   },
   buildFilterDescription(filters) {
     const parts = [];
-    if (filters.수도권여부 !== '전체') parts.push(filters.수도권여부);
+    if (filters.설립Quick !== '전체') parts.push(filters.설립Quick);
+    if (filters.지역그룹 !== '전국') parts.push(filters.지역그룹);
     if (filters.대학구분.length) parts.push(filters.대학구분.join('·'));
-    if (filters.설립구분.length) parts.push(filters.설립구분.join('·'));
     if (filters.지역.length) parts.push(filters.지역.join('·') + ' 소재');
-    return parts.length ? parts.join(' ') : '전국';
+    return parts.length ? parts.join(' · ') : '전국';
   },
   showLoading() {
     const emptyEl = document.getElementById('empty-state');
@@ -701,6 +727,16 @@ const DataService = {
   async fetchCalcRules() {
     return this.fetchJSON('./calc_rules.json', {});
   },
+  async fetchUnivInfo() {
+    return this.fetchJSON(`${DATA_PATH}대학기본정보.json`, []);
+  },
+  buildUnivInfoMap(rows) {
+    const map = new Map();
+    for (const row of rows) {
+      if (row['학교명']) map.set(row['학교명'], row);
+    }
+    return map;
+  },
   async fetchItemData(itemKey) {
     const encodedKey = encodeURIComponent(itemKey);
     try {
@@ -728,7 +764,7 @@ const DataService = {
     return years.sort((a, b) => b - a);
   },
   // 학과별 행 → 대학+연도 단위 SUM 집계 + 비율 계산 + 기준대학 JOIN
-  aggregateByUniversity(rows, targetYear, calcRules, baseUnivMap, prevYear = null) {
+  aggregateByUniversity(rows, targetYear, calcRules, baseUnivMap, prevYear = null, univInfoMap = new Map()) {
     // 비율 키 목록 (SUM 제외 대상)
     const ratioKeys = new Set(Object.keys(calcRules));
 
@@ -797,10 +833,11 @@ const DataService = {
       const summed = sumGroup(univRows);
       const withRatios = applyCalcRules(summed);
 
-      // 속성: raw data에서 직접 추출 (기준대학.json은 캠퍼스 합산 매핑 전용)
-      const 지역 = univRows[0]['지역'] || '미확인';
-      const 설립구분 = univRows[0]['설립구분'] || '미확인';
-      const 대학구분 = univRows[0]['학교종류'] || '미확인';
+      // 속성: 대학기본정보.json(본교 기준) 우선, 없으면 raw data fallback
+      const info = univInfoMap.get(univName) || {};
+      const 지역 = info['지역'] || univRows[0]['지역'] || '미확인';
+      const 설립구분 = info['설립구분'] || univRows[0]['설립구분'] || '미확인';
+      const 대학구분 = info['대학구분'] || univRows[0]['학교종류'] || '미확인';
       const 수도권여부 = METRO_REGIONS.has(지역) ? 'Y' : 'N';
 
       // 전년도 집계
@@ -841,8 +878,7 @@ const DataService = {
 ═══════════════════════════════════════════════════════ */
 const FilterManager = {
   _msState: {
-    'ms-univ-type': { key: '대학구분', label: '대학구분', options: ['4년제', '전문대', '대학원대'] },
-    'ms-found-type': { key: '설립구분', label: '설립구분', options: ['국공립', '사립'] },
+    'ms-univ-type': { key: '대학구분', label: '대학구분', options: ['대학교', '산업대학', '교육대학', '기술대학', '전문대학', '사이버대학(대학)', '방송통신대학', '각종학교(대학)'] },
     'ms-region': { key: '지역', label: '지역', options: [] },
   },
 
@@ -855,11 +891,23 @@ const FilterManager = {
     document.getElementById('filter-year').addEventListener('change', e => {
       this.onYearChange(e.target.value ? parseInt(e.target.value) : null);
     });
-    // 수도권 토글
-    document.getElementById('metro-toggle').addEventListener('click', e => {
-      const btn = e.target.closest('.metro-btn');
+    // 교육대학 포함 뱃지
+    document.getElementById('badge-교육대학').addEventListener('click', () => {
+      AppState.filters.교육대학포함 = !AppState.filters.교육대학포함;
+      document.getElementById('badge-교육대학').classList.toggle('active', AppState.filters.교육대학포함);
+      this._triggerRender();
+    });
+    // 설립구분 퀵 토글
+    document.getElementById('found-quick').addEventListener('click', e => {
+      const btn = e.target.closest('.seg-btn');
       if (!btn) return;
-      this.onMetroToggle(btn.dataset.val);
+      this.onFoundQuick(btn.dataset.val);
+    });
+    // 지역그룹 토글
+    document.getElementById('region-group').addEventListener('click', e => {
+      const btn = e.target.closest('.seg-btn');
+      if (!btn) return;
+      this.onRegionGroup(btn.dataset.val);
     });
     // 멀티셀렉트 외부 클릭 닫기
     document.addEventListener('click', e => {
@@ -985,9 +1033,17 @@ const FilterManager = {
     }
   },
 
-  onMetroToggle(val) {
-    AppState.filters.수도권여부 = val;
-    document.querySelectorAll('.metro-btn').forEach(btn => {
+  onFoundQuick(val) {
+    AppState.filters.설립Quick = val;
+    document.querySelectorAll('#found-quick .seg-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.val === val);
+    });
+    this._triggerRender();
+  },
+
+  onRegionGroup(val) {
+    AppState.filters.지역그룹 = val;
+    document.querySelectorAll('#region-group .seg-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.val === val);
     });
     this._triggerRender();
@@ -1039,7 +1095,7 @@ const FilterManager = {
       return;
     }
     AppState.computed.aggregated = DataService.aggregateByUniversity(
-      항목데이터, year, calcRules, AppState._baseUnivMap, year - 1
+      항목데이터, year, calcRules, AppState._baseUnivMap, year - 1, AppState._univInfoMap
     );
     // 지역 필터 옵션을 집계 결과에서 갱신
     this.renderAllMultiSelects(AppState.computed.aggregated);
@@ -1055,12 +1111,21 @@ const FilterManager = {
   applyFilters() {
     const { aggregated } = AppState.computed;
     const f = AppState.filters;
+    const METRO = new Set(['서울', '경기', '인천']);
+    const DONGNAM = new Set(['부산', '울산', '경남']);
+    // 기본 허용 대학구분: 대학교 + 산업대학, 뱃지로 교육대학 추가 가능
+    const 허용대학구분 = new Set(['대학교', '산업대학']);
+    if (f.교육대학포함) 허용대학구분.add('교육대학');
+
     let filtered = aggregated.filter(row => {
+      // 대학구분 필터: 정보가 있는 경우만 검사 (없으면 통과)
+      if (row.대학구분 && row.대학구분 !== '미확인' && !허용대학구분.has(row.대학구분)) return false;
       if (f.대학구분.length && !f.대학구분.includes(row.대학구분)) return false;
-      if (f.설립구분.length && !f.설립구분.includes(row.설립구분)) return false;
       if (f.지역.length && !f.지역.includes(row.지역)) return false;
-      if (f.수도권여부 === '수도권' && row.수도권여부 !== 'Y') return false;
-      if (f.수도권여부 === '비수도권' && row.수도권여부 !== 'N') return false;
+      if (f.설립Quick === '사립' && row.설립구분 !== '사립') return false;
+      if (f.지역그룹 === '비수도권' && METRO.has(row.지역)) return false;
+      if (f.지역그룹 === '동남권' && !DONGNAM.has(row.지역)) return false;
+      if (f.지역그룹 === '부산' && row.지역 !== '부산') return false;
       return true;
     });
     AppState.computed.filtered = filtered;
@@ -1340,16 +1405,18 @@ const App = {
     });
 
     // 초기 데이터 병렬 로드
-    const [manifest, 기준대학, calcRules] = await Promise.all([
+    const [manifest, 기준대학, calcRules, univInfo] = await Promise.all([
       DataService.fetchManifest(),
       DataService.fetchBaseUnivData(),
       DataService.fetchCalcRules(),
+      DataService.fetchUnivInfo(),
     ]);
 
     AppState.raw.manifest = manifest;
     AppState.raw.기준대학 = 기준대학;
     AppState.raw.calcRules = calcRules;
     AppState._baseUnivMap = DataService.buildBaseUnivMap(기준대학);
+    AppState._univInfoMap = DataService.buildUnivInfoMap(univInfo);
 
     // 필터 UI 초기화
     FilterManager.init();
