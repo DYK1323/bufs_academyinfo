@@ -4,536 +4,981 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>공시 분석 — 관리자</title>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: 'Pretendard', 'Malgun Gothic', sans-serif; font-size: 14px; color: #1e293b; background: #f0f6ff; }
 
-body {
-  font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
-  font-size: 14px;
-  background: #f8fafc;
-  color: #1e293b;
-  min-height: 100vh;
+:root {
+  --primary: #2563EB;
+  --primary-dark: #1d4ed8;
+  --primary-light: #eff6ff;
+  --border: #e2e8f0;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
 }
 
-/* ── 레이아웃 ── */
+/* ── 헤더 ── */
 .page-header {
-  background: #1e3a5f;
-  color: #fff;
-  padding: 14px 24px;
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
   display: flex;
   align-items: center;
   gap: 16px;
+  height: 52px;
+  position: sticky; top: 0; z-index: 50;
 }
-.page-header h1 { font-size: 16px; font-weight: 700; }
-.page-header a {
-  margin-left: auto;
-  color: #93c5fd;
-  font-size: 13px;
-  text-decoration: none;
-}
-.page-header a:hover { text-decoration: underline; }
+.page-header h1 { font-size: 15px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px; }
+.page-header h1 span { font-size: 18px; }
+.header-link { margin-left: auto; font-size: 12.5px; color: var(--primary); text-decoration: none; }
+.header-link:hover { text-decoration: underline; }
 
-.container { max-width: 900px; margin: 32px auto; padding: 0 24px; }
+/* ── GitHub 연동 패널 ── */
+#gh-panel {
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.gh-field { display: flex; align-items: center; gap: 6px; }
+.gh-field label { font-size: 12px; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+.gh-input {
+  height: 30px; padding: 0 10px;
+  border: 1px solid var(--border); border-radius: 6px;
+  font-size: 12.5px; font-family: inherit; color: #1e293b;
+  background: #f8fafc; outline: none;
+  transition: border-color 0.12s;
+}
+.gh-input:focus { border-color: var(--primary); background: #fff; }
+#gh-repo-input { width: 200px; }
+#gh-token-input { width: 220px; font-family: monospace; letter-spacing: 0.02em; }
+#gh-status {
+  font-size: 12px; padding: 3px 10px;
+  border-radius: 20px; font-weight: 600;
+}
+#gh-status.disconnected { background: #f1f5f9; color: var(--text-muted); }
+#gh-status.connected    { background: #dcfce7; color: #166534; }
+#gh-status.error        { background: #fef2f2; color: #991b1b; }
+.gh-btn {
+  height: 30px; padding: 0 14px;
+  border: 1px solid var(--primary); border-radius: 6px;
+  background: var(--primary); color: #fff;
+  font-size: 12.5px; font-family: inherit; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+}
+.gh-btn:hover { background: var(--primary-dark); }
+
+/* ── 탭 ── */
+.tab-nav {
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  display: flex; gap: 0;
+}
+.tab-btn {
+  height: 44px; padding: 0 18px;
+  border: none; background: transparent;
+  font-size: 13px; font-family: inherit; font-weight: 500;
+  color: var(--text-muted); cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.12s, border-color 0.12s;
+}
+.tab-btn:hover { color: var(--text-secondary); }
+.tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+
+/* ── 콘텐츠 ── */
+.tab-content { display: none; padding: 24px; max-width: 1000px; margin: 0 auto; }
+.tab-content.active { display: block; }
 
 /* ── 카드 ── */
 .card {
   background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 24px;
-  margin-bottom: 20px;
-}
-.card-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 4px;
-}
-.card-desc {
-  font-size: 13px;
-  color: #64748b;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm);
   margin-bottom: 16px;
-  line-height: 1.6;
+  overflow: hidden;
 }
-
-/* ── 알림 배너 ── */
-.banner {
-  border-radius: 6px;
-  padding: 10px 14px;
-  font-size: 13px;
-  margin-bottom: 16px;
-  display: none;
+.card-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex; align-items: center; gap: 10px;
 }
-.banner.warn  { background: #fef9c3; border: 1px solid #fde047; color: #854d0e; }
-.banner.info  { background: #eff6ff; border: 1px solid #93c5fd; color: #1d4ed8; }
-.banner.error { background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; }
-.banner.success { background: #f0fdf4; border: 1px solid #86efac; color: #166534; }
-
-/* ── 툴바 ── */
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
-}
-.toolbar input[type="search"] {
-  flex: 1;
-  min-width: 180px;
-  padding: 7px 11px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  font-size: 13px;
-  outline: none;
-}
-.toolbar input[type="search"]:focus { border-color: #3b82f6; }
+.card-title { font-size: 14px; font-weight: 700; color: #0f172a; }
+.card-desc { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; }
+.card-body { padding: 18px; }
 
 /* ── 버튼 ── */
 .btn {
-  padding: 7px 14px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
+  height: 32px; padding: 0 14px;
+  border: 1px solid var(--border); border-radius: 6px;
+  font-size: 12.5px; font-family: inherit; font-weight: 500;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+  transition: background 0.1s, border-color 0.1s;
   white-space: nowrap;
 }
-.btn-primary   { background: #2563eb; color: #fff; }
-.btn-primary:hover { background: #1d4ed8; }
-.btn-success   { background: #16a34a; color: #fff; }
+.btn-primary   { background: var(--primary); color: #fff; border-color: var(--primary); }
+.btn-primary:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
+.btn-secondary { background: #fff; color: var(--text-secondary); }
+.btn-secondary:hover { background: #f8fafc; border-color: #cbd5e1; }
+.btn-danger    { background: #fff; color: #dc2626; border-color: #fca5a5; }
+.btn-danger:hover { background: #fef2f2; }
+.btn-success   { background: #16a34a; color: #fff; border-color: #16a34a; }
 .btn-success:hover { background: #15803d; }
-.btn-secondary { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; }
-.btn-secondary:hover { background: #e2e8f0; }
-.btn-danger    { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
-.btn-danger:hover { background: #fecaca; }
-.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-sm { height: 26px; padding: 0 10px; font-size: 12px; }
 
-/* ── 테이블 ── */
-.table-wrap { overflow-x: auto; }
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
+/* ── 툴바 ── */
+.toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.toolbar input[type="search"] {
+  height: 32px; padding: 0 10px;
+  border: 1px solid var(--border); border-radius: 6px;
+  font-size: 13px; font-family: inherit; outline: none; width: 200px;
 }
+.toolbar input[type="search"]:focus { border-color: var(--primary); }
+.row-count { font-size: 12px; color: var(--text-muted); }
+
+/* ── 기준대학 테이블 ── */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
 thead th {
-  background: #f1f5f9;
-  text-align: left;
-  padding: 9px 12px;
-  font-weight: 600;
-  color: #475569;
-  border-bottom: 2px solid #e2e8f0;
-  white-space: nowrap;
+  background: #f8fafc; border-bottom: 1px solid var(--border);
+  padding: 9px 12px; text-align: left;
+  font-size: 11.5px; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;
 }
 tbody tr { border-bottom: 1px solid #f1f5f9; }
 tbody tr:last-child { border-bottom: none; }
-tbody tr:hover { background: #f8fafc; }
 tbody tr.hidden { display: none; }
-tbody td {
-  padding: 8px 12px;
-  vertical-align: middle;
+tbody td { padding: 6px 8px; vertical-align: middle; }
+.cell-input {
+  width: 100%; height: 30px; padding: 0 8px;
+  border: 1px solid transparent; border-radius: 5px;
+  font-size: 13px; font-family: inherit; color: #1e293b;
+  background: transparent; outline: none;
+  transition: border-color 0.1s, background 0.1s;
 }
-td.td-actions { text-align: right; white-space: nowrap; }
+.cell-input:hover { border-color: var(--border); background: #f8fafc; }
+.cell-input:focus { border-color: var(--primary); background: #fff; }
+.td-actions { text-align: center; width: 60px; }
+#empty-hint { text-align: center; padding: 32px; color: var(--text-muted); font-size: 13px; }
 
-/* ── 인라인 편집 ── */
-td input.cell-input {
-  width: 100%;
-  padding: 4px 8px;
-  border: 1px solid #3b82f6;
-  border-radius: 4px;
-  font-size: 13px;
-  font-family: inherit;
-  outline: none;
-  background: #eff6ff;
+/* ── 배너 ── */
+.banner {
+  border-radius: 8px; padding: 10px 14px; font-size: 13px;
+  margin-bottom: 14px; display: none; line-height: 1.5;
 }
-td .cell-display { cursor: pointer; }
-td .cell-display:hover { text-decoration: underline; color: #2563eb; }
+.banner.show { display: block; }
+.banner.warn    { background: #fef9c3; border: 1px solid #fde047; color: #854d0e; }
+.banner.info    { background: #eff6ff; border: 1px solid #93c5fd; color: #1d4ed8; }
+.banner.error   { background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; }
+.banner.success { background: #f0fdf4; border: 1px solid #86efac; color: #166534; }
 
-/* ── 카운터 ── */
-.row-count { font-size: 12px; color: #64748b; margin-left: auto; }
+/* ── 산식 카드 ── */
+.rule-card {
+  background: #fff; border: 1px solid var(--border); border-radius: 8px;
+  margin-bottom: 10px; overflow: hidden;
+}
+.rule-card-header {
+  padding: 12px 16px; display: flex; align-items: center; gap: 10px;
+  cursor: pointer; user-select: none;
+}
+.rule-card-header:hover { background: #f8fafc; }
+.rule-key { font-size: 13px; font-weight: 600; color: #0f172a; flex: 1; }
+.rule-label { font-size: 12px; color: var(--text-secondary); }
+.rule-type-badge {
+  font-size: 10.5px; font-weight: 700; padding: 2px 8px;
+  border-radius: 20px; flex-shrink: 0;
+}
+.rule-type-badge.std  { background: #dbeafe; color: #1d4ed8; }
+.rule-type-badge.min  { background: #fce7f3; color: #9d174d; }
+.rule-card-body { display: none; padding: 14px 16px; border-top: 1px solid #f1f5f9; }
+.rule-card.open .rule-card-body { display: block; }
+.rule-card.open .rule-card-header { background: var(--primary-light); }
 
-/* ── 페이지 하단 ── */
+.form-row { display: flex; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+.form-group { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 160px; }
+.form-group label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.form-input {
+  height: 32px; padding: 0 10px;
+  border: 1px solid var(--border); border-radius: 6px;
+  font-size: 13px; font-family: inherit; color: #1e293b;
+  background: #f8fafc; outline: none;
+  transition: border-color 0.12s;
+}
+.form-input:focus { border-color: var(--primary); background: #fff; }
+.form-textarea {
+  padding: 8px 10px; min-height: 60px; resize: vertical;
+  border: 1px solid var(--border); border-radius: 6px;
+  font-size: 12.5px; font-family: 'Pretendard', monospace; color: #1e293b;
+  background: #f8fafc; outline: none; width: 100%;
+  transition: border-color 0.12s;
+}
+.form-textarea:focus { border-color: var(--primary); background: #fff; }
+.form-hint { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.form-actions { display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end; }
+
+/* ── 공시항목 카드 ── */
+.manifest-card {
+  background: #fff; border: 1px solid var(--border); border-radius: 8px;
+  margin-bottom: 10px; overflow: hidden;
+}
+.manifest-card-header {
+  padding: 12px 16px; display: flex; align-items: center; gap: 12px;
+  cursor: pointer; user-select: none;
+}
+.manifest-card-header:hover { background: #f8fafc; }
+.manifest-card.open .manifest-card-header { background: var(--primary-light); }
+.manifest-card.open .manifest-card-body { display: block; }
+.manifest-card-body { display: none; padding: 16px; border-top: 1px solid #f1f5f9; }
+.manifest-key { font-size: 11px; color: var(--text-muted); font-family: monospace; }
+.manifest-label { font-size: 14px; font-weight: 700; color: #0f172a; }
+
+/* 컬럼 편집 테이블 */
+.col-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+.col-table th { background: #f8fafc; padding: 7px 10px; text-align: left; font-size: 11px; font-weight: 600; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+.col-table td { padding: 5px 6px; border-bottom: 1px solid #f1f5f9; }
+.col-table tr:last-child td { border-bottom: none; }
+.col-table .cell-input { height: 28px; font-size: 12.5px; }
+
+/* ── 저장 바 ── */
 .save-bar {
-  position: sticky;
-  bottom: 0;
-  background: #fff;
-  border-top: 1px solid #e2e8f0;
-  padding: 12px 24px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  justify-content: flex-end;
-  box-shadow: 0 -2px 8px rgba(0,0,0,.06);
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: #fff; border-top: 1px solid var(--border);
+  padding: 10px 24px;
+  display: flex; align-items: center; gap: 12px;
+  box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+  z-index: 40;
 }
-.save-bar .status-msg {
-  font-size: 12px;
-  color: #64748b;
-  margin-right: auto;
-}
+.status-msg { font-size: 12.5px; color: var(--text-muted); flex: 1; }
+.status-msg.dirty   { color: #dc2626; font-weight: 600; }
+.status-msg.saved   { color: #16a34a; font-weight: 600; }
+
+/* 하단 바 높이만큼 패딩 */
+body { padding-bottom: 60px; }
 </style>
 </head>
 <body>
 
-<div class="page-header">
-  <h1>공시 분석 — 관리자</h1>
-  <a href="index.html">← 분석 페이지로</a>
+<!-- ── 헤더 ── -->
+<header class="page-header">
+  <h1><span>⚙️</span> 공시 분석 — 관리자</h1>
+  <a class="header-link" href="index.html">← 분석 페이지</a>
+</header>
+
+<!-- ── GitHub 연동 패널 ── -->
+<div id="gh-panel">
+  <div class="gh-field">
+    <label>저장소</label>
+    <input class="gh-input" id="gh-repo-input" placeholder="owner/repo-name" autocomplete="off">
+  </div>
+  <div class="gh-field">
+    <label>Personal Access Token</label>
+    <input class="gh-input" id="gh-token-input" type="password" placeholder="github_pat_..." autocomplete="off">
+  </div>
+  <button class="gh-btn" onclick="ghConnect()">연결</button>
+  <span id="gh-status" class="disconnected">● 미연결</span>
 </div>
 
-<div class="container">
-
-  <!-- CORS 경고 -->
-  <div class="banner warn" id="cors-banner">
-    ⚠ <strong>file://</strong> 프로토콜에서는 JSON 로드가 차단됩니다.
-    <code>python -m http.server 8080</code> 실행 후 <code>http://localhost:8080/admin.html</code>로 접속하세요.
-  </div>
-
-  <!-- 로드 에러 -->
-  <div class="banner error" id="load-error-banner"></div>
-
-  <!-- 안내 -->
-  <div class="card">
-    <div class="card-title">캠퍼스 합산 매핑 관리</div>
-    <div class="card-desc">
-      여러 캠퍼스를 하나의 대학으로 합산할 대학만 등록합니다.<br>
-      <strong>대학명</strong>: raw data의 <code>학교</code> 필드 값 (캠퍼스 단위) &nbsp;|&nbsp;
-      <strong>기준대학명</strong>: 합산 후 표시할 대표 이름<br>
-      등록하지 않은 대학은 <code>학교</code> 필드값을 그대로 사용합니다.
-    </div>
-  </div>
-
-  <!-- 편집 카드 -->
-  <div class="card">
-    <div class="toolbar">
-      <input type="search" id="search-input" placeholder="대학명 검색…" oninput="filterRows()">
-      <span class="row-count" id="row-count"></span>
-      <button class="btn btn-primary" onclick="addRow()">+ 행 추가</button>
-      <button class="btn btn-secondary" onclick="loadCsvFile()">CSV 업로드</button>
-      <button class="btn btn-secondary" onclick="loadJsonFile()">JSON 불러오기</button>
-      <input type="file" id="csv-input" accept=".csv" style="display:none" onchange="onCsvLoad(event)">
-      <input type="file" id="json-input" accept=".json" style="display:none" onchange="onJsonLoad(event)">
-    </div>
-
-    <div class="table-wrap">
-      <table id="mapping-table">
-        <thead>
-          <tr>
-            <th style="width:32%">대학명 <span style="font-weight:400;color:#94a3b8">(학교 필드값)</span></th>
-            <th style="width:32%">기준대학명 <span style="font-weight:400;color:#94a3b8">(합산 대표명)</span></th>
-            <th style="width:22%">비고 <span style="font-weight:400;color:#94a3b8">(교명변경, 통폐합 등)</span></th>
-            <th style="width:14%"></th>
-          </tr>
-        </thead>
-        <tbody id="table-body">
-          <!-- 동적 생성 -->
-        </tbody>
-      </table>
-    </div>
-
-    <div id="empty-hint" style="text-align:center;padding:32px;color:#94a3b8;font-size:13px;display:none;">
-      등록된 매핑이 없습니다. [+ 행 추가] 버튼으로 추가하세요.
-    </div>
-  </div>
-
+<!-- ── 탭 네비게이션 ── -->
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('기준대학', this)">기준대학 매핑</button>
+  <button class="tab-btn" onclick="switchTab('calc', this)">산식 관리</button>
+  <button class="tab-btn" onclick="switchTab('manifest', this)">공시항목</button>
 </div>
 
-<!-- 저장 바 -->
+<!-- ══════════════════════════════════════════
+     탭 1: 기준대학
+══════════════════════════════════════════ -->
+<div class="tab-content active" id="tab-기준대학">
+  <div class="banner" id="banner-기준대학"></div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">캠퍼스 합산 매핑</div>
+        <div class="card-desc">
+          여러 캠퍼스를 하나로 합산하거나 교명변경이 있는 대학을 등록합니다.
+          미등록 대학은 학교 필드값을 그대로 사용합니다.
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="toolbar">
+        <input type="search" id="search-input" placeholder="대학명 검색…" oninput="filterRows()">
+        <span class="row-count" id="row-count"></span>
+        <button class="btn btn-primary" onclick="addRow()">+ 행 추가</button>
+        <button class="btn btn-secondary" onclick="loadCsvFile()">CSV 업로드</button>
+        <input type="file" id="csv-input" accept=".csv" style="display:none" onchange="onCsvLoad(event)">
+      </div>
+      <div class="table-wrap">
+        <table id="mapping-table">
+          <thead>
+            <tr>
+              <th style="width:35%">대학명 <span style="font-weight:400;opacity:.6">(학교 필드값)</span></th>
+              <th style="width:35%">기준대학명 <span style="font-weight:400;opacity:.6">(합산 대표명)</span></th>
+              <th style="width:20%">비고</th>
+              <th style="width:10%"></th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+      <div id="empty-hint" style="display:none;">등록된 매핑이 없습니다. [+ 행 추가] 버튼으로 추가하세요.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     탭 2: 산식 관리
+══════════════════════════════════════════ -->
+<div class="tab-content" id="tab-calc">
+  <div class="banner" id="banner-calc"></div>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+    <div>
+      <div style="font-size:15px;font-weight:700;color:#0f172a;">산식 관리</div>
+      <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px;">calc_rules.json — 비율 지표 계산 산식 정의</div>
+    </div>
+    <button class="btn btn-primary" onclick="addCalcRule()">+ 산식 추가</button>
+  </div>
+
+  <div class="banner info show" style="margin-bottom:14px;">
+    <strong>산식 유형</strong> &nbsp;·&nbsp;
+    <span style="background:#dbeafe;color:#1d4ed8;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;">산식</span>
+    : 분자 ÷ 분모 × 배율 &nbsp;&nbsp;
+    <span style="background:#fce7f3;color:#9d174d;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;">MIN</span>
+    : 여러 지표 중 최솟값
+  </div>
+
+  <div id="calc-list"></div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     탭 3: 공시항목
+══════════════════════════════════════════ -->
+<div class="tab-content" id="tab-manifest">
+  <div class="banner" id="banner-manifest"></div>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+    <div>
+      <div style="font-size:15px;font-weight:700;color:#0f172a;">공시항목 관리</div>
+      <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px;">data/manifest.json — 항목별 라벨·컬럼·정렬·제외 조건</div>
+    </div>
+  </div>
+
+  <div id="manifest-list"></div>
+</div>
+
+<!-- ── 저장 바 ── -->
 <div class="save-bar">
-  <span class="status-msg" id="status-msg">변경사항 없음</span>
+  <span class="status-msg" id="status-msg">GitHub에 연결하면 저장할 수 있습니다.</span>
   <button class="btn btn-secondary" onclick="confirmReset()">초기화</button>
-  <button class="btn btn-success" onclick="downloadJSON()">💾 JSON 저장 (다운로드)</button>
+  <button class="btn btn-success" id="btn-save" onclick="saveAll()" disabled>💾 GitHub에 저장</button>
 </div>
 
 <script>
 'use strict';
 
-const DATA_PATH = './data/기준대학.json';
-let originalData = [];   // 서버에서 로드한 원본
-let isDirty = false;
+/* ══════════════════════════════════════════
+   GitHub API
+══════════════════════════════════════════ */
+const GH = {
+  get token() { return sessionStorage.getItem('gh_token') || ''; },
+  get owner() { return (localStorage.getItem('gh_repo') || '').split('/')[0] || ''; },
+  get repo()  { return (localStorage.getItem('gh_repo') || '').split('/')[1] || ''; },
 
-/* ── 초기화 ── */
-async function init() {
-  if (location.protocol === 'file:') {
-    document.getElementById('cors-banner').style.display = '';
-    showEmptyHint();
-    return;
-  }
-  try {
-    const res = await fetch(DATA_PATH);
-    if (res.ok) {
-      originalData = await res.json();
-    } else if (res.status === 404) {
-      originalData = [];   // 파일 없음 → 새로 만들기
-    } else {
-      throw new Error(`HTTP ${res.status}`);
+  headers() {
+    return {
+      Authorization: `Bearer ${this.token}`,
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    };
+  },
+
+  async getFile(path) {
+    const res = await fetch(
+      `https://api.github.com/repos/${this.owner}/${this.repo}/contents/${path}`,
+      { headers: this.headers() }
+    );
+    if (!res.ok) throw new Error(`${res.status} — ${path}`);
+    const data = await res.json();
+    const text = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ''))));
+    return { content: JSON.parse(text), sha: data.sha };
+  },
+
+  async putFile(path, content, sha, message) {
+    const text = JSON.stringify(content, null, 2);
+    const b64  = btoa(unescape(encodeURIComponent(text)));
+    const res  = await fetch(
+      `https://api.github.com/repos/${this.owner}/${this.repo}/contents/${path}`,
+      {
+        method: 'PUT',
+        headers: { ...this.headers(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, content: b64, sha }),
+      }
+    );
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `${res.status}`);
     }
-    renderTable(originalData);
+    const data = await res.json();
+    return data.content.sha;
+  },
+};
+
+/* ══════════════════════════════════════════
+   앱 상태
+══════════════════════════════════════════ */
+const State = {
+  connected: false,
+  sha: { 기준대학: null, calc: null, manifest: null },
+  original: { 기준대학: [], calc: {}, manifest: [] },
+  dirty: false,
+};
+
+function setDirty() {
+  State.dirty = true;
+  const el = document.getElementById('status-msg');
+  el.textContent = '저장되지 않은 변경사항이 있습니다.';
+  el.className = 'status-msg dirty';
+}
+function setClean(msg) {
+  State.dirty = false;
+  const el = document.getElementById('status-msg');
+  el.textContent = msg || '변경사항 없음';
+  el.className = msg ? 'status-msg saved' : 'status-msg';
+}
+function showBanner(id, type, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = `banner ${type} show`;
+  el.innerHTML = msg;
+}
+function hideBanner(id) {
+  const el = document.getElementById(id);
+  if (el) el.className = 'banner';
+}
+
+/* ══════════════════════════════════════════
+   탭 전환
+══════════════════════════════════════════ */
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById(`tab-${name}`).classList.add('active');
+  btn.classList.add('active');
+}
+
+/* ══════════════════════════════════════════
+   GitHub 연결
+══════════════════════════════════════════ */
+async function ghConnect() {
+  const repoVal  = document.getElementById('gh-repo-input').value.trim();
+  const tokenVal = document.getElementById('gh-token-input').value.trim();
+  if (!repoVal || !tokenVal) { alert('저장소와 토큰을 입력하세요.'); return; }
+
+  localStorage.setItem('gh_repo', repoVal);
+  sessionStorage.setItem('gh_token', tokenVal);
+
+  const statusEl = document.getElementById('gh-status');
+  statusEl.textContent = '● 연결 중…';
+  statusEl.className = 'disconnected';
+
+  try {
+    await loadAll();
+    State.connected = true;
+    statusEl.textContent = `● ${repoVal}`;
+    statusEl.className = 'connected';
+    document.getElementById('btn-save').disabled = false;
+    setClean('연결 완료 — 데이터를 불러왔습니다.');
   } catch (e) {
-    const banner = document.getElementById('load-error-banner');
-    banner.style.display = '';
-    banner.textContent = `데이터 로드 실패: ${e.message}`;
-    showEmptyHint();
+    statusEl.textContent = `● 오류: ${e.message}`;
+    statusEl.className = 'error';
   }
 }
 
-/* ── 테이블 렌더 ── */
-function renderTable(rows) {
+async function loadAll() {
+  const [기준대학, calc, manifest] = await Promise.all([
+    GH.getFile('data/기준대학.json'),
+    GH.getFile('calc_rules.json'),
+    GH.getFile('data/manifest.json'),
+  ]);
+  State.sha.기준대학 = 기준대학.sha;
+  State.sha.calc     = calc.sha;
+  State.sha.manifest = manifest.sha;
+  State.original.기준대학 = JSON.parse(JSON.stringify(기준대학.content));
+  State.original.calc     = JSON.parse(JSON.stringify(calc.content));
+  State.original.manifest = JSON.parse(JSON.stringify(manifest.content));
+
+  renderMappingTable(기준대학.content);
+  renderCalcRules(calc.content);
+  renderManifest(manifest.content);
+}
+
+/* ══════════════════════════════════════════
+   저장
+══════════════════════════════════════════ */
+async function saveAll() {
+  if (!State.connected) { alert('먼저 GitHub에 연결하세요.'); return; }
+
+  const btn = document.getElementById('btn-save');
+  btn.disabled = true;
+  btn.textContent = '저장 중…';
+
+  try {
+    const [newData기준대학, newDataCalc, newDataManifest] = [
+      collectMappingData(),
+      collectCalcRules(),
+      collectManifest(),
+    ];
+
+    const now = new Date().toISOString().slice(0,16).replace('T',' ');
+    const msg = `관리자 업데이트 (${now})`;
+
+    const [sha1, sha2, sha3] = await Promise.all([
+      GH.putFile('data/기준대학.json', newData기준대학, State.sha.기준대학, msg),
+      GH.putFile('calc_rules.json',     newDataCalc,     State.sha.calc,     msg),
+      GH.putFile('data/manifest.json',  newDataManifest, State.sha.manifest, msg),
+    ]);
+    State.sha.기준대학 = sha1;
+    State.sha.calc     = sha2;
+    State.sha.manifest = sha3;
+
+    setClean(`저장 완료 — ${now}`);
+  } catch (e) {
+    alert(`저장 실패: ${e.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '💾 GitHub에 저장';
+  }
+}
+
+function confirmReset() {
+  if (!State.dirty || confirm('변경사항을 모두 되돌릴까요?')) {
+    renderMappingTable(State.original.기준대학);
+    renderCalcRules(State.original.calc);
+    renderManifest(State.original.manifest);
+    setClean();
+  }
+}
+
+window.addEventListener('beforeunload', e => {
+  if (State.dirty) { e.preventDefault(); e.returnValue = ''; }
+});
+
+/* ══════════════════════════════════════════
+   탭 1: 기준대학 CRUD
+══════════════════════════════════════════ */
+function renderMappingTable(rows) {
   const tbody = document.getElementById('table-body');
   tbody.innerHTML = '';
-  for (const row of rows) {
-    appendRow(row['대학명'] || '', row['기준대학명'] || '', row['비고'] || '');
-  }
+  for (const row of rows) appendRow(row['대학명']||'', row['기준대학명']||'', row['비고']||'');
   updateCount();
   showEmptyHint();
 }
 
-function appendRow(univName = '', baseName = '', note = '') {
+function appendRow(univName='', baseName='', note='') {
   const tbody = document.getElementById('table-body');
   const tr = document.createElement('tr');
   tr.innerHTML = `
-    <td><input class="cell-input" type="text" value="${escHtml(univName)}" placeholder="예: 연세대학교(미래캠퍼스)" oninput="markDirty()"></td>
-    <td><input class="cell-input" type="text" value="${escHtml(baseName)}" placeholder="예: 연세대학교" oninput="markDirty()"></td>
-    <td><input class="cell-input" type="text" value="${escHtml(note)}" placeholder="교명변경(2023)" oninput="markDirty()"></td>
-    <td class="td-actions">
-      <button class="btn btn-danger btn-sm" onclick="deleteRow(this)">삭제</button>
-    </td>
+    <td><input class="cell-input" type="text" value="${esc(univName)}" placeholder="예: 연세대학교(미래캠퍼스)" oninput="setDirty()"></td>
+    <td><input class="cell-input" type="text" value="${esc(baseName)}" placeholder="예: 연세대학교" oninput="setDirty()"></td>
+    <td><input class="cell-input" type="text" value="${esc(note)}" placeholder="교명변경(2023)" oninput="setDirty()"></td>
+    <td class="td-actions"><button class="btn btn-danger btn-sm" onclick="deleteRow(this)">삭제</button></td>
   `;
   tbody.appendChild(tr);
-  updateCount();
-  showEmptyHint();
+  updateCount(); showEmptyHint();
 }
 
-/* ── 행 추가 / 삭제 ── */
 function addRow() {
-  appendRow('', '');
-  markDirty();
-  // 새 행 첫 번째 input에 포커스
+  appendRow('',''); setDirty();
   const rows = document.getElementById('table-body').querySelectorAll('tr:not(.hidden)');
-  const last = rows[rows.length - 1];
-  if (last) last.querySelector('input').focus();
+  rows[rows.length-1]?.querySelector('input')?.focus();
 }
 
 function deleteRow(btn) {
-  btn.closest('tr').remove();
-  markDirty();
-  updateCount();
-  showEmptyHint();
+  btn.closest('tr').remove(); setDirty(); updateCount(); showEmptyHint();
 }
 
-/* ── 검색 필터 ── */
 function filterRows() {
   const q = document.getElementById('search-input').value.trim().toLowerCase();
-  const rows = document.getElementById('table-body').querySelectorAll('tr');
-  for (const tr of rows) {
-    const texts = [...tr.querySelectorAll('input')].map(i => i.value.toLowerCase()).join(' ');
-    tr.classList.toggle('hidden', q.length > 0 && !texts.includes(q));
-  }
+  document.getElementById('table-body').querySelectorAll('tr').forEach(tr => {
+    const texts = [...tr.querySelectorAll('input')].map(i=>i.value.toLowerCase()).join(' ');
+    tr.classList.toggle('hidden', q.length>0 && !texts.includes(q));
+  });
   updateCount();
 }
 
 function updateCount() {
   const all = document.getElementById('table-body').querySelectorAll('tr').length;
-  const visible = document.getElementById('table-body').querySelectorAll('tr:not(.hidden)').length;
-  const q = document.getElementById('search-input').value.trim();
-  document.getElementById('row-count').textContent = q ? `${visible} / ${all}건` : `총 ${all}건`;
+  const vis = document.getElementById('table-body').querySelectorAll('tr:not(.hidden)').length;
+  const q   = document.getElementById('search-input').value.trim();
+  document.getElementById('row-count').textContent = q ? `${vis}/${all}건` : `총 ${all}건`;
 }
 
-/* ── 빈 상태 힌트 ── */
 function showEmptyHint() {
   const all = document.getElementById('table-body').querySelectorAll('tr').length;
-  document.getElementById('empty-hint').style.display = all === 0 ? '' : 'none';
+  document.getElementById('empty-hint').style.display = all===0 ? '' : 'none';
 }
 
-/* ── 변경 감지 ── */
-function markDirty() {
-  isDirty = true;
-  document.getElementById('status-msg').textContent = '저장되지 않은 변경사항이 있습니다.';
-  document.getElementById('status-msg').style.color = '#dc2626';
-}
-
-/* ── CSV 불러오기 ── */
-function loadCsvFile() {
-  document.getElementById('csv-input').click();
-}
-
-function onCsvLoad(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    try {
-      const data = parseCsv(ev.target.result);
-      if (!data.length) throw new Error('데이터가 없습니다.');
-      renderTable(data);
-      markDirty();
-    } catch (err) {
-      alert(`CSV 파싱 오류: ${err.message}`);
-    }
-  };
-  // Excel 저장 CSV는 보통 UTF-8 BOM 또는 CP949 — UTF-8로 시도 후 BOM 제거
-  reader.readAsText(file, 'utf-8');
-  e.target.value = '';
-}
-
-function parseCsv(text) {
-  // BOM 제거
-  text = text.replace(/^\uFEFF/, '');
-  const lines = text.split(/\r?\n/).filter(l => l.trim());
-  if (!lines.length) return [];
-
-  // 헤더 파싱 (첫 행)
-  const headers = splitCsvLine(lines[0]).map(h => h.trim());
-
-  // 컬럼 인덱스 탐색 (한글 헤더 유연하게 매핑)
-  const findCol = (...names) => {
-    for (const n of names) {
-      const i = headers.findIndex(h => h === n || h.includes(n));
-      if (i >= 0) return i;
-    }
-    return -1;
-  };
-  const iUniv = findCol('대학명', '이전_학교명', '학교');
-  const iBase = findCol('기준대학명', '현재_학교명', '기준대학');
-  const iTime = findCol('적용시기');
-  const iNote = findCol('비고', '메모');
-
-  if (iUniv < 0 || iBase < 0) {
-    throw new Error(`필수 헤더가 없습니다.\n인식 가능: 대학명(또는 이전_학교명), 기준대학명(또는 현재_학교명)\n현재 헤더: ${headers.join(', ')}`);
-  }
-
-  const result = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cols = splitCsvLine(lines[i]);
-    const univName = (cols[iUniv] || '').trim();
-    const baseName = (cols[iBase] || '').trim();
-    if (!univName && !baseName) continue; // 빈 행 스킵
-    // 적용시기와 비고를 합쳐서 비고 컬럼으로 저장
-    const noteParts = [
-      iTime >= 0 ? (cols[iTime] || '').trim() : '',
-      iNote >= 0 ? (cols[iNote] || '').trim() : '',
-    ].filter(Boolean);
-    result.push({
-      '대학명': univName,
-      '기준대학명': baseName,
-      '비고': noteParts.join(' / '),
-    });
-  }
-  return result;
-}
-
-function splitCsvLine(line) {
-  // 쌍따옴표 처리 포함 CSV 파싱
-  const cols = [];
-  let cur = '', inQ = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (c === '"') {
-      if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
-      else inQ = !inQ;
-    } else if (c === ',' && !inQ) {
-      cols.push(cur); cur = '';
-    } else {
-      cur += c;
-    }
-  }
-  cols.push(cur);
-  return cols;
-}
-
-/* ── JSON 파일 불러오기 ── */
-function loadJsonFile() {
-  document.getElementById('json-input').click();
-}
-
-function onJsonLoad(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    try {
-      const data = JSON.parse(ev.target.result);
-      if (!Array.isArray(data)) throw new Error('배열 형식이어야 합니다.');
-      renderTable(data);
-      markDirty();
-    } catch (err) {
-      alert(`JSON 파싱 오류: ${err.message}`);
-    }
-  };
-  reader.readAsText(file, 'utf-8');
-  e.target.value = '';
-}
-
-/* ── JSON 다운로드 ── */
-function downloadJSON() {
+function collectMappingData() {
   const rows = document.getElementById('table-body').querySelectorAll('tr');
   const data = [];
-  let hasError = false;
   for (const tr of rows) {
     const inputs = tr.querySelectorAll('input');
     const univName = inputs[0].value.trim();
     const baseName = inputs[1].value.trim();
     const note     = inputs[2].value.trim();
-    if (!univName || !baseName) {
-      inputs[univName ? 1 : 0].style.borderColor = '#dc2626';
-      hasError = true;
-      continue;
-    }
-    inputs[0].style.borderColor = '';
-    inputs[1].style.borderColor = '';
+    if (!univName || !baseName) continue;
     const entry = { '대학명': univName, '기준대학명': baseName };
     if (note) entry['비고'] = note;
     data.push(entry);
   }
-  if (hasError) {
-    alert('빈 칸이 있습니다. 모든 행을 채우거나 삭제 후 저장하세요.');
-    return;
-  }
-
-  // 중복 대학명 체크
-  const names = data.map(r => r['대학명']);
-  const dupes = names.filter((n, i) => names.indexOf(n) !== i);
-  if (dupes.length) {
-    alert(`중복된 대학명이 있습니다:\n${[...new Set(dupes)].join('\n')}`);
-    return;
-  }
-
-  const json = JSON.stringify(data, null, 2);
-  const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = '기준대학.json';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-
-  isDirty = false;
-  document.getElementById('status-msg').textContent = `저장 완료 (${data.length}건) — 다운로드된 파일을 data/ 폴더에 덮어쓰세요.`;
-  document.getElementById('status-msg').style.color = '#16a34a';
+  return data;
 }
 
-/* ── 초기화 ── */
-function confirmReset() {
-  if (!isDirty || confirm('변경사항을 모두 되돌리고 마지막으로 불러온 데이터로 초기화할까요?')) {
-    renderTable(originalData);
-    isDirty = false;
-    document.getElementById('status-msg').textContent = '변경사항 없음';
-    document.getElementById('status-msg').style.color = '';
+/* CSV 업로드 */
+function loadCsvFile() { document.getElementById('csv-input').click(); }
+
+function onCsvLoad(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = parseCsv(ev.target.result);
+      if (!data.length) throw new Error('데이터가 없습니다.');
+      renderMappingTable(data); setDirty();
+    } catch(err) { alert(`CSV 오류: ${err.message}`); }
+  };
+  reader.readAsText(file, 'utf-8');
+  e.target.value = '';
+}
+
+function parseCsv(text) {
+  text = text.replace(/^\uFEFF/,'');
+  const lines = text.split(/\r?\n/).filter(l=>l.trim());
+  if (!lines.length) return [];
+  const headers = splitCsvLine(lines[0]).map(h=>h.trim());
+  const findCol = (...names) => { for(const n of names){ const i=headers.findIndex(h=>h===n||h.includes(n)); if(i>=0)return i; } return -1; };
+  const iUniv=findCol('대학명','이전_학교명','학교');
+  const iBase=findCol('기준대학명','현재_학교명','기준대학');
+  const iTime=findCol('적용시기');
+  const iNote=findCol('비고','메모');
+  if(iUniv<0||iBase<0) throw new Error(`헤더를 찾을 수 없습니다. 현재: ${headers.join(', ')}`);
+  const result=[];
+  for(let i=1;i<lines.length;i++){
+    const cols=splitCsvLine(lines[i]);
+    const uName=(cols[iUniv]||'').trim(), bName=(cols[iBase]||'').trim();
+    if(!uName&&!bName) continue;
+    const noteParts=[iTime>=0?(cols[iTime]||'').trim():'',iNote>=0?(cols[iNote]||'').trim():''].filter(Boolean);
+    result.push({'대학명':uName,'기준대학명':bName,'비고':noteParts.join(' / ')});
+  }
+  return result;
+}
+
+function splitCsvLine(line) {
+  const cols=[];let cur='',inQ=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(c==='"'){ if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ; }
+    else if(c===','&&!inQ){cols.push(cur);cur='';}
+    else cur+=c;
+  }
+  cols.push(cur); return cols;
+}
+
+/* ══════════════════════════════════════════
+   탭 2: 산식 관리 (calc_rules.json)
+══════════════════════════════════════════ */
+let calcData = {};
+
+function renderCalcRules(rules) {
+  calcData = JSON.parse(JSON.stringify(rules));
+  const container = document.getElementById('calc-list');
+  container.innerHTML = '';
+  for (const [key, rule] of Object.entries(rules)) {
+    container.appendChild(buildRuleCard(key, rule));
   }
 }
 
-/* ── 유틸 ── */
-function escHtml(s) {
+function buildRuleCard(key, rule) {
+  const isMin = !!rule.min_of;
+  const card = document.createElement('div');
+  card.className = 'rule-card';
+  card.dataset.key = key;
+
+  const typeBadge = isMin
+    ? '<span class="rule-type-badge min">MIN</span>'
+    : '<span class="rule-type-badge std">산식</span>';
+
+  card.innerHTML = `
+    <div class="rule-card-header" onclick="toggleCard(this)">
+      ${typeBadge}
+      <div style="flex:1;min-width:0;">
+        <div class="rule-key">${esc(key)}</div>
+        <div class="rule-label">${esc(rule.label||'')}</div>
+      </div>
+      <span style="font-size:12px;color:var(--text-muted);">▾</span>
+    </div>
+    <div class="rule-card-body">
+      ${buildRuleForm(key, rule, isMin)}
+    </div>
+  `;
+  return card;
+}
+
+function buildRuleForm(key, rule, isMin) {
+  const labelRow = `
+    <div class="form-row">
+      <div class="form-group" style="flex:2;">
+        <label>지표 필드명 (key)</label>
+        <input class="form-input rule-field-key" type="text" value="${esc(key)}" placeholder="예: 전임교원 확보율">
+      </div>
+      <div class="form-group" style="flex:3;">
+        <label>화면 표시명 (label)</label>
+        <input class="form-input rule-field-label" type="text" value="${esc(rule.label||'')}" placeholder="예: 전임교원 확보율(%)">
+      </div>
+    </div>`;
+
+  if (isMin) {
+    return labelRow + `
+      <div class="form-group">
+        <label>MIN 대상 필드 (한 줄에 하나씩)</label>
+        <textarea class="form-textarea rule-field-minof">${(rule.min_of||[]).join('\n')}</textarea>
+        <div class="form-hint">위 필드들 중 가장 작은 값을 사용합니다.</div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-danger btn-sm" onclick="deleteRule(this)">삭제</button>
+        <button class="btn btn-primary btn-sm" onclick="applyRule(this)">적용</button>
+      </div>`;
+  }
+
+  return labelRow + `
+    <div class="form-row">
+      <div class="form-group" style="flex:3;">
+        <label>분자 필드 (한 줄에 하나씩)</label>
+        <textarea class="form-textarea rule-field-numerator">${(rule.numerator||[]).join('\n')}</textarea>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="flex:3;">
+        <label>분모 기준 필드 (denominator_base)</label>
+        <input class="form-input rule-field-den-base" type="text" value="${esc(rule.denominator_base||'')}">
+      </div>
+      <div class="form-group" style="flex:2;">
+        <label>배율 (multiply)</label>
+        <input class="form-input rule-field-multiply" type="number" value="${rule.multiply??1}" style="width:100px;">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>분모 제외 필드 (denominator_exclude, 한 줄에 하나씩)</label>
+      <textarea class="form-textarea rule-field-den-excl" style="min-height:44px;">${(rule.denominator_exclude||[]).join('\n')}</textarea>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-danger btn-sm" onclick="deleteRule(this)">삭제</button>
+      <button class="btn btn-primary btn-sm" onclick="applyRule(this)">적용</button>
+    </div>`;
+}
+
+function toggleCard(header) {
+  header.closest('.rule-card, .manifest-card').classList.toggle('open');
+}
+
+function applyRule(btn) {
+  const card = btn.closest('.rule-card');
+  const oldKey = card.dataset.key;
+  const newKey = card.querySelector('.rule-field-key').value.trim();
+  const label  = card.querySelector('.rule-field-label').value.trim();
+
+  if (!newKey) { alert('지표 필드명을 입력하세요.'); return; }
+
+  const minofEl = card.querySelector('.rule-field-minof');
+  let rule;
+  if (minofEl) {
+    const minof = minofEl.value.split('\n').map(s=>s.trim()).filter(Boolean);
+    rule = { label, min_of: minof };
+  } else {
+    const numerator = card.querySelector('.rule-field-numerator').value.split('\n').map(s=>s.trim()).filter(Boolean);
+    const denBase   = card.querySelector('.rule-field-den-base').value.trim();
+    const multiply  = parseFloat(card.querySelector('.rule-field-multiply').value) || 1;
+    const denExcl   = card.querySelector('.rule-field-den-excl').value.split('\n').map(s=>s.trim()).filter(Boolean);
+    rule = { label, numerator, denominator_base: denBase, multiply };
+    if (denExcl.length) rule.denominator_exclude = denExcl;
+  }
+
+  // 키 변경 시 순서 유지하며 교체
+  if (oldKey !== newKey) {
+    const entries = Object.entries(calcData);
+    const idx = entries.findIndex(([k])=>k===oldKey);
+    entries[idx] = [newKey, rule];
+    calcData = Object.fromEntries(entries);
+    card.dataset.key = newKey;
+    card.querySelector('.rule-key').textContent = newKey;
+  } else {
+    calcData[newKey] = rule;
+  }
+  card.querySelector('.rule-label').textContent = label;
+  setDirty();
+}
+
+function deleteRule(btn) {
+  const card = btn.closest('.rule-card');
+  if (!confirm(`"${card.dataset.key}" 산식을 삭제할까요?`)) return;
+  delete calcData[card.dataset.key];
+  card.remove();
+  setDirty();
+}
+
+function addCalcRule() {
+  const isMin = confirm('MIN 유형으로 추가할까요?\n(취소 → 일반 산식 유형)');
+  const key  = `새 지표 ${Date.now()}`;
+  const rule = isMin ? { label: '', min_of: [] } : { label: '', numerator: [], denominator_base: '', multiply: 100 };
+  calcData[key] = rule;
+  const card = buildRuleCard(key, rule);
+  card.classList.add('open');
+  document.getElementById('calc-list').appendChild(card);
+  setDirty();
+  card.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function collectCalcRules() {
+  // applyRule로 calcData가 최신 유지됨
+  return calcData;
+}
+
+/* ══════════════════════════════════════════
+   탭 3: 공시항목 (manifest.json)
+══════════════════════════════════════════ */
+let manifestData = [];
+
+function renderManifest(items) {
+  manifestData = JSON.parse(JSON.stringify(items));
+  const container = document.getElementById('manifest-list');
+  container.innerHTML = '';
+  for (let i = 0; i < items.length; i++) {
+    container.appendChild(buildManifestCard(items[i], i));
+  }
+}
+
+function buildManifestCard(item, idx) {
+  const card = document.createElement('div');
+  card.className = 'manifest-card';
+  card.dataset.idx = idx;
+
+  const cols = item.columns || [];
+  const excl = item.exclude_rows ? JSON.stringify(item.exclude_rows) : '';
+
+  card.innerHTML = `
+    <div class="manifest-card-header" onclick="toggleCard(this)">
+      <div style="flex:1;min-width:0;">
+        <div class="manifest-label">${esc(item.label||item.key||'')}</div>
+        <div class="manifest-key">${esc(item.key||'')}</div>
+      </div>
+      <span style="font-size:12px;color:var(--text-muted);">컬럼 ${cols.length}개 &nbsp; ▾</span>
+    </div>
+    <div class="manifest-card-body">
+      <div class="form-row">
+        <div class="form-group" style="flex:2;">
+          <label>표시명 (label)</label>
+          <input class="form-input mf-label" type="text" value="${esc(item.label||'')}" oninput="setDirty()">
+        </div>
+        <div class="form-group" style="flex:2;">
+          <label>정렬 기준 필드 (sort_key)</label>
+          <input class="form-input mf-sortkey" type="text" value="${esc(item.sort_key||'')}" oninput="setDirty()">
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label>행 제외 조건 (exclude_rows, JSON)</label>
+        <input class="form-input mf-excl" type="text" value="${esc(excl)}" placeholder='예: {"계열":["의학계열"]}' oninput="setDirty()">
+        <div class="form-hint">비어 있으면 제외 없음. 잘못된 JSON은 저장 시 오류 발생.</div>
+      </div>
+
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">표시 컬럼</div>
+      <div class="table-wrap">
+        <table class="col-table">
+          <thead><tr><th>필드명 (key)</th><th>표시명 (label)</th><th></th></tr></thead>
+          <tbody class="col-tbody">
+            ${cols.map(c=>`
+              <tr>
+                <td><input class="cell-input col-key" type="text" value="${esc(c.key||'')}" oninput="setDirty()"></td>
+                <td><input class="cell-input col-label" type="text" value="${esc(c.label||'')}" oninput="setDirty()"></td>
+                <td style="text-align:center;width:50px;"><button class="btn btn-danger btn-sm" onclick="deleteColRow(this)">−</button></td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-top:8px;">
+        <button class="btn btn-secondary btn-sm" onclick="addColRow(this)">+ 컬럼 추가</button>
+      </div>
+    </div>
+  `;
+  return card;
+}
+
+function addColRow(btn) {
+  const tbody = btn.closest('.manifest-card-body').querySelector('.col-tbody');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input class="cell-input col-key" type="text" oninput="setDirty()"></td>
+    <td><input class="cell-input col-label" type="text" oninput="setDirty()"></td>
+    <td style="text-align:center;width:50px;"><button class="btn btn-danger btn-sm" onclick="deleteColRow(this)">−</button></td>
+  `;
+  tbody.appendChild(tr);
+  tr.querySelector('input').focus();
+  setDirty();
+}
+
+function deleteColRow(btn) {
+  btn.closest('tr').remove(); setDirty();
+}
+
+function collectManifest() {
+  const cards = document.querySelectorAll('.manifest-card');
+  return manifestData.map((item, idx) => {
+    const card = cards[idx];
+    if (!card) return item;
+    const label   = card.querySelector('.mf-label').value.trim();
+    const sortKey = card.querySelector('.mf-sortkey').value.trim();
+    const exclStr = card.querySelector('.mf-excl').value.trim();
+
+    let exclude_rows = undefined;
+    if (exclStr) {
+      try { exclude_rows = JSON.parse(exclStr); }
+      catch { throw new Error(`항목 "${item.label}" 의 exclude_rows JSON이 잘못됐습니다:\n${exclStr}`); }
+    }
+
+    const cols = [];
+    card.querySelectorAll('.col-tbody tr').forEach(tr => {
+      const k = tr.querySelector('.col-key').value.trim();
+      const l = tr.querySelector('.col-label').value.trim();
+      if (k) cols.push({ key: k, label: l });
+    });
+
+    const result = { ...item, label, sort_key: sortKey, columns: cols };
+    if (exclude_rows) result.exclude_rows = exclude_rows;
+    else delete result.exclude_rows;
+    return result;
+  });
+}
+
+/* ══════════════════════════════════════════
+   유틸
+══════════════════════════════════════════ */
+function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-window.addEventListener('beforeunload', e => {
-  if (isDirty) { e.preventDefault(); e.returnValue = ''; }
-});
-
-init();
+/* ── 초기화: 저장된 repo 복원 ── */
+(function init() {
+  const savedRepo = localStorage.getItem('gh_repo');
+  if (savedRepo) document.getElementById('gh-repo-input').value = savedRepo;
+})();
 </script>
 </body>
 </html>
