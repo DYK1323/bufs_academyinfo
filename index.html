@@ -670,15 +670,19 @@ const DataService = {
     }
   },
   buildBaseUnivMap(rows) {
+    // key: 원본 캠퍼스명(대학명) → value: { 기준대학명 }
     const map = new Map();
     for (const row of rows) {
-      const key = row['기준대학명'] || row['대학명'];
+      const key = row['대학명'];
       if (key) map.set(key, row);
     }
     return map;
   },
   extractYears(rows) {
-    const years = [...new Set(rows.map(r => r['기준연도']).filter(y => y != null))];
+    const years = [...new Set(rows.map(r => {
+      const y = r['기준연도'] ?? r['기준년도'];
+      return y != null ? parseInt(y, 10) : null;
+    }).filter(y => y != null && !isNaN(y)))];
     return years.sort((a, b) => b - a);
   },
   // 학과별 행 → 대학+연도 단위 SUM 집계 + 비율 계산 + 기준대학 JOIN
@@ -687,13 +691,17 @@ const DataService = {
     const ratioKeys = new Set(Object.keys(calcRules));
 
     // 대상 연도 필터
-    const yearRows = rows.filter(r => r['기준연도'] === targetYear);
-    const prevRows = prevYear != null ? rows.filter(r => r['기준연도'] === prevYear) : [];
+    const getYear = r => parseInt(r['기준연도'] ?? r['기준년도'], 10);
+    const yearRows = rows.filter(r => getYear(r) === targetYear);
+    const prevRows = prevYear != null ? rows.filter(r => getYear(r) === prevYear) : [];
 
+    const METRO_REGIONS = new Set(['서울', '경기', '인천']);
     const groupBy = (rowSet) => {
       const groups = new Map();
       for (const row of rowSet) {
-        const key = row['기준대학명'] || row['학교'] || row['대학명'] || '(미확인)';
+        const rawName = row['학교'] || row['대학명'] || '(미확인)';
+        // 기준대학.json에 등록된 캠퍼스면 기준대학명으로 치환, 아니면 원본 사용
+        const key = baseUnivMap.get(rawName)?.['기준대학명'] || rawName;
         if (!groups.has(key)) groups.set(key, []);
         groups.get(key).push(row);
       }
@@ -738,12 +746,11 @@ const DataService = {
       const summed = sumGroup(univRows);
       const withRatios = applyCalcRules(summed);
 
-      // 기준대학 JOIN
-      const baseInfo = baseUnivMap.get(univName) || {};
-      const 지역 = baseInfo['지역'] || univRows[0]['지역'] || '미확인';
-      const 설립구분 = baseInfo['설립구분'] || univRows[0]['설립구분'] || '미확인';
-      const 대학구분 = baseInfo['대학구분'] || univRows[0]['학교종류'] || '미확인';
-      const 수도권여부 = baseInfo['수도권여부'] || 'N';
+      // 속성: raw data에서 직접 추출 (기준대학.json은 캠퍼스 합산 매핑 전용)
+      const 지역 = univRows[0]['지역'] || '미확인';
+      const 설립구분 = univRows[0]['설립구분'] || '미확인';
+      const 대학구분 = univRows[0]['학교종류'] || '미확인';
+      const 수도권여부 = METRO_REGIONS.has(지역) ? 'Y' : 'N';
 
       // 전년도 집계
       let prevSummed = null;
@@ -900,10 +907,12 @@ const FilterManager = {
     this._updateTriggerLabel(msId);
   },
 
-  renderAllMultiSelects() {
-    // 지역 옵션을 기준대학 데이터에서 추출
-    const regions = [...new Set(AppState.raw.기준대학.map(r => r['지역']).filter(Boolean))].sort();
-    if (regions.length) this._msState['ms-region'].options = regions;
+  renderAllMultiSelects(aggregated = null) {
+    // 지역 옵션: 집계 데이터가 있으면 거기서 추출, 없으면 기존 옵션 유지
+    if (aggregated) {
+      const regions = [...new Set(aggregated.map(r => r['지역']).filter(Boolean))].sort();
+      if (regions.length) this._msState['ms-region'].options = regions;
+    }
 
     for (const msId of Object.keys(this._msState)) {
       this.renderMultiSelect(msId, this._msState[msId].options);
@@ -967,10 +976,15 @@ const FilterManager = {
   _reAggregate() {
     const { 항목데이터, calcRules } = AppState.raw;
     const year = AppState.filters.연도;
-    if (!year || !항목데이터.length) return;
+    if (!year || !항목데이터.length) {
+      Utils.showEmptyState('no-data');
+      return;
+    }
     AppState.computed.aggregated = DataService.aggregateByUniversity(
       항목데이터, year, calcRules, AppState._baseUnivMap, year - 1
     );
+    // 지역 필터 옵션을 집계 결과에서 갱신
+    this.renderAllMultiSelects(AppState.computed.aggregated);
     AppState.computed.sortKey = DataService.detectPrimaryValueField(AppState.computed.aggregated, calcRules);
     AppState.computed.sortDir = 'desc';
     AppState.computed.currentPage = 1;

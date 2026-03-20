@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>공시 분석 — 관리자</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  font-size: 14px;
+  background: #f8fafc;
+  color: #1e293b;
+  min-height: 100vh;
+}
+
+/* ── 레이아웃 ── */
+.page-header {
+  background: #1e3a5f;
+  color: #fff;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.page-header h1 { font-size: 16px; font-weight: 700; }
+.page-header a {
+  margin-left: auto;
+  color: #93c5fd;
+  font-size: 13px;
+  text-decoration: none;
+}
+.page-header a:hover { text-decoration: underline; }
+
+.container { max-width: 900px; margin: 32px auto; padding: 0 24px; }
+
+/* ── 카드 ── */
+.card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+.card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 4px;
+}
+.card-desc {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+/* ── 알림 배너 ── */
+.banner {
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+  margin-bottom: 16px;
+  display: none;
+}
+.banner.warn  { background: #fef9c3; border: 1px solid #fde047; color: #854d0e; }
+.banner.info  { background: #eff6ff; border: 1px solid #93c5fd; color: #1d4ed8; }
+.banner.error { background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; }
+.banner.success { background: #f0fdf4; border: 1px solid #86efac; color: #166534; }
+
+/* ── 툴바 ── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.toolbar input[type="search"] {
+  flex: 1;
+  min-width: 180px;
+  padding: 7px 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+}
+.toolbar input[type="search"]:focus { border-color: #3b82f6; }
+
+/* ── 버튼 ── */
+.btn {
+  padding: 7px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.btn-primary   { background: #2563eb; color: #fff; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-success   { background: #16a34a; color: #fff; }
+.btn-success:hover { background: #15803d; }
+.btn-secondary { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; }
+.btn-secondary:hover { background: #e2e8f0; }
+.btn-danger    { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
+.btn-danger:hover { background: #fecaca; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+
+/* ── 테이블 ── */
+.table-wrap { overflow-x: auto; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+thead th {
+  background: #f1f5f9;
+  text-align: left;
+  padding: 9px 12px;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 2px solid #e2e8f0;
+  white-space: nowrap;
+}
+tbody tr { border-bottom: 1px solid #f1f5f9; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: #f8fafc; }
+tbody tr.hidden { display: none; }
+tbody td {
+  padding: 8px 12px;
+  vertical-align: middle;
+}
+td.td-actions { text-align: right; white-space: nowrap; }
+
+/* ── 인라인 편집 ── */
+td input.cell-input {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid #3b82f6;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  background: #eff6ff;
+}
+td .cell-display { cursor: pointer; }
+td .cell-display:hover { text-decoration: underline; color: #2563eb; }
+
+/* ── 카운터 ── */
+.row-count { font-size: 12px; color: #64748b; margin-left: auto; }
+
+/* ── 페이지 하단 ── */
+.save-bar {
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  border-top: 1px solid #e2e8f0;
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-end;
+  box-shadow: 0 -2px 8px rgba(0,0,0,.06);
+}
+.save-bar .status-msg {
+  font-size: 12px;
+  color: #64748b;
+  margin-right: auto;
+}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>공시 분석 — 관리자</h1>
+  <a href="index.html">← 분석 페이지로</a>
+</div>
+
+<div class="container">
+
+  <!-- CORS 경고 -->
+  <div class="banner warn" id="cors-banner">
+    ⚠ <strong>file://</strong> 프로토콜에서는 JSON 로드가 차단됩니다.
+    <code>python -m http.server 8080</code> 실행 후 <code>http://localhost:8080/admin.html</code>로 접속하세요.
+  </div>
+
+  <!-- 로드 에러 -->
+  <div class="banner error" id="load-error-banner"></div>
+
+  <!-- 안내 -->
+  <div class="card">
+    <div class="card-title">캠퍼스 합산 매핑 관리</div>
+    <div class="card-desc">
+      여러 캠퍼스를 하나의 대학으로 합산할 대학만 등록합니다.<br>
+      <strong>대학명</strong>: raw data의 <code>학교</code> 필드 값 (캠퍼스 단위) &nbsp;|&nbsp;
+      <strong>기준대학명</strong>: 합산 후 표시할 대표 이름<br>
+      등록하지 않은 대학은 <code>학교</code> 필드값을 그대로 사용합니다.
+    </div>
+  </div>
+
+  <!-- 편집 카드 -->
+  <div class="card">
+    <div class="toolbar">
+      <input type="search" id="search-input" placeholder="대학명 검색…" oninput="filterRows()">
+      <span class="row-count" id="row-count"></span>
+      <button class="btn btn-primary" onclick="addRow()">+ 행 추가</button>
+      <button class="btn btn-secondary" onclick="loadFile()">JSON 불러오기</button>
+      <input type="file" id="file-input" accept=".json" style="display:none" onchange="onFileLoad(event)">
+    </div>
+
+    <div class="table-wrap">
+      <table id="mapping-table">
+        <thead>
+          <tr>
+            <th style="width:40%">대학명 <span style="font-weight:400;color:#94a3b8">(학교 필드값)</span></th>
+            <th style="width:40%">기준대학명 <span style="font-weight:400;color:#94a3b8">(합산 대표명)</span></th>
+            <th style="width:20%"></th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+          <!-- 동적 생성 -->
+        </tbody>
+      </table>
+    </div>
+
+    <div id="empty-hint" style="text-align:center;padding:32px;color:#94a3b8;font-size:13px;display:none;">
+      등록된 매핑이 없습니다. [+ 행 추가] 버튼으로 추가하세요.
+    </div>
+  </div>
+
+</div>
+
+<!-- 저장 바 -->
+<div class="save-bar">
+  <span class="status-msg" id="status-msg">변경사항 없음</span>
+  <button class="btn btn-secondary" onclick="confirmReset()">초기화</button>
+  <button class="btn btn-success" onclick="downloadJSON()">💾 JSON 저장 (다운로드)</button>
+</div>
+
+<script>
+'use strict';
+
+const DATA_PATH = './data/기준대학.json';
+let originalData = [];   // 서버에서 로드한 원본
+let isDirty = false;
+
+/* ── 초기화 ── */
+async function init() {
+  if (location.protocol === 'file:') {
+    document.getElementById('cors-banner').style.display = '';
+    showEmptyHint();
+    return;
+  }
+  try {
+    const res = await fetch(DATA_PATH);
+    if (res.ok) {
+      originalData = await res.json();
+    } else if (res.status === 404) {
+      originalData = [];   // 파일 없음 → 새로 만들기
+    } else {
+      throw new Error(`HTTP ${res.status}`);
+    }
+    renderTable(originalData);
+  } catch (e) {
+    const banner = document.getElementById('load-error-banner');
+    banner.style.display = '';
+    banner.textContent = `데이터 로드 실패: ${e.message}`;
+    showEmptyHint();
+  }
+}
+
+/* ── 테이블 렌더 ── */
+function renderTable(rows) {
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = '';
+  for (const row of rows) {
+    appendRow(row['대학명'] || '', row['기준대학명'] || '');
+  }
+  updateCount();
+  showEmptyHint();
+}
+
+function appendRow(univName = '', baseName = '') {
+  const tbody = document.getElementById('table-body');
+  const tr = document.createElement('tr');
+  tr.dataset.univName = univName;
+  tr.dataset.baseName = baseName;
+  tr.innerHTML = `
+    <td><input class="cell-input" type="text" value="${escHtml(univName)}" placeholder="예: 연세대학교(미래캠퍼스)" oninput="markDirty()"></td>
+    <td><input class="cell-input" type="text" value="${escHtml(baseName)}" placeholder="예: 연세대학교" oninput="markDirty()"></td>
+    <td class="td-actions">
+      <button class="btn btn-danger btn-sm" onclick="deleteRow(this)">삭제</button>
+    </td>
+  `;
+  tbody.appendChild(tr);
+  updateCount();
+  showEmptyHint();
+}
+
+/* ── 행 추가 / 삭제 ── */
+function addRow() {
+  appendRow('', '');
+  markDirty();
+  // 새 행 첫 번째 input에 포커스
+  const rows = document.getElementById('table-body').querySelectorAll('tr:not(.hidden)');
+  const last = rows[rows.length - 1];
+  if (last) last.querySelector('input').focus();
+}
+
+function deleteRow(btn) {
+  btn.closest('tr').remove();
+  markDirty();
+  updateCount();
+  showEmptyHint();
+}
+
+/* ── 검색 필터 ── */
+function filterRows() {
+  const q = document.getElementById('search-input').value.trim().toLowerCase();
+  const rows = document.getElementById('table-body').querySelectorAll('tr');
+  for (const tr of rows) {
+    const texts = [...tr.querySelectorAll('input')].map(i => i.value.toLowerCase()).join(' ');
+    tr.classList.toggle('hidden', q.length > 0 && !texts.includes(q));
+  }
+  updateCount();
+}
+
+function updateCount() {
+  const all = document.getElementById('table-body').querySelectorAll('tr').length;
+  const visible = document.getElementById('table-body').querySelectorAll('tr:not(.hidden)').length;
+  const q = document.getElementById('search-input').value.trim();
+  document.getElementById('row-count').textContent = q ? `${visible} / ${all}건` : `총 ${all}건`;
+}
+
+/* ── 빈 상태 힌트 ── */
+function showEmptyHint() {
+  const all = document.getElementById('table-body').querySelectorAll('tr').length;
+  document.getElementById('empty-hint').style.display = all === 0 ? '' : 'none';
+}
+
+/* ── 변경 감지 ── */
+function markDirty() {
+  isDirty = true;
+  document.getElementById('status-msg').textContent = '저장되지 않은 변경사항이 있습니다.';
+  document.getElementById('status-msg').style.color = '#dc2626';
+}
+
+/* ── JSON 파일 불러오기 ── */
+function loadFile() {
+  document.getElementById('file-input').click();
+}
+
+function onFileLoad(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!Array.isArray(data)) throw new Error('배열 형식이어야 합니다.');
+      renderTable(data);
+      markDirty();
+    } catch (err) {
+      alert(`JSON 파싱 오류: ${err.message}`);
+    }
+  };
+  reader.readAsText(file, 'utf-8');
+  e.target.value = '';
+}
+
+/* ── JSON 다운로드 ── */
+function downloadJSON() {
+  const rows = document.getElementById('table-body').querySelectorAll('tr');
+  const data = [];
+  let hasError = false;
+  for (const tr of rows) {
+    const inputs = tr.querySelectorAll('input');
+    const univName = inputs[0].value.trim();
+    const baseName = inputs[1].value.trim();
+    if (!univName || !baseName) {
+      inputs[univName ? 1 : 0].style.borderColor = '#dc2626';
+      hasError = true;
+      continue;
+    }
+    inputs[0].style.borderColor = '';
+    inputs[1].style.borderColor = '';
+    data.push({ '대학명': univName, '기준대학명': baseName });
+  }
+  if (hasError) {
+    alert('빈 칸이 있습니다. 모든 행을 채우거나 삭제 후 저장하세요.');
+    return;
+  }
+
+  // 중복 대학명 체크
+  const names = data.map(r => r['대학명']);
+  const dupes = names.filter((n, i) => names.indexOf(n) !== i);
+  if (dupes.length) {
+    alert(`중복된 대학명이 있습니다:\n${[...new Set(dupes)].join('\n')}`);
+    return;
+  }
+
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '기준대학.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  isDirty = false;
+  document.getElementById('status-msg').textContent = `저장 완료 (${data.length}건) — 다운로드된 파일을 data/ 폴더에 덮어쓰세요.`;
+  document.getElementById('status-msg').style.color = '#16a34a';
+}
+
+/* ── 초기화 ── */
+function confirmReset() {
+  if (!isDirty || confirm('변경사항을 모두 되돌리고 마지막으로 불러온 데이터로 초기화할까요?')) {
+    renderTable(originalData);
+    isDirty = false;
+    document.getElementById('status-msg').textContent = '변경사항 없음';
+    document.getElementById('status-msg').style.color = '';
+  }
+}
+
+/* ── 유틸 ── */
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+window.addEventListener('beforeunload', e => {
+  if (isDirty) { e.preventDefault(); e.returnValue = ''; }
+});
+
+init();
+</script>
+</body>
+</html>
