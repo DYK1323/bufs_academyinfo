@@ -192,17 +192,96 @@ select.cell-input { appearance: none; -webkit-appearance: none; cursor: pointer;
   cursor: pointer; user-select: none;
 }
 .rule-card-header:hover { background: #f8fafc; }
-.rule-key { font-size: 13px; font-weight: 600; color: #0f172a; flex: 1; }
+.rule-key { font-size: 13px; font-weight: 600; color: #0f172a; }
 .rule-label { font-size: 12px; color: var(--text-secondary); }
 .rule-type-badge {
   font-size: 10.5px; font-weight: 700; padding: 2px 8px;
   border-radius: 20px; flex-shrink: 0;
 }
-.rule-type-badge.std  { background: #dbeafe; color: #1d4ed8; }
-.rule-type-badge.min  { background: #fce7f3; color: #9d174d; }
-.rule-card-body { display: none; padding: 14px 16px; border-top: 1px solid #f1f5f9; }
+.rule-type-badge.std { background: #dbeafe; color: #1d4ed8; }
+.rule-type-badge.min { background: #fce7f3; color: #9d174d; }
+.rule-type-badge.sum { background: #dcfce7; color: #166534; }
+.rule-card-body { display: none; border-top: 1px solid #f1f5f9; }
 .rule-card.open .rule-card-body { display: block; }
 .rule-card.open .rule-card-header { background: var(--primary-light); }
+.rule-card .form-actions { margin-top: 0; padding: 10px 14px; border-top: 1px solid #f1f5f9; }
+
+.rule-name-row { display: flex; gap: 10px; padding: 12px 16px 10px; border-bottom: 1px solid #f1f5f9; flex-wrap: wrap; }
+
+/* ── 산식 빌더 ── */
+.formula-split { display: flex; min-height: 240px; border-bottom: 1px solid #f1f5f9; }
+
+.fp-panel {
+  width: 185px; flex-shrink: 0; border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; padding: 8px; gap: 5px; background: #fafafa;
+}
+.fp-panel-title { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; }
+.fp-search {
+  height: 26px; padding: 0 8px; border: 1px solid var(--border); border-radius: 5px;
+  font-size: 12px; font-family: inherit; outline: none; width: 100%; background: #fff;
+}
+.fp-search:focus { border-color: var(--primary); }
+.fp-list { overflow-y: auto; flex: 1; }
+.fp-group-label {
+  font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;
+  letter-spacing: .05em; padding: 5px 4px 2px; display: block;
+}
+.fp-item {
+  font-size: 11.5px; padding: 3px 7px; border-radius: 4px; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #334155; display: block;
+  transition: background 0.08s;
+}
+.fp-item:hover { background: #eff6ff; color: var(--primary); }
+.fp-item.fp-hidden { display: none !important; }
+
+.fb-panel { flex: 1; padding: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; overflow: hidden; }
+.fb-type-row { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; padding-bottom: 8px; border-bottom: 1px solid #f1f5f9; }
+.fb-type-label { font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; }
+.fb-type-radio-label { display: flex; align-items: center; gap: 4px; font-size: 12.5px; cursor: pointer; }
+.fb-area-label { font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+.fb-op { font-size: 16px; font-weight: 700; color: #64748b; padding: 1px 0; }
+.fb-hidden { display: none !important; }
+
+.chip-zone {
+  min-height: 32px; padding: 4px; border: 1.5px dashed #cbd5e1; border-radius: 6px;
+  display: flex; flex-wrap: wrap; gap: 4px; align-content: flex-start;
+  cursor: pointer; transition: border-color 0.12s, background 0.12s;
+}
+.chip-zone.cz-active { border-color: var(--primary); border-style: solid; background: #f0f9ff; }
+.chip-zone:empty::after {
+  content: attr(data-placeholder); font-size: 11.5px; color: #94a3b8; padding: 2px 2px;
+}
+.field-chip {
+  display: inline-flex; align-items: center; gap: 2px;
+  background: #dbeafe; color: #1d4ed8; padding: 2px 5px 2px 8px;
+  border-radius: 4px; font-size: 12px; font-weight: 500;
+}
+.field-chip.calc-chip { background: #f3e8ff; color: #6b21a8; }
+.chip-rm {
+  background: none; border: none; cursor: pointer; padding: 0 2px;
+  font-size: 14px; line-height: 1; color: #93c5fd; font-weight: 700;
+}
+.chip-rm:hover { color: #dc2626; }
+
+.fb-den-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.fb-den-select {
+  height: 30px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px;
+  font-size: 12.5px; font-family: inherit; background: #f8fafc; outline: none;
+  flex: 1; min-width: 120px; max-width: 280px;
+}
+.fb-den-select:focus { border-color: var(--primary); background: #fff; }
+.fb-multiply-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.fb-mul-label { display: flex; align-items: center; gap: 4px; font-size: 12.5px; cursor: pointer; }
+.fb-mul-custom {
+  height: 26px; width: 65px; padding: 0 6px; border: 1px solid var(--border);
+  border-radius: 5px; font-size: 12.5px; font-family: inherit; outline: none;
+}
+.fb-mul-custom:focus { border-color: var(--primary); }
+.fb-mul-custom:disabled { opacity: 0.4; }
+
+.excl-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+.excl-row .excl-field { flex: 1; min-width: 0; }
+.excl-row .excl-vals  { flex: 2; min-width: 0; }
 
 .form-row { display: flex; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
 .form-group { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 160px; }
@@ -234,9 +313,6 @@ select.cell-input { appearance: none; -webkit-appearance: none; cursor: pointer;
   margin: 12px 0 8px;
 }
 .section-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-.excl-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
-.excl-row .excl-field { flex: 1; min-width: 0; }
-.excl-row .excl-vals  { flex: 2; min-width: 0; }
 
 /* ── 공시항목 카드 ── */
 .manifest-card {
@@ -365,10 +441,9 @@ body { padding-bottom: 60px; }
 
   <div class="banner info show" style="margin-bottom:14px;">
     <strong>산식 유형</strong> &nbsp;·&nbsp;
-    <span style="background:#dbeafe;color:#1d4ed8;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;">산식</span>
-    : 분자 ÷ 분모 × 배율 &nbsp;&nbsp;
-    <span style="background:#fce7f3;color:#9d174d;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;">MIN</span>
-    : 여러 지표 중 최솟값
+    <span style="background:#dbeafe;color:#1d4ed8;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;">비율</span> 분자÷분모×배율 &nbsp;&nbsp;
+    <span style="background:#dcfce7;color:#166534;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;">합계</span> 필드 합산(건수) &nbsp;&nbsp;
+    <span style="background:#fce7f3;color:#9d174d;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;">MIN</span> 여러 지표 중 최솟값
   </div>
 
   <div id="calc-list"></div>
@@ -718,6 +793,43 @@ function splitCsvLine(line) {
    탭 2: 산식 관리 (calc_rules.json)
 ══════════════════════════════════════════ */
 let calcData = {};
+let _activeChipZone = null;
+
+function setActiveChipZone(zone) {
+  if (_activeChipZone && _activeChipZone !== zone) {
+    _activeChipZone.classList.remove('cz-active');
+  }
+  _activeChipZone = zone;
+  if (zone) zone.classList.add('cz-active');
+}
+
+function makeChip(fieldName) {
+  const isCalc = Object.prototype.hasOwnProperty.call(calcData, fieldName);
+  const span = document.createElement('span');
+  span.className = 'field-chip' + (isCalc ? ' calc-chip' : '');
+  span.dataset.value = fieldName;
+  span.appendChild(document.createTextNode(fieldName));
+  const btn = document.createElement('button');
+  btn.className = 'chip-rm';
+  btn.textContent = '×';
+  btn.title = '제거';
+  btn.addEventListener('click', e => { e.stopPropagation(); span.remove(); setDirty(); });
+  span.appendChild(btn);
+  return span;
+}
+
+function addToActiveZone(fieldName) {
+  let zone = _activeChipZone;
+  if (!zone || !zone.closest('.rule-card.open')) {
+    const openCard = document.querySelector('.rule-card.open');
+    if (!openCard) return;
+    zone = openCard.querySelector('.chip-zone');
+    if (!zone) return;
+    setActiveChipZone(zone);
+  }
+  zone.appendChild(makeChip(fieldName));
+  setDirty();
+}
 
 function renderCalcRules(rules) {
   calcData = JSON.parse(JSON.stringify(rules));
@@ -730,155 +842,365 @@ function renderCalcRules(rules) {
 
 function buildRuleCard(key, rule) {
   const isMin = !!rule.min_of;
+  const isSum = !isMin && String(rule.denominator_base) === '1' && (rule.multiply ?? 1) <= 1;
+  const typeLabel = isMin ? 'MIN' : (isSum ? '합계' : '비율');
+  const typeBadgeClass = isMin ? 'min' : (isSum ? 'sum' : 'std');
+
   const card = document.createElement('div');
   card.className = 'rule-card';
   card.dataset.key = key;
 
-  const typeBadge = isMin
-    ? '<span class="rule-type-badge min">MIN</span>'
-    : '<span class="rule-type-badge std">산식</span>';
-
-  card.innerHTML = `
-    <div class="rule-card-header" onclick="toggleCard(this)">
-      ${typeBadge}
-      <div style="flex:1;min-width:0;">
-        <div class="rule-key">${esc(key)}</div>
-        <div class="rule-label">${esc(rule.label||'')}</div>
-      </div>
-      <span style="font-size:12px;color:var(--text-muted);">▾</span>
+  const header = document.createElement('div');
+  header.className = 'rule-card-header';
+  header.innerHTML = `
+    <span class="rule-type-badge ${typeBadgeClass}">${typeLabel}</span>
+    <div style="flex:1;min-width:0;">
+      <div class="rule-key">${esc(key)}</div>
+      <div class="rule-label">${esc(rule.label || '')}</div>
     </div>
-    <div class="rule-card-body">
-      ${buildRuleForm(key, rule, isMin)}
+    <span style="font-size:12px;color:var(--text-muted);">▾</span>
+  `;
+  header.addEventListener('click', () => toggleCard(header));
+
+  const body = document.createElement('div');
+  body.className = 'rule-card-body';
+
+  // 이름 행
+  const nameRow = document.createElement('div');
+  nameRow.className = 'rule-name-row';
+  nameRow.innerHTML = `
+    <div class="form-group" style="flex:2;min-width:160px;">
+      <label>지표 필드명 (key)</label>
+      <input class="form-input rule-field-key" type="text" value="${esc(key)}" placeholder="예: 신입생 충원율">
+    </div>
+    <div class="form-group" style="flex:3;min-width:180px;">
+      <label>화면 표시명</label>
+      <input class="form-input rule-field-label" type="text" value="${esc(rule.label || '')}" placeholder="예: 신입생 충원율(%)">
     </div>
   `;
+  body.appendChild(nameRow);
+
+  // 산식 빌더 (좌: 팔레트 / 우: 빌더)
+  const split = document.createElement('div');
+  split.className = 'formula-split';
+  split.appendChild(buildFieldPalette(card));
+  split.appendChild(buildFormulaBuilder(card, rule, isMin, isSum));
+  body.appendChild(split);
+
+  // 행 제외 (MIN 제외)
+  if (!isMin) {
+    const exclWrap = document.createElement('div');
+    exclWrap.style.cssText = 'padding: 0 14px;';
+    exclWrap.appendChild(buildExclSection(rule.exclude_rows));
+    body.appendChild(exclWrap);
+  }
+
+  // 액션
+  const actions = document.createElement('div');
+  actions.className = 'form-actions';
+  actions.innerHTML = `
+    <span class="apply-msg" style="font-size:12px;color:var(--text-muted);margin-right:auto;"></span>
+    <button class="btn btn-danger btn-sm" onclick="deleteRule(this)">삭제</button>
+    <button class="btn btn-primary btn-sm" onclick="applyRule(this)">적용</button>
+  `;
+  body.appendChild(actions);
+
+  card.appendChild(header);
+  card.appendChild(body);
   return card;
 }
 
-function buildExclSection(excludeRows) {
-  const entries = excludeRows ? Object.entries(excludeRows) : [];
-  const rowsHtml = entries.map(([field, vals]) => `
-    <div class="excl-row">
-      <input class="form-input excl-field" type="text" value="${esc(field)}" placeholder="필드명 (예: 계열)" oninput="setDirty()">
-      <input class="form-input excl-vals" type="text" value="${esc(vals.join(', '))}" placeholder="제외값 (쉼표 구분)" oninput="setDirty()">
-      <button class="btn btn-danger btn-sm" onclick="this.closest('.excl-row').remove();setDirty()">−</button>
-    </div>`).join('');
-  return `
-    <div class="section-divider">행 필터</div>
-    <div class="excl-rows-wrap">${rowsHtml}</div>
-    <div style="margin-bottom:4px;">
-      <button class="btn btn-secondary btn-sm" onclick="addExclRow(this)">+ 조건 추가</button>
-    </div>`;
-}
+function buildFieldPalette(card) {
+  const div = document.createElement('div');
+  div.className = 'fp-panel';
 
-function buildRuleForm(key, rule, isMin) {
-  const labelRow = `
-    <div class="form-row">
-      <div class="form-group" style="flex:2;">
-        <label>지표 필드명 (key)</label>
-        <input class="form-input rule-field-key" type="text" value="${esc(key)}" placeholder="예: 전임교원 확보율">
-      </div>
-      <div class="form-group" style="flex:3;">
-        <label>화면 표시명 (label)</label>
-        <input class="form-input rule-field-label" type="text" value="${esc(rule.label||'')}" placeholder="예: 전임교원 확보율(%)">
-      </div>
-    </div>`;
+  const title = document.createElement('div');
+  title.className = 'fp-panel-title';
+  title.textContent = '필드 목록';
 
-  if (isMin) {
-    return labelRow + `
-      <div class="form-group">
-        <label>MIN 대상 필드 (한 줄에 하나씩)</label>
-        <textarea class="form-textarea rule-field-minof">${(rule.min_of||[]).join('\n')}</textarea>
-        <div class="form-hint">위 필드들 중 가장 작은 값을 사용합니다.</div>
-      </div>
-      <div class="form-actions">
-        <button class="btn btn-danger btn-sm" onclick="deleteRule(this)">삭제</button>
-        <button class="btn btn-primary btn-sm" onclick="applyRule(this)">적용</button>
-      </div>`;
+  const search = document.createElement('input');
+  search.className = 'fp-search';
+  search.placeholder = '검색…';
+  search.addEventListener('input', () => {
+    const q = search.value.trim().toLowerCase();
+    div.querySelectorAll('.fp-item').forEach(item => {
+      item.classList.toggle('fp-hidden', q.length > 0 && !item.dataset.field.toLowerCase().includes(q));
+    });
+  });
+
+  const list = document.createElement('div');
+  list.className = 'fp-list';
+
+  const addGroup = (label, keys) => {
+    if (!keys.length) return;
+    const gl = document.createElement('div');
+    gl.className = 'fp-group-label';
+    gl.textContent = label;
+    list.appendChild(gl);
+    keys.forEach(k => {
+      const item = document.createElement('div');
+      item.className = 'fp-item';
+      item.textContent = k;
+      item.dataset.field = k;
+      item.title = k;
+      item.addEventListener('click', () => addToActiveZone(k));
+      list.appendChild(item);
+    });
+  };
+
+  const selfKey = card.dataset.key;
+  const calcKeys = Object.keys(calcData).filter(k => k !== selfKey);
+  addGroup('원시 데이터', State.fieldKeys);
+  addGroup('계산 지표', calcKeys);
+
+  if (!State.fieldKeys.length && !calcKeys.length) {
+    const hint = document.createElement('div');
+    hint.style.cssText = 'font-size:11.5px;color:var(--text-muted);padding:8px 4px;line-height:1.5;';
+    hint.textContent = 'GitHub 연결 후 표시됩니다.';
+    list.appendChild(hint);
   }
 
-  return labelRow
-    + buildExclSection(rule.exclude_rows)
-    + `
-    <div class="section-divider">산식</div>
-    <div class="form-row">
-      <div class="form-group" style="flex:3;">
-        <label>분자 필드 (한 줄에 하나씩)</label>
-        <textarea class="form-textarea rule-field-numerator">${(rule.numerator||[]).join('\n')}</textarea>
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group" style="flex:3;">
-        <label>분모 기준 필드 (denominator_base)</label>
-        <input class="form-input rule-field-den-base" type="text" value="${esc(rule.denominator_base||'')}">
-      </div>
-      <div class="form-group" style="flex:2;">
-        <label>배율 (multiply)</label>
-        <input class="form-input rule-field-multiply" type="number" value="${rule.multiply??1}" style="width:100px;">
-      </div>
-    </div>
-    <div class="form-group">
-      <label>분모 제외 필드 (denominator_exclude, 한 줄에 하나씩)</label>
-      <textarea class="form-textarea rule-field-den-excl" style="min-height:44px;">${(rule.denominator_exclude||[]).join('\n')}</textarea>
-    </div>
-    <div class="form-actions">
-      <button class="btn btn-danger btn-sm" onclick="deleteRule(this)">삭제</button>
-      <button class="btn btn-primary btn-sm" onclick="applyRule(this)">적용</button>
-    </div>`;
+  div.appendChild(title);
+  div.appendChild(search);
+  div.appendChild(list);
+  return div;
 }
 
-function addExclRow(btn) {
-  const wrap = btn.closest('.rule-card-body').querySelector('.excl-rows-wrap');
+function buildFormulaBuilder(card, rule, isMin, isSum) {
+  const type = isMin ? 'min' : (isSum ? 'sum' : 'ratio');
+  const radioName = 'fb-type-' + Math.random().toString(36).slice(2, 8);
+  const mulName   = 'fb-mul-'  + Math.random().toString(36).slice(2, 8);
+
+  const panel = document.createElement('div');
+  panel.className = 'fb-panel';
+
+  // ── 유형 선택
+  const typeRow = document.createElement('div');
+  typeRow.className = 'fb-type-row';
+  typeRow.innerHTML = `
+    <span class="fb-type-label">유형</span>
+    <label class="fb-type-radio-label"><input type="radio" name="${radioName}" class="fb-type-radio" value="ratio" ${type === 'ratio' ? 'checked' : ''}>비율 (분자÷분모)</label>
+    <label class="fb-type-radio-label"><input type="radio" name="${radioName}" class="fb-type-radio" value="sum"   ${type === 'sum'   ? 'checked' : ''}>합계 (건수)</label>
+    <label class="fb-type-radio-label"><input type="radio" name="${radioName}" class="fb-type-radio" value="min"  ${type === 'min'   ? 'checked' : ''}>MIN (최솟값)</label>
+  `;
+  panel.appendChild(typeRow);
+
+  // ── 비율/합계 영역
+  const ratioSumArea = document.createElement('div');
+  ratioSumArea.className = type === 'min' ? 'fb-hidden' : '';
+
+  // 분자
+  const numLabel = document.createElement('div');
+  numLabel.className = 'fb-area-label';
+  numLabel.innerHTML = '분자 <span style="font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;">(왼쪽 목록 클릭해서 추가)</span>';
+  const numZone = document.createElement('div');
+  numZone.className = 'chip-zone';
+  numZone.dataset.area = 'num';
+  numZone.dataset.placeholder = '+ 필드 추가';
+  (rule.numerator || []).forEach(f => numZone.appendChild(makeChip(f)));
+  numZone.addEventListener('click', () => setActiveChipZone(numZone));
+
+  ratioSumArea.appendChild(numLabel);
+  ratioSumArea.appendChild(numZone);
+
+  // ÷ 분모 (ratio only)
+  const denArea = document.createElement('div');
+  denArea.className = type !== 'ratio' ? 'fb-hidden' : '';
+
+  const divOp = document.createElement('div');
+  divOp.className = 'fb-op';
+  divOp.textContent = '÷';
+  const denLabel = document.createElement('div');
+  denLabel.className = 'fb-area-label';
+  denLabel.textContent = '분모';
+
+  const denRow = document.createElement('div');
+  denRow.className = 'fb-den-row';
+
+  const denSelect = document.createElement('select');
+  denSelect.className = 'fb-den-select rule-field-den-base';
+  const selfKey = card.dataset.key;
+  let optHtml = `<option value="">— 분모 선택 —</option>`;
+  if (State.fieldKeys.length) {
+    optHtml += `<optgroup label="원시 데이터">` +
+      State.fieldKeys.map(k => `<option value="${esc(k)}"${rule.denominator_base === k ? ' selected' : ''}>${esc(k)}</option>`).join('') +
+      `</optgroup>`;
+  }
+  const calcDenKeys = Object.keys(calcData).filter(k => k !== selfKey);
+  if (calcDenKeys.length) {
+    optHtml += `<optgroup label="계산 지표">` +
+      calcDenKeys.map(k => `<option value="${esc(k)}"${rule.denominator_base === k ? ' selected' : ''}>${esc(k)}</option>`).join('') +
+      `</optgroup>`;
+  }
+  denSelect.innerHTML = optHtml;
+
+  const exclLabel = document.createElement('span');
+  exclLabel.style.cssText = 'font-size:12px;color:var(--text-muted);white-space:nowrap;flex-shrink:0;';
+  exclLabel.textContent = '제외:';
+
+  const denExclZone = document.createElement('div');
+  denExclZone.className = 'chip-zone';
+  denExclZone.dataset.area = 'den-excl';
+  denExclZone.dataset.placeholder = '+ 제외 필드';
+  denExclZone.style.flex = '1';
+  (rule.denominator_exclude || []).forEach(f => denExclZone.appendChild(makeChip(f)));
+  denExclZone.addEventListener('click', () => setActiveChipZone(denExclZone));
+
+  denRow.appendChild(denSelect);
+  denRow.appendChild(exclLabel);
+  denRow.appendChild(denExclZone);
+  denArea.appendChild(divOp);
+  denArea.appendChild(denLabel);
+  denArea.appendChild(denRow);
+
+  // × 배율 (ratio only)
+  const mulArea = document.createElement('div');
+  mulArea.className = type !== 'ratio' ? 'fb-hidden' : '';
+
+  const mulOp = document.createElement('div');
+  mulOp.className = 'fb-op';
+  mulOp.textContent = '×';
+  const mulRow = document.createElement('div');
+  mulRow.className = 'fb-multiply-row';
+  const mulVal = rule.multiply ?? 1;
+  const isCustomMul = mulVal !== 100 && mulVal !== 1;
+  mulRow.innerHTML = `
+    <span class="fb-area-label" style="margin-bottom:0;">배율</span>
+    <label class="fb-mul-label"><input type="radio" name="${mulName}" class="fb-mul-radio" value="100" ${mulVal === 100 ? 'checked' : ''}>100 (%)</label>
+    <label class="fb-mul-label"><input type="radio" name="${mulName}" class="fb-mul-radio" value="1"   ${mulVal === 1 && !isCustomMul ? 'checked' : ''}>1 (건수)</label>
+    <label class="fb-mul-label"><input type="radio" name="${mulName}" class="fb-mul-radio" value="custom" ${isCustomMul ? 'checked' : ''}>직접:
+      <input class="fb-mul-custom rule-field-multiply" type="number" value="${mulVal}" ${!isCustomMul ? 'disabled' : ''}>
+    </label>
+  `;
+  mulRow.querySelectorAll('.fb-mul-radio').forEach(r => {
+    r.addEventListener('change', () => {
+      mulRow.querySelector('.rule-field-multiply').disabled = r.value !== 'custom';
+    });
+  });
+  mulArea.appendChild(mulOp);
+  mulArea.appendChild(mulRow);
+
+  ratioSumArea.appendChild(denArea);
+  ratioSumArea.appendChild(mulArea);
+  panel.appendChild(ratioSumArea);
+
+  // ── MIN 영역
+  const minArea = document.createElement('div');
+  minArea.className = type !== 'min' ? 'fb-hidden' : '';
+  const minLabel = document.createElement('div');
+  minLabel.className = 'fb-area-label';
+  minLabel.innerHTML = 'MIN 대상 지표 <span style="font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;">(왼쪽 계산 지표에서 클릭해 추가)</span>';
+  const minZone = document.createElement('div');
+  minZone.className = 'chip-zone';
+  minZone.dataset.area = 'min';
+  minZone.dataset.placeholder = '+ 계산 지표 추가';
+  (rule.min_of || []).forEach(f => minZone.appendChild(makeChip(f)));
+  minZone.addEventListener('click', () => setActiveChipZone(minZone));
+  minArea.appendChild(minLabel);
+  minArea.appendChild(minZone);
+  panel.appendChild(minArea);
+
+  // 유형 라디오 변경 시 뷰 전환
+  typeRow.querySelectorAll('.fb-type-radio').forEach(r => {
+    r.addEventListener('change', () => {
+      ratioSumArea.classList.toggle('fb-hidden', r.value === 'min');
+      denArea.classList.toggle('fb-hidden', r.value !== 'ratio');
+      mulArea.classList.toggle('fb-hidden', r.value !== 'ratio');
+      minArea.classList.toggle('fb-hidden', r.value !== 'min');
+      setActiveChipZone(r.value === 'min' ? minZone : numZone);
+    });
+  });
+
+  return panel;
+}
+
+function buildExclSection(excludeRows) {
+  const wrap = document.createElement('div');
+  const entries = excludeRows ? Object.entries(excludeRows) : [];
+
+  const divider = document.createElement('div');
+  divider.className = 'section-divider';
+  divider.textContent = '행 제외 조건 (선택)';
+
+  const rowsWrap = document.createElement('div');
+  rowsWrap.className = 'excl-rows-wrap';
+  entries.forEach(([field, vals]) => rowsWrap.appendChild(makeExclRow(field, vals.join(', '))));
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'btn btn-secondary btn-sm';
+  addBtn.style.marginBottom = '10px';
+  addBtn.textContent = '+ 조건 추가';
+  addBtn.addEventListener('click', () => { rowsWrap.appendChild(makeExclRow('', '')); setDirty(); });
+
+  wrap.appendChild(divider);
+  wrap.appendChild(rowsWrap);
+  wrap.appendChild(addBtn);
+  return wrap;
+}
+
+function makeExclRow(field, vals) {
   const div = document.createElement('div');
   div.className = 'excl-row';
   div.innerHTML = `
-    <input class="form-input excl-field" type="text" placeholder="필드명 (예: 계열)" oninput="setDirty()">
-    <input class="form-input excl-vals" type="text" placeholder="제외값 (쉼표 구분)" oninput="setDirty()">
+    <input class="form-input excl-field" type="text" value="${esc(field)}" placeholder="필드명 (예: 계열)" oninput="setDirty()">
+    <input class="form-input excl-vals" type="text" value="${esc(vals)}" placeholder="제외값 (쉼표 구분)" oninput="setDirty()">
     <button class="btn btn-danger btn-sm" onclick="this.closest('.excl-row').remove();setDirty()">−</button>
   `;
-  wrap.appendChild(div);
-  div.querySelector('input').focus();
-  setDirty();
+  return div;
 }
 
 function toggleCard(header) {
-  header.closest('.rule-card, .manifest-card').classList.toggle('open');
+  const card = header.closest('.rule-card, .manifest-card');
+  card.classList.toggle('open');
+  if (card.classList.contains('open') && card.classList.contains('rule-card')) {
+    const firstZone = card.querySelector('.chip-zone');
+    if (firstZone) setActiveChipZone(firstZone);
+  }
 }
 
 function applyRule(btn) {
   const card = btn.closest('.rule-card');
-  const oldKey = card.dataset.key;
-  const newKey = card.querySelector('.rule-field-key').value.trim();
+  const oldKey = card.querySelector('.rule-field-key').value.trim();
+  const newKey = oldKey;
   const label  = card.querySelector('.rule-field-label').value.trim();
 
   if (!newKey) { alert('지표 필드명을 입력하세요.'); return; }
 
-  const minofEl = card.querySelector('.rule-field-minof');
+  const typeRadio = card.querySelector('.fb-type-radio:checked');
+  const type = typeRadio?.value || 'ratio';
+
   let rule;
-  if (minofEl) {
-    const minof = minofEl.value.split('\n').map(s=>s.trim()).filter(Boolean);
-    rule = { label, min_of: minof };
+  if (type === 'min') {
+    const minOf = [...card.querySelectorAll('.chip-zone[data-area="min"] .field-chip')].map(c => c.dataset.value);
+    rule = { label, min_of: minOf };
+  } else if (type === 'sum') {
+    const numerator = [...card.querySelectorAll('.chip-zone[data-area="num"] .field-chip')].map(c => c.dataset.value);
+    rule = { label, numerator, denominator_base: '1', multiply: 1 };
   } else {
-    // 행 필터 (exclude_rows) 수집
+    const numerator = [...card.querySelectorAll('.chip-zone[data-area="num"] .field-chip')].map(c => c.dataset.value);
+    const denBase = card.querySelector('.rule-field-den-base')?.value.trim() || '';
+    const denExcl = [...card.querySelectorAll('.chip-zone[data-area="den-excl"] .field-chip')].map(c => c.dataset.value);
+    const mulRadio = card.querySelector('.fb-mul-radio:checked');
+    let multiply = 100;
+    if (mulRadio?.value === '1') multiply = 1;
+    else if (mulRadio?.value === 'custom') multiply = parseFloat(card.querySelector('.rule-field-multiply').value) || 1;
+
     const excludeRows = {};
     card.querySelectorAll('.excl-row').forEach(exRow => {
-      const field = exRow.querySelector('.excl-field').value.trim();
-      const vals  = exRow.querySelector('.excl-vals').value.split(',').map(s=>s.trim()).filter(Boolean);
-      if (field && vals.length) excludeRows[field] = vals;
+      const f = exRow.querySelector('.excl-field').value.trim();
+      const vs = exRow.querySelector('.excl-vals').value.split(',').map(s => s.trim()).filter(Boolean);
+      if (f && vs.length) excludeRows[f] = vs;
     });
 
-    const numerator = card.querySelector('.rule-field-numerator').value.split('\n').map(s=>s.trim()).filter(Boolean);
-    const denBase   = card.querySelector('.rule-field-den-base').value.trim();
-    const multiply  = parseFloat(card.querySelector('.rule-field-multiply').value) || 1;
-    const denExcl   = card.querySelector('.rule-field-den-excl').value.split('\n').map(s=>s.trim()).filter(Boolean);
     rule = { label, numerator, denominator_base: denBase, multiply };
     if (Object.keys(excludeRows).length) rule.exclude_rows = excludeRows;
     if (denExcl.length) rule.denominator_exclude = denExcl;
   }
 
-  // 키 변경 시 순서 유지하며 교체
-  if (oldKey !== newKey) {
+  const prevKey = card.dataset.key;
+  if (prevKey !== newKey) {
     const entries = Object.entries(calcData);
-    const idx = entries.findIndex(([k])=>k===oldKey);
+    const idx = entries.findIndex(([k]) => k === prevKey);
     entries[idx] = [newKey, rule];
     calcData = Object.fromEntries(entries);
     card.dataset.key = newKey;
@@ -887,7 +1209,15 @@ function applyRule(btn) {
     calcData[newKey] = rule;
   }
   card.querySelector('.rule-label').textContent = label;
+
+  const isMin = type === 'min', isSum = type === 'sum';
+  const badge = card.querySelector('.rule-type-badge');
+  badge.textContent = isMin ? 'MIN' : (isSum ? '합계' : '비율');
+  badge.className = 'rule-type-badge ' + (isMin ? 'min' : (isSum ? 'sum' : 'std'));
+
   setDirty();
+  const msg = card.querySelector('.apply-msg');
+  if (msg) { msg.textContent = '적용됨 ✓'; setTimeout(() => { msg.textContent = ''; }, 2000); }
 }
 
 function deleteRule(btn) {
@@ -899,19 +1229,55 @@ function deleteRule(btn) {
 }
 
 function addCalcRule() {
-  const isMin = confirm('MIN 유형으로 추가할까요?\n(취소 → 일반 산식 유형)');
-  const key  = `새 지표 ${Date.now()}`;
-  const rule = isMin ? { label: '', min_of: [] } : { label: '', numerator: [], denominator_base: '', multiply: 100 };
-  calcData[key] = rule;
-  const card = buildRuleCard(key, rule);
-  card.classList.add('open');
-  document.getElementById('calc-list').appendChild(card);
-  setDirty();
-  card.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;z-index:100;';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:12px;padding:24px;width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.15);">
+      <div style="font-size:15px;font-weight:700;color:#0f172a;margin-bottom:16px;">산식 유형 선택</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button class="btn btn-secondary" style="height:44px;justify-content:flex-start;gap:10px;" id="_add-ratio">
+          <span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700;">비율</span>
+          분자 ÷ 분모 × 배율
+        </button>
+        <button class="btn btn-secondary" style="height:44px;justify-content:flex-start;gap:10px;" id="_add-sum">
+          <span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700;">합계</span>
+          필드 합산 (건수)
+        </button>
+        <button class="btn btn-secondary" style="height:44px;justify-content:flex-start;gap:10px;" id="_add-min">
+          <span style="background:#fce7f3;color:#9d174d;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700;">MIN</span>
+          여러 지표 중 최솟값
+        </button>
+      </div>
+      <button class="btn btn-secondary btn-sm" id="_add-cancel" style="margin-top:14px;width:100%;justify-content:center;">취소</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const close = () => overlay.remove();
+  const doAdd = (type) => {
+    close();
+    const key = `새 지표 ${Date.now()}`;
+    let rule;
+    if (type === 'ratio')     rule = { label: '', numerator: [], denominator_base: '', multiply: 100 };
+    else if (type === 'sum')  rule = { label: '', numerator: [], denominator_base: '1', multiply: 1 };
+    else                      rule = { label: '', min_of: [] };
+    calcData[key] = rule;
+    const card = buildRuleCard(key, rule);
+    card.classList.add('open');
+    document.getElementById('calc-list').appendChild(card);
+    setDirty();
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    setTimeout(() => { card.querySelector('.rule-field-key')?.focus(); }, 80);
+  };
+
+  overlay.querySelector('#_add-ratio').addEventListener('click', () => doAdd('ratio'));
+  overlay.querySelector('#_add-sum').addEventListener('click',  () => doAdd('sum'));
+  overlay.querySelector('#_add-min').addEventListener('click',  () => doAdd('min'));
+  overlay.querySelector('#_add-cancel').addEventListener('click', close);
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
 }
 
 function collectCalcRules() {
-  // applyRule로 calcData가 최신 유지됨
   return calcData;
 }
 
