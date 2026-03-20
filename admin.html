@@ -165,6 +165,9 @@ tbody td { padding: 6px 8px; vertical-align: middle; }
 }
 .cell-input:hover { border-color: var(--border); background: #f8fafc; }
 .cell-input:focus { border-color: var(--primary); background: #fff; }
+select.cell-input { appearance: none; -webkit-appearance: none; cursor: pointer; padding-right: 22px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2394a3b8'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 7px center; }
 .td-actions { text-align: center; width: 60px; }
 #empty-hint { text-align: center; padding: 32px; color: var(--text-muted); font-size: 13px; }
 
@@ -452,6 +455,7 @@ const State = {
   sha: { 기준대학: null, calc: null, manifest: null },
   original: { 기준대학: [], calc: {}, manifest: [] },
   dirty: false,
+  fieldKeys: [],   // field_mapping.json 키 목록 (연결 시 로드)
 };
 
 function setDirty() {
@@ -518,10 +522,11 @@ async function ghConnect() {
 }
 
 async function loadAll() {
-  const [기준대학, calc, manifest] = await Promise.all([
+  const [기준대학, calc, manifest, fieldMapping] = await Promise.all([
     GH.getFile('data/기준대학.json'),
     GH.getFile('calc_rules.json'),
     GH.getFile('data/manifest.json'),
+    GH.getFile('field_mapping.json'),
   ]);
   State.sha.기준대학 = 기준대학.sha;
   State.sha.calc     = calc.sha;
@@ -529,6 +534,7 @@ async function loadAll() {
   State.original.기준대학 = JSON.parse(JSON.stringify(기준대학.content));
   State.original.calc     = JSON.parse(JSON.stringify(calc.content));
   State.original.manifest = JSON.parse(JSON.stringify(manifest.content));
+  State.fieldKeys = Object.keys(fieldMapping.content);
 
   renderMappingTable(기준대학.content);
   renderCalcRules(calc.content);
@@ -551,6 +557,16 @@ async function saveAll() {
       collectCalcRules(),
       collectManifest(),
     ];
+
+    // 저장 직전 최신 SHA 재조회 (연결 후 외부에서 파일이 변경된 경우 대비)
+    const [cur기준대학, curCalc, curManifest] = await Promise.all([
+      GH.getFile('data/기준대학.json'),
+      GH.getFile('calc_rules.json'),
+      GH.getFile('data/manifest.json'),
+    ]);
+    State.sha.기준대학 = cur기준대학.sha;
+    State.sha.calc     = curCalc.sha;
+    State.sha.manifest = curManifest.sha;
 
     const now = new Date().toISOString().slice(0,16).replace('T',' ');
     const msg = `관리자 업데이트 (${now})`;
@@ -913,6 +929,34 @@ function collectCalcRules() {
 ══════════════════════════════════════════ */
 let manifestData = [];
 
+/* field_mapping.json 키로 그룹핑된 <select> 생성 */
+function buildFieldSelect(currentVal) {
+  const keys = State.fieldKeys;
+  if (!keys.length) {
+    // 아직 로드 전 fallback: 일반 텍스트 입력
+    return `<input class="cell-input col-key" type="text" value="${esc(currentVal||'')}" oninput="setDirty()">`;
+  }
+  // 첫 '_' 앞 텍스트로 그룹핑 (없으면 '공통')
+  const groups = new Map();
+  for (const k of keys) {
+    const idx = k.indexOf('_');
+    const grp = idx > -1 ? k.slice(0, idx) : '공통';
+    if (!groups.has(grp)) groups.set(grp, []);
+    groups.get(grp).push(k);
+  }
+  const isKnown = currentVal && keys.includes(currentVal);
+  const emptyOpt = `<option value=""${!currentVal ? ' selected' : ''}>— 필드 선택 —</option>`;
+  const unknownOpt = (currentVal && !isKnown)
+    ? `<option value="${esc(currentVal)}" selected>${esc(currentVal)}</option>` : '';
+  const optgroups = [...groups.entries()].map(([grp, ks]) => {
+    const opts = ks.map(k =>
+      `<option value="${esc(k)}"${k === currentVal ? ' selected' : ''}>${esc(k)}</option>`
+    ).join('');
+    return `<optgroup label="${esc(grp)}">${opts}</optgroup>`;
+  }).join('');
+  return `<select class="cell-input col-key" onchange="setDirty()">${emptyOpt}${unknownOpt}${optgroups}</select>`;
+}
+
 function renderManifest(items) {
   manifestData = JSON.parse(JSON.stringify(items));
   const container = document.getElementById('manifest-list');
@@ -962,7 +1006,7 @@ function buildManifestCard(item, idx) {
           <tbody class="col-tbody">
             ${cols.map(c=>`
               <tr>
-                <td><input class="cell-input col-key" type="text" value="${esc(c.key||'')}" oninput="setDirty()"></td>
+                <td>${buildFieldSelect(c.key||'')}</td>
                 <td><input class="cell-input col-label" type="text" value="${esc(c.label||'')}" oninput="setDirty()"></td>
                 <td style="text-align:center;width:50px;"><button class="btn btn-danger btn-sm" onclick="deleteColRow(this)">−</button></td>
               </tr>`).join('')}
@@ -981,7 +1025,7 @@ function addColRow(btn) {
   const tbody = btn.closest('.manifest-card-body').querySelector('.col-tbody');
   const tr = document.createElement('tr');
   tr.innerHTML = `
-    <td><input class="cell-input col-key" type="text" oninput="setDirty()"></td>
+    <td>${buildFieldSelect('')}</td>
     <td><input class="cell-input col-label" type="text" oninput="setDirty()"></td>
     <td style="text-align:center;width:50px;"><button class="btn btn-danger btn-sm" onclick="deleteColRow(this)">−</button></td>
   `;
