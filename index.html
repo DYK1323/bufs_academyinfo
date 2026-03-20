@@ -684,19 +684,22 @@
           <label class="trend-check-item is-checked" style="--dot-color:#10b981"><input type="checkbox" data-group="비수도권" checked><span class="chk-dot"></span>비수도권 평균</label>
           <label class="trend-check-item is-checked" style="--dot-color:#8b5cf6"><input type="checkbox" data-group="동남권" checked><span class="chk-dot"></span>동남권 평균</label>
           <label class="trend-check-item" style="--dot-color:#ef4444"><input type="checkbox" data-group="부산"><span class="chk-dot"></span>부산 평균</label>
-          <div class="trend-section-label" style="margin-top:14px;">연도 선택</div>
-          <div id="trend-year-checks"></div>
+          <div class="trend-section-label" style="margin-top:14px;">대학 추가 비교</div>
+          <input class="trend-univ-input" id="trend-univ-input" list="trend-univ-list" placeholder="대학명 검색…" autocomplete="off">
+          <datalist id="trend-univ-list"></datalist>
+          <div id="trend-univ-tags"></div>
           <div class="trend-section-label" style="margin-top:14px;">Y축 범위</div>
           <div style="display:flex;gap:6px;align-items:center;">
             <input class="trend-axis-input" id="trend-ymin" type="number" placeholder="최소">
             <span style="font-size:11px;color:var(--text-muted);flex-shrink:0;">~</span>
             <input class="trend-axis-input" id="trend-ymax" type="number" placeholder="최대">
           </div>
-          <button class="trend-apply-btn" id="trend-apply-axis">적용</button>
-          <div class="trend-section-label" style="margin-top:14px;">대학 추가 비교</div>
-          <input class="trend-univ-input" id="trend-univ-input" list="trend-univ-list" placeholder="대학명 검색…" autocomplete="off">
-          <datalist id="trend-univ-list"></datalist>
-          <div id="trend-univ-tags"></div>
+          <div style="display:flex;gap:6px;margin-top:6px;">
+            <button class="trend-apply-btn" id="trend-apply-axis" style="flex:1;">적용</button>
+            <button class="trend-apply-btn" id="trend-auto-axis" style="flex:1;">Auto</button>
+          </div>
+          <div class="trend-section-label" style="margin-top:14px;">연도 선택</div>
+          <div id="trend-year-checks" style="max-height:168px;overflow-y:auto;"></div>
         </div>
         <!-- 우측 콘텐츠 -->
         <div id="trend-main">
@@ -1627,12 +1630,12 @@ const TrendView = {
   updateYearChecks() {
     const allYears = AppState.trend.allYears;
     if (!allYears) return;
-    const years = [...allYears.keys()].sort((a,b)=>a-b);
+    const years = [...allYears.keys()].sort((a,b)=>b-a); // 내림차순
     const container = document.getElementById('trend-year-checks');
     if (!container) return;
-    // 첫 빌드 시 전체 연도 선택
+    // 첫 빌드 시 최근 5년 선택
     if (AppState.trend.selectedYears.size === 0) {
-      years.forEach(y => AppState.trend.selectedYears.add(y));
+      years.slice(0, 5).forEach(y => AppState.trend.selectedYears.add(y));
     }
     container.innerHTML = years.map(y => {
       const checked = AppState.trend.selectedYears.has(y);
@@ -1708,7 +1711,7 @@ const TrendView = {
         trigger: 'axis', axisPointer: { type: 'cross' },
         formatter(params) {
           let html = `<b>${params[0].axisValue}년</b><br>`;
-          params.forEach(p => { if (p.value != null) html += `${p.marker}${p.seriesName}: <b>${p.value}%</b><br>`; });
+          params.forEach(p => { if (p.value != null) html += `${p.marker}${p.seriesName}: <b>${(+p.value).toFixed(2)}%</b><br>`; });
           return html;
         },
       },
@@ -1719,7 +1722,7 @@ const TrendView = {
       yAxis: {
         type: 'value', name: label,
         nameLocation: 'middle', nameGap: 50, nameTextStyle: { fontSize: 11 },
-        axisLabel: { formatter: v => `${v}%` },
+        axisLabel: { formatter: v => `${(+v).toFixed(2)}%` },
         min: AppState.trend.yMin ?? undefined,
         max: AppState.trend.yMax ?? undefined,
       },
@@ -1730,7 +1733,7 @@ const TrendView = {
         symbol: s.isOurs ? 'circle' : 'emptyCircle',
         symbolSize: s.isOurs ? 7 : 5,
         label: s.isOurs ? { show: true, position: 'top', fontSize: 10, color: '#2563EB',
-          formatter: p => p.value != null ? `${p.value}%` : '' } : { show: false },
+          formatter: p => p.value != null ? `${(+p.value).toFixed(2)}%` : '' } : { show: false },
       })),
     }, true);
   },
@@ -1740,7 +1743,7 @@ const TrendView = {
     if (!wrap) return;
     const headers = ['<th></th>', ...years.map(y=>`<th>${y}년</th>`)].join('');
     const rows = series.map(s => {
-      const cells = s.data.map(v=>`<td>${v!=null?v+'%':'-'}</td>`).join('');
+      const cells = s.data.map(v=>`<td>${v!=null?(+v).toFixed(2)+'%':'-'}</td>`).join('');
       return `<tr class="${s.isOurs?'our-row':''}"><td>${s.name}</td>${cells}</tr>`;
     }).join('');
     wrap.innerHTML = `<table class="trend-summary-table"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>`;
@@ -1858,6 +1861,13 @@ const App = {
       const maxVal = parseFloat(document.getElementById('trend-ymax').value);
       AppState.trend.yMin = isNaN(minVal) ? null : minVal;
       AppState.trend.yMax = isNaN(maxVal) ? null : maxVal;
+      if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
+    });
+    document.getElementById('trend-auto-axis').addEventListener('click', () => {
+      AppState.trend.yMin = null;
+      AppState.trend.yMax = null;
+      document.getElementById('trend-ymin').value = '';
+      document.getElementById('trend-ymax').value = '';
       if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
     });
 
