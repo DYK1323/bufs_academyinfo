@@ -1,0 +1,639 @@
+"""
+대학알리미 공시 파일 정제 + JSON 누적 GUI
+
+흐름:
+  1. 입력 폴더에서 xlsx 파일 정제 (병합해제, 헤더 flatten)
+  2. 필드명 변경 감지 → 확인 팝업 (기존 필드에 매핑 or 새 필드로 추가)
+  3. CSV / Excel 저장 (선택, 검증용)
+  4. 항목별 JSON에 연도 데이터 누적 (분석툴용)
+
+파일 구조:
+  normalize_gui.py      ← 이 파일
+  field_mapping.json    ← 필드 매핑 (자동 생성/관리)
+  data/
+    전임교원_1인당_학생수_및_확보율.json   ← 항목별 누적 JSON
+    재적학생수.json
+    ...
+
+사용법:
+  pip install pandas openpyxl
+  python normalize_gui.py
+"""
+
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox
+import threading
+import os, re, json
+import openpyxl
+import pandas as pd
+from pathlib import Path
+from copy import deepcopy
+
+# ─────────────────────────────────────────────────────
+# 설정
+# ─────────────────────────────────────────────────────
+YEAR_PATTERN     = re.compile(r"^(19|20)\d{2}$")
+YEAR_IN_FILENAME = re.compile(r"^\d{4}년[_\s]*")   # 파일명 앞 연도 제거용
+SCRIPT_DIR       = Path(__file__).parent
+MAPPING_FILE     = SCRIPT_DIR / "field_mapping.json"
+JSON_DIR         = SCRIPT_DIR / "data"
+
+
+# ─────────────────────────────────────────────────────
+# 정제 로직
+# ─────────────────────────────────────────────────────
+
+def clean_str(val) -> str:
+    if val is None:
+        return ""
+    return str(val).replace("\n", " ").strip()
+
+
+def pick_sheet(wb):
+    """시트 선택: Sheet1 → raw 포함 → empty 포함 → 첫 번째"""
+    names = wb.sheetnames
+    for name in names:
+        if name.lower() == "sheet1":
+            return wb[name], name
+    for name in names:
+        if "raw" in name.lower():
+            return wb[name], name
+    for name in names:
+        if "empty" in name.lower():
+            return wb[name], name
+    return wb[names[0]], names[0]
+
+
+def detect_data_start(ws) -> int:
+    """병합된 상태에서도 A열 연도값 첫 등장 행 반환"""
+    merge_map = {}
+    for mr in ws.merged_cells.ranges:
+        val = ws.cell(mr.min_row, mr.min_col).value
+        for r in range(mr.min_row, mr.max_row + 1):
+            for c in range(mr.min_col, mr.max_col + 1):
+                merge_map[(r, c)] = val
+
+    for row_idx in range(1, ws.max_row + 1):
+        raw = merge_map.get((row_idx, 1), ws.cell(row_idx, 1).value)
+        if YEAR_PATTERN.match(clean_str(raw)):
+            return row_idx
+    raise ValueError("A열에서 연도값을 찾을 수 없습니다.")
+
+
+def unmerge_and_fill(ws):
+    for mr in list(ws.merged_cells.ranges):
+        top_left = ws.cell(mr.min_row, mr.min_col).value
+        ws.unmerge_cells(str(mr))
+        for row in ws.iter_rows(min_row=mr.min_row, max_row=mr.max_row,
+                                 min_col=mr.min_col, max_col=mr.max_col):
+            for cell in row:
+                cell.value = top_left
+
+
+def flatten_headers(ws, header_rows: list) -> list:
+    flat = []
+    for col in range(1, ws.max_column + 1):
+        parts = []
+        for row in header_rows:
+            v = clean_str(ws.cell(row, col).value)
+            if v and v not in parts:
+                parts.append(v)
+        flat.append("_".join(parts) if parts else f"col{col}")
+    return flat
+
+
+def extract_df(filepath: str) -> tuple:
+    """xlsx → (df, sheet_name, header_rows, data_start) 반환"""
+    wb   = openpyxl.load_workbook(filepath)
+    ws, sheet_name = pick_sheet(wb)
+
+    data_start = detect_data_start(ws)   # 병합 해제 전에 먼저
+    unmerge_and_fill(ws)
+
+    header_rows = []
+    for r in range(1, data_start):
+        vals        = [clean_str(ws.cell(r, c).value) for c in range(1, ws.max_column + 1)]
+        unique_vals = set(v for v in vals if v)
+        if len(unique_vals) >= 2:
+            header_rows.append(r)
+
+    if not header_rows:
+        raise ValueError("헤더 행을 찾을 수 없습니다.")
+
+    headers = flatten_headers(ws, header_rows)
+
+    data = [list(row) for row in ws.iter_rows(min_row=data_start, values_only=True)
+            if any(v is not None for v in row)]
+
+    df = pd.DataFrame(data, columns=headers)
+    return df, sheet_name, header_rows, data_start
+
+
+def item_key_from_filename(filename: str) -> str:
+    """파일명에서 연도 제거 → 항목 키
+    예) '2024년__대학_6-나-(1)_전임교원_확보율_학과별.xlsx'
+        → '대학_6-나-(1)_전임교원_확보율_학과별'
+    """
+    stem = Path(filename).stem
+    stem = YEAR_IN_FILENAME.sub("", stem)   # 앞 연도 제거
+    stem = re.sub(r"^[_\s]+", "", stem)     # 앞 밑줄/공백 제거
+    return stem
+
+
+# ─────────────────────────────────────────────────────
+# 필드 매핑 관리
+# ─────────────────────────────────────────────────────
+
+def load_mapping() -> dict:
+    """field_mapping.json 로드. 없으면 빈 dict."""
+    if MAPPING_FILE.exists():
+        return json.loads(MAPPING_FILE.read_text(encoding="utf-8"))
+    return {}
+
+
+def save_mapping(mapping: dict):
+    MAPPING_FILE.write_text(
+        json.dumps(mapping, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def resolve_fields(raw_headers: list, mapping: dict) -> tuple:
+    """
+    raw_headers 각각을 표준 필드명으로 변환.
+    - 기존 매핑에 있으면 → 표준명으로 변환
+    - 없으면 → (new_fields 목록에 추가, 원래 이름 그대로)
+    Returns:
+        resolved   : 표준 필드명 리스트
+        new_fields : 매핑에 없는 새 필드명 리스트
+    """
+    # 역방향 맵: alias → standard
+    alias_to_std = {}
+    for std, aliases in mapping.items():
+        for alias in aliases:
+            alias_to_std[alias] = std
+
+    resolved   = []
+    new_fields = []
+    for h in raw_headers:
+        if h in alias_to_std:
+            resolved.append(alias_to_std[h])
+        elif h in mapping:               # 이미 표준명 자체
+            resolved.append(h)
+        else:
+            resolved.append(h)
+            new_fields.append(h)
+
+    return resolved, new_fields
+
+
+# ─────────────────────────────────────────────────────
+# JSON 누적
+# ─────────────────────────────────────────────────────
+
+def accumulate_json(item_key: str, df: pd.DataFrame):
+    """항목별 JSON 파일에 df 데이터를 연도 기준으로 누적."""
+    JSON_DIR.mkdir(parents=True, exist_ok=True)
+    json_path = JSON_DIR / f"{item_key}.json"
+
+    # 기존 데이터 로드
+    existing = []
+    if json_path.exists():
+        existing = json.loads(json_path.read_text(encoding="utf-8"))
+
+    # 이번 파일의 연도 추출
+    year_col  = df.columns[0]   # 첫 번째 컬럼이 기준연도
+    new_years = df[year_col].astype(str).unique().tolist()
+
+    # 기존 데이터에서 같은 연도 제거 (덮어쓰기)
+    existing = [row for row in existing if str(row.get(year_col, "")) not in new_years]
+
+    # 새 데이터 append
+    new_records = df.where(pd.notnull(df), None).to_dict(orient="records")
+    combined    = existing + new_records
+
+    # 연도 제한 없이 전체 누적 보관
+    # (표시 범위는 분석 페이지에서 제어)
+
+    json_path.write_text(
+        json.dumps(combined, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    # manifest.json 갱신 (분석 페이지에서 항목 목록 표시에 사용)
+    manifest_path = JSON_DIR / "manifest.json"
+    manifest: list = []
+    if manifest_path.exists():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if item_key not in manifest:
+        manifest.append(item_key)
+        manifest_path.write_text(
+            json.dumps(sorted(manifest), ensure_ascii=False, indent=2), encoding="utf-8")
+
+    return len(new_records), len(combined)
+
+
+# ─────────────────────────────────────────────────────
+# 필드 매핑 확인 팝업
+# ─────────────────────────────────────────────────────
+
+class FieldMappingDialog(tk.Toplevel):
+    """
+    새 필드 또는 이름이 바뀐 필드를 사람이 확인하는 팝업.
+    각 필드에 대해:
+      - 기존 표준 필드에 매핑  (드롭다운)
+      - 새 필드로 추가
+      - 이 파일에서만 무시
+    """
+    def __init__(self, parent, new_fields: list, existing_std_fields: list, filename: str):
+        super().__init__(parent)
+        self.title("필드 확인 필요")
+        self.geometry("700x500")
+        self.resizable(True, True)
+        self.grab_set()   # 모달
+
+        self.result   = None   # "ok" or "cancel"
+        self.decisions = {}    # field → ("map", std_name) | ("add",) | ("ignore",)
+
+        self._build(new_fields, existing_std_fields, filename)
+
+    def _build(self, new_fields, existing_std_fields, filename):
+        # 안내
+        ttk.Label(self, text=f"파일: {filename}", font=("", 9, "bold")).pack(
+            anchor="w", padx=16, pady=(12, 2))
+        ttk.Label(self,
+            text="기존 매핑에 없는 필드가 발견됐습니다.\n"
+                 "각 필드를 기존 표준 필드에 매핑하거나, 새 필드로 추가하거나, 무시할 수 있습니다.",
+            foreground="#555").pack(anchor="w", padx=16, pady=(0, 8))
+
+        ttk.Separator(self).pack(fill="x", padx=16)
+
+        # 스크롤 영역
+        canvas = tk.Canvas(self, borderwidth=0, background="#fafafa")
+        vscroll = ttk.Scrollbar(self, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=vscroll.set)
+        vscroll.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True, padx=(16, 0), pady=8)
+
+        frame = ttk.Frame(canvas)
+        canvas.create_window((0, 0), window=frame, anchor="nw")
+        frame.bind("<Configure>", lambda e: canvas.configure(
+            scrollregion=canvas.bbox("all")))
+
+        # 헤더
+        for col, (text, w) in enumerate([("새 필드명", 280), ("처리 방식", 120), ("매핑 대상 (기존 필드)", 220)]):
+            ttk.Label(frame, text=text, font=("", 9, "bold"), width=w//8).grid(
+                row=0, column=col, padx=6, pady=4, sticky="w")
+
+        self._rows = []
+        options_map    = ["기존 필드에 매핑"]
+        options_action = ["기존 필드에 매핑", "새 필드로 추가", "이 파일만 무시"]
+
+        for i, field in enumerate(new_fields, start=1):
+            # 필드명
+            ttk.Label(frame, text=field, wraplength=270).grid(
+                row=i, column=0, padx=6, pady=4, sticky="w")
+
+            # 처리 방식 드롭다운
+            var_action = tk.StringVar(value="새 필드로 추가")
+            cb_action  = ttk.Combobox(frame, textvariable=var_action,
+                                       values=options_action, state="readonly", width=16)
+            cb_action.grid(row=i, column=1, padx=6, pady=4)
+
+            # 매핑 대상 드롭다운
+            var_target = tk.StringVar(value="")
+            cb_target  = ttk.Combobox(frame, textvariable=var_target,
+                                       values=existing_std_fields, state="readonly", width=26)
+            cb_target.grid(row=i, column=2, padx=6, pady=4)
+
+            # 처리 방식 변경 시 매핑 대상 활성/비활성
+            def on_action_change(event, ct=cb_target, va=var_action):
+                ct.configure(state="readonly" if va.get() == "기존 필드에 매핑" else "disabled")
+                if va.get() != "기존 필드에 매핑":
+                    ct.set("")
+
+            cb_action.bind("<<ComboboxSelected>>", on_action_change)
+            cb_target.configure(state="disabled")
+
+            self._rows.append((field, var_action, var_target))
+
+        # 버튼
+        btn_frame = ttk.Frame(self)
+        btn_frame.pack(fill="x", padx=16, pady=12)
+        ttk.Button(btn_frame, text="확인 → 계속 처리", command=self._ok).pack(side="left")
+        ttk.Button(btn_frame, text="취소 (이 파일 건너뜀)", command=self._cancel).pack(
+            side="left", padx=8)
+
+    def _ok(self):
+        decisions = {}
+        for field, var_action, var_target in self._rows:
+            action = var_action.get()
+            if action == "기존 필드에 매핑":
+                target = var_target.get().strip()
+                if not target:
+                    messagebox.showwarning("입력 필요",
+                        f"'{field}' 필드의 매핑 대상을 선택하거나\n처리 방식을 변경하세요.")
+                    return
+                decisions[field] = ("map", target)
+            elif action == "새 필드로 추가":
+                decisions[field] = ("add",)
+            else:
+                decisions[field] = ("ignore",)
+
+        self.decisions = decisions
+        self.result    = "ok"
+        self.destroy()
+
+    def _cancel(self):
+        self.result = "cancel"
+        self.destroy()
+
+
+# ─────────────────────────────────────────────────────
+# 메인 GUI
+# ─────────────────────────────────────────────────────
+
+class App(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("대학알리미 공시 파일 정제")
+        self.geometry("820x680")
+        self.resizable(True, True)
+        self.configure(bg="#f5f5f5")
+        self._build_ui()
+
+    def _build_ui(self):
+        pad = {"padx": 16, "pady": 6}
+
+        # ── 입력 폴더 ──
+        fi = ttk.LabelFrame(self, text="입력 폴더 (xlsx 파일 위치)")
+        fi.pack(fill="x", **pad)
+        self.var_input = tk.StringVar(value=str(Path.home() / "Downloads"))
+        ttk.Entry(fi, textvariable=self.var_input).pack(
+            side="left", padx=8, pady=6, fill="x", expand=True)
+        ttk.Button(fi, text="폴더 선택", command=self._pick_input).pack(
+            side="left", padx=(0, 8), pady=6)
+
+        # ── 출력 폴더 ──
+        fo = ttk.LabelFrame(self, text="출력 폴더 (CSV / Excel 저장 위치)")
+        fo.pack(fill="x", **pad)
+        self.var_output = tk.StringVar(
+            value=str(Path.home() / "Downloads" / "대학알리미_정제"))
+        ttk.Entry(fo, textvariable=self.var_output).pack(
+            side="left", padx=8, pady=6, fill="x", expand=True)
+        ttk.Button(fo, text="폴더 선택", command=self._pick_output).pack(
+            side="left", padx=(0, 8), pady=6)
+
+        # ── 처리 옵션 ──
+        fopt = ttk.LabelFrame(self, text="처리 옵션")
+        fopt.pack(fill="x", **pad)
+
+        self.var_csv      = tk.BooleanVar(value=True)
+        self.var_xlsx_out = tk.BooleanVar(value=False)
+        self.var_json_acc = tk.BooleanVar(value=True)
+
+        ttk.Checkbutton(fopt, text="CSV 저장  (검증용)",
+                        variable=self.var_csv).pack(side="left", padx=16, pady=6)
+        ttk.Checkbutton(fopt, text="Excel 저장  (검증용)",
+                        variable=self.var_xlsx_out).pack(side="left", padx=8, pady=6)
+        ttk.Separator(fopt, orient="vertical").pack(side="left", fill="y", padx=8, pady=4)
+        ttk.Checkbutton(fopt, text="항목별 JSON 누적  (분석툴용)",
+                        variable=self.var_json_acc).pack(side="left", padx=8, pady=6)
+
+        # JSON 저장 위치 표시
+        ttk.Label(fopt, text=f"→ {JSON_DIR}", foreground="#777",
+                  font=("", 8)).pack(side="left", pady=6)
+
+        # ── 실행 버튼 ──
+        fb = tk.Frame(self, bg="#f5f5f5")
+        fb.pack(fill="x", padx=16, pady=4)
+        self.btn_run = ttk.Button(fb, text="▶  정제 시작",
+                                   command=self._run, width=16)
+        self.btn_run.pack(side="left")
+        ttk.Button(fb, text="📂  출력 폴더 열기",
+                   command=self._open_output).pack(side="left", padx=8)
+        ttk.Button(fb, text="📂  JSON 폴더 열기",
+                   command=self._open_json_dir).pack(side="left")
+        self.lbl_status = ttk.Label(fb, text="", foreground="#555")
+        self.lbl_status.pack(side="left", padx=12)
+
+        # ── 진행바 ──
+        self.progress = ttk.Progressbar(self, mode="determinate")
+        self.progress.pack(fill="x", padx=16, pady=(2, 4))
+
+        # ── 로그 ──
+        fl = ttk.LabelFrame(self, text="처리 로그")
+        fl.pack(fill="both", expand=True, **pad)
+        self.log = tk.Text(fl, wrap="word", state="disabled",
+                            bg="white", fg="#222", font=("Courier", 10))
+        sc = ttk.Scrollbar(fl, command=self.log.yview)
+        self.log.configure(yscrollcommand=sc.set)
+        sc.pack(side="right", fill="y")
+        self.log.pack(fill="both", expand=True, padx=4, pady=4)
+        self.log.tag_config("ok",    foreground="#1a7a2e")
+        self.log.tag_config("warn",  foreground="#d35400")
+        self.log.tag_config("error", foreground="#c0392b")
+        self.log.tag_config("skip",  foreground="#888888")
+        self.log.tag_config("info",  foreground="#1a5276")
+        self.log.tag_config("bold",  font=("Courier", 10, "bold"))
+
+    # ── 폴더 선택 ──
+    def _pick_input(self):
+        d = filedialog.askdirectory(initialdir=self.var_input.get())
+        if d:
+            self.var_input.set(d)
+            self.var_output.set(str(Path(d) / "대학알리미_정제"))
+
+    def _pick_output(self):
+        d = filedialog.askdirectory(initialdir=self.var_output.get())
+        if d:
+            self.var_output.set(d)
+
+    def _open_dir(self, path):
+        import subprocess, sys
+        if not os.path.exists(path):
+            messagebox.showinfo("알림", f"폴더가 없습니다:\n{path}")
+            return
+        if sys.platform == "win32":
+            os.startfile(path)
+        elif sys.platform == "darwin":
+            subprocess.run(["open", path])
+        else:
+            subprocess.run(["xdg-open", path])
+
+    def _open_output(self):
+        self._open_dir(self.var_output.get())
+
+    def _open_json_dir(self):
+        self._open_dir(str(JSON_DIR))
+
+    # ── 로그 출력 ──
+    def _log(self, msg, tag=""):
+        self.log.configure(state="normal")
+        self.log.insert("end", msg + "\n", tag)
+        self.log.see("end")
+        self.log.configure(state="disabled")
+
+    # ── 실행 ──
+    def _run(self):
+        input_dir  = self.var_input.get()
+        output_dir = self.var_output.get()
+
+        xlsx_files = sorted(Path(input_dir).glob("*.xlsx"))
+        if not xlsx_files:
+            messagebox.showwarning("파일 없음",
+                f"{input_dir}\n폴더에 xlsx 파일이 없습니다.")
+            return
+
+        if not self.var_csv.get() and not self.var_xlsx_out.get() \
+                and not self.var_json_acc.get():
+            messagebox.showwarning("옵션 미선택", "처리 옵션을 하나 이상 선택하세요.")
+            return
+
+        self.btn_run.configure(state="disabled")
+        self.log.configure(state="normal")
+        self.log.delete("1.0", "end")
+        self.log.configure(state="disabled")
+
+        threading.Thread(
+            target=self._process,
+            args=(xlsx_files, output_dir),
+            daemon=True
+        ).start()
+
+    def _process(self, files, output_dir):
+        total   = len(files)
+        mapping = load_mapping()
+
+        self.progress["maximum"] = total
+        self.progress["value"]   = 0
+        self._log(f"총 {total}개 파일 처리 시작", "info")
+        self._log("─" * 64)
+
+        ok = skip = error = 0
+
+        for i, filepath in enumerate(files):
+            fname = filepath.name
+            self._log(f"[{i+1}/{total}] {fname}", "bold")
+
+            try:
+                # 1. 정제
+                df, sheet_name, header_rows, data_start = extract_df(str(filepath))
+                raw_headers = list(df.columns)
+
+                # 2. 필드 매핑 적용
+                resolved, new_fields = resolve_fields(raw_headers, mapping)
+
+                # 3. 새 필드 있으면 메인 스레드에서 팝업
+                if new_fields:
+                    self._log(f"  ⚠️  새 필드 {len(new_fields)}개 발견: "
+                              f"{new_fields[:3]}{'...' if len(new_fields)>3 else ''}", "warn")
+
+                    existing_std = list(mapping.keys())
+                    decisions    = self._ask_mapping(new_fields, existing_std, fname)
+
+                    if decisions is None:
+                        self._log("  ⏭  사용자가 건너뜀", "skip")
+                        skip += 1
+                        self.progress["value"] = i + 1
+                        continue
+
+                    # 결정 반영
+                    for field, decision in decisions.items():
+                        if decision[0] == "map":
+                            std = decision[1]
+                            # 매핑에 alias 추가
+                            if std not in mapping:
+                                mapping[std] = []
+                            if field not in mapping[std]:
+                                mapping[std].append(field)
+                            # resolved 업데이트
+                            resolved = [std if r == field else r for r in resolved]
+                            self._log(f"    매핑: '{field}' → '{std}'", "info")
+
+                        elif decision[0] == "add":
+                            # 새 표준 필드로 등록
+                            if field not in mapping:
+                                mapping[field] = []
+                            self._log(f"    새 필드 추가: '{field}'", "info")
+
+                        else:  # ignore
+                            # 해당 컬럼 제거
+                            idx_to_drop = [j for j, h in enumerate(raw_headers) if h == field]
+                            df.drop(df.columns[idx_to_drop], axis=1, inplace=True,
+                                    errors="ignore")
+                            resolved = [r for r, h in zip(resolved, raw_headers)
+                                        if h != field]
+                            self._log(f"    무시: '{field}'", "skip")
+
+                    save_mapping(mapping)
+
+                # 4. 컬럼명 교체
+                df = df.iloc[:, :len(resolved)]
+                df.columns = resolved
+
+                item_key = item_key_from_filename(fname)
+
+                # 5. CSV 저장
+                if self.var_csv.get():
+                    os.makedirs(output_dir, exist_ok=True)
+                    csv_path = os.path.join(output_dir, f"{filepath.stem}.csv")
+                    df.to_csv(csv_path, index=False, encoding="utf-8-sig")
+
+                # 6. Excel 저장
+                if self.var_xlsx_out.get():
+                    os.makedirs(output_dir, exist_ok=True)
+                    xl_path = os.path.join(output_dir, f"{filepath.stem}_정제.xlsx")
+                    df.to_excel(xl_path, index=False)
+
+                # 7. JSON 누적
+                json_msg = ""
+                if self.var_json_acc.get():
+                    new_cnt, total_cnt = accumulate_json(item_key, df)
+                    json_msg = f" | JSON +{new_cnt}행 (누적 {total_cnt}행)"
+
+                saved_fmts = []
+                if self.var_csv.get():      saved_fmts.append("CSV")
+                if self.var_xlsx_out.get(): saved_fmts.append("Excel")
+                if self.var_json_acc.get(): saved_fmts.append("JSON누적")
+
+                self._log(
+                    f"  ✅ {len(df)}행 × {len(df.columns)}열"
+                    f" | 시트: {sheet_name}"
+                    f" | 헤더: {header_rows}행"
+                    f"{json_msg}", "ok")
+                ok += 1
+
+            except Exception as e:
+                self._log(f"  ❌ 오류: {e}", "error")
+                error += 1
+
+            self.progress["value"] = i + 1
+            self.lbl_status.configure(
+                text=f"{i+1} / {total}  (✅{ok}  ❌{error}  ⏭{skip})")
+
+        self._log("─" * 64)
+        self._log(f"완료: {ok}개 성공  /  {error}개 오류  /  {skip}개 스킵", "bold")
+        self.btn_run.configure(state="normal")
+
+    def _ask_mapping(self, new_fields, existing_std, filename) -> dict | None:
+        """메인 스레드에서 필드 매핑 팝업 실행 후 결과 반환"""
+        result_holder = [None]
+
+        def show():
+            dlg = FieldMappingDialog(self, new_fields, existing_std, filename)
+            self.wait_window(dlg)
+            result_holder[0] = (dlg.result, dlg.decisions)
+
+        self.after(0, show)
+
+        # 팝업이 닫힐 때까지 대기 (스레드에서 폴링)
+        import time
+        while result_holder[0] is None:
+            time.sleep(0.05)
+
+        result, decisions = result_holder[0]
+        if result == "cancel":
+            return None
+        return decisions
+
+
+if __name__ == "__main__":
+    app = App()
+    app.mainloop()

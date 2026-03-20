@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>대학공시 데이터 분석</title>
+  <link href="https://cdn.jsdelivr.net/npm/krds-uiux@1.0.1/resources/cdn/krds.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js" defer></script>
+  <style>
+    /* ── 전역 리셋 ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: 'Pretendard', 'Malgun Gothic', sans-serif; font-size: 14px; color: #1e293b; }
+
+    /* ── 색상 토큰 ─────────────────────────────────── */
+    :root {
+      --primary: #1B6CB8;
+      --primary-light: #eff6ff;
+      --sidebar-bg: #1a2332;
+      --sidebar-active: #1B6CB8;
+      --sidebar-hover: #243044;
+      --sidebar-text: #94a3b8;
+      --sidebar-text-active: #ffffff;
+      --page-bg: #f4f6f9;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+      --text-primary: #1e293b;
+      --text-secondary: #64748b;
+      --text-muted: #94a3b8;
+      --up-color: #16a34a;
+      --down-color: #dc2626;
+      --our-bg: #eff6ff;
+      --our-border: #1B6CB8;
+      --row-alt: #f8fafc;
+    }
+
+    /* ── 앱 쉘 ─────────────────────────────────────── */
+    #app-shell {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── 사이드바 ───────────────────────────────────── */
+    #sidebar {
+      width: 220px;
+      min-width: 220px;
+      background: var(--sidebar-bg);
+      display: flex;
+      flex-direction: column;
+      transition: width 0.2s ease, min-width 0.2s ease;
+      overflow: hidden;
+      flex-shrink: 0;
+      z-index: 100;
+    }
+    #sidebar.collapsed { width: 56px; min-width: 56px; }
+
+    .sidebar-logo {
+      padding: 20px 16px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid #2d3f55;
+      flex-shrink: 0;
+    }
+    .sidebar-logo-icon {
+      width: 32px; height: 32px;
+      background: var(--primary);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      font-size: 16px;
+    }
+    .sidebar-logo-text {
+      display: flex; flex-direction: column; overflow: hidden;
+      transition: opacity 0.15s ease;
+    }
+    .sidebar-logo-text strong { font-size: 13px; font-weight: 700; color: #fff; white-space: nowrap; }
+    .sidebar-logo-text span { font-size: 11px; color: var(--sidebar-text); white-space: nowrap; }
+    #sidebar.collapsed .sidebar-logo-text { opacity: 0; pointer-events: none; }
+
+    .sidebar-section-label {
+      font-size: 10px; font-weight: 600; color: var(--sidebar-text);
+      text-transform: uppercase; letter-spacing: 0.08em;
+      padding: 16px 16px 6px;
+      white-space: nowrap; overflow: hidden;
+      transition: opacity 0.15s ease;
+    }
+    #sidebar.collapsed .sidebar-section-label { opacity: 0; }
+
+    .sidebar-nav { flex: 1; padding: 4px 8px; overflow-y: auto; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      position: relative;
+    }
+    .nav-item:hover:not(.disabled) { background: var(--sidebar-hover); }
+    .nav-item.active { background: var(--sidebar-active); }
+    .nav-item.disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .nav-icon {
+      width: 20px; height: 20px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; font-size: 16px;
+    }
+    .nav-label {
+      font-size: 13px; font-weight: 500;
+      color: var(--sidebar-text);
+      transition: opacity 0.15s ease;
+    }
+    .nav-item.active .nav-label { color: #fff; }
+    .nav-badge {
+      margin-left: auto;
+      font-size: 10px; padding: 1px 6px;
+      background: #374151; border-radius: 9px;
+      color: var(--sidebar-text);
+      transition: opacity 0.15s ease;
+    }
+    #sidebar.collapsed .nav-label,
+    #sidebar.collapsed .nav-badge { opacity: 0; pointer-events: none; }
+
+    .sidebar-toggle {
+      padding: 12px;
+      border-top: 1px solid #2d3f55;
+      display: flex; justify-content: flex-end;
+      flex-shrink: 0;
+    }
+    .toggle-btn {
+      width: 28px; height: 28px;
+      border: none; background: #2d3f55;
+      border-radius: 6px; cursor: pointer;
+      color: var(--sidebar-text); font-size: 14px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s ease;
+    }
+    .toggle-btn:hover { background: #374151; }
+
+    /* ── 메인 콘텐츠 ────────────────────────────────── */
+    #main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--page-bg);
+      min-width: 0;
+    }
+
+    /* ── CORS 경고 배너 ─────────────────────────────── */
+    #cors-warning {
+      display: none;
+      background: #fef3c7; border-bottom: 1px solid #f59e0b;
+      padding: 10px 24px;
+      font-size: 13px; color: #92400e;
+    }
+    #cors-warning code {
+      background: #fde68a; padding: 1px 6px;
+      border-radius: 3px; font-family: monospace; font-size: 12px;
+    }
+
+    /* ── 필터 바 ─────────────────────────────────────── */
+    #filter-bar {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+      flex-shrink: 0;
+    }
+    .filter-label {
+      font-size: 12px; font-weight: 600; color: var(--text-secondary);
+      white-space: nowrap; align-self: center;
+    }
+    .filter-divider { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
+
+    /* 단일 셀렉트 */
+    .filter-select {
+      height: 34px; padding: 0 10px;
+      border: 1px solid var(--border); border-radius: 6px;
+      background: #fff; font-size: 13px; color: var(--text-primary);
+      cursor: pointer; min-width: 140px;
+      font-family: inherit;
+    }
+    .filter-select:focus { outline: none; border-color: var(--primary); }
+
+    /* 커스텀 멀티셀렉트 */
+    .multi-select { position: relative; }
+    .multi-select-trigger {
+      height: 34px; padding: 0 10px;
+      border: 1px solid var(--border); border-radius: 6px;
+      background: #fff; font-size: 13px; color: var(--text-primary);
+      cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 6px;
+      font-family: inherit; min-width: 110px;
+    }
+    .multi-select-trigger:hover { border-color: #94a3b8; }
+    .multi-select-trigger.open { border-color: var(--primary); }
+    .multi-select-trigger .arrow { margin-left: auto; font-size: 10px; color: var(--text-muted); }
+
+    .multi-select-dropdown {
+      display: none; position: absolute; top: calc(100% + 4px); left: 0;
+      background: #fff; border: 1px solid var(--border); border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      z-index: 200; min-width: 160px; padding: 6px;
+      max-height: 280px; overflow-y: auto;
+    }
+    .multi-select-dropdown.open { display: block; }
+    .multi-select-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 8px; border-radius: 4px;
+      cursor: pointer; font-size: 13px;
+    }
+    .multi-select-item:hover { background: var(--row-alt); }
+    .multi-select-item input[type="checkbox"] { accent-color: var(--primary); width: 14px; height: 14px; cursor: pointer; }
+    .multi-select-divider { height: 1px; background: var(--border); margin: 4px 0; }
+
+    /* 수도권 토글 */
+    .metro-toggle { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .metro-btn {
+      height: 34px; padding: 0 12px;
+      border: none; background: #fff; font-size: 13px; color: var(--text-secondary);
+      cursor: pointer; font-family: inherit; white-space: nowrap;
+      border-right: 1px solid var(--border);
+    }
+    .metro-btn:last-child { border-right: none; }
+    .metro-btn.active { background: var(--primary); color: #fff; font-weight: 600; }
+    .metro-btn:hover:not(.active) { background: var(--row-alt); }
+
+    /* ── 뷰 컨테이너 ─────────────────────────────────── */
+    #view-container {
+      flex: 1; overflow-y: auto; padding: 24px;
+    }
+
+    /* ── 카드 ────────────────────────────────────────── */
+    .card {
+      background: var(--card-bg); border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    /* ── KPI 바 ──────────────────────────────────────── */
+    #kpi-bar { margin-bottom: 16px; }
+    .kpi-card {
+      padding: 20px 24px;
+      border-left: 4px solid var(--primary);
+      display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+    }
+    .kpi-badge {
+      background: var(--primary-light); color: var(--primary);
+      border-radius: 50%; width: 48px; height: 48px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; flex-shrink: 0;
+    }
+    .kpi-info { flex: 1; min-width: 200px; }
+    .kpi-univ { font-size: 16px; font-weight: 700; color: var(--text-primary); }
+    .kpi-context { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+    .kpi-stats { display: flex; gap: 32px; flex-wrap: wrap; }
+    .kpi-stat { text-align: center; }
+    .kpi-stat-value { font-size: 28px; font-weight: 800; color: var(--primary); line-height: 1; }
+    .kpi-stat-value.highlight { font-size: 32px; }
+    .kpi-stat-label { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+    .kpi-rank-detail { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+    .kpi-warn { font-size: 13px; color: #92400e; }
+
+    /* ── 테이블 컨트롤 ───────────────────────────────── */
+    #table-controls {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .table-info { font-size: 12px; color: var(--text-secondary); }
+    .table-info strong { color: var(--text-primary); }
+    .btn {
+      height: 32px; padding: 0 14px;
+      border: 1px solid var(--border); border-radius: 6px;
+      background: #fff; font-size: 13px; color: var(--text-secondary);
+      cursor: pointer; display: flex; align-items: center; gap: 6px;
+      font-family: inherit; white-space: nowrap;
+    }
+    .btn:hover { background: var(--row-alt); }
+    .btn-primary {
+      background: var(--primary); color: #fff; border-color: var(--primary);
+    }
+    .btn-primary:hover { background: #1558a0; }
+
+    /* ── 순위 테이블 ─────────────────────────────────── */
+    #ranking-table-wrap {
+      overflow-x: auto;
+    }
+    #ranking-table {
+      width: 100%; border-collapse: collapse; font-size: 13px;
+    }
+    #ranking-table thead th {
+      position: sticky; top: 0; z-index: 10;
+      background: #f8fafc; border-bottom: 2px solid var(--border);
+      padding: 10px 12px; text-align: left;
+      font-weight: 600; color: var(--text-secondary);
+      white-space: nowrap; user-select: none;
+    }
+    #ranking-table thead th.sortable { cursor: pointer; }
+    #ranking-table thead th.sortable:hover { background: #f1f5f9; color: var(--primary); }
+    #ranking-table thead th.sort-active { color: var(--primary); }
+    .sort-icon { font-size: 10px; margin-left: 4px; color: var(--text-muted); }
+    .sort-icon.asc::after { content: '▲'; }
+    .sort-icon.desc::after { content: '▼'; }
+    .sort-icon.none::after { content: '↕'; }
+
+    #ranking-table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+    #ranking-table tbody tr:hover { background: #f8fafc; }
+    #ranking-table tbody tr.our-university {
+      background: var(--our-bg) !important;
+      border-left: 3px solid var(--our-border);
+      font-weight: 600;
+    }
+    #ranking-table tbody tr:nth-child(even) { background: var(--row-alt); }
+    #ranking-table tbody tr:nth-child(even):hover { background: #f1f5f9; }
+
+    #ranking-table td { padding: 10px 12px; vertical-align: middle; }
+    .td-rank { font-weight: 700; color: var(--text-secondary); text-align: center; min-width: 44px; }
+    .td-rank.top3 { color: var(--primary); }
+    .td-univ { font-weight: 500; }
+    .td-univ .our-tag {
+      font-size: 10px; background: var(--primary); color: #fff;
+      padding: 1px 5px; border-radius: 3px; margin-left: 6px; font-weight: 700;
+    }
+    .td-num { text-align: right; font-variant-numeric: tabular-nums; }
+    .td-delta { text-align: right; white-space: nowrap; font-size: 12px; }
+    .delta-up { color: var(--up-color); }
+    .delta-down { color: var(--down-color); }
+    .delta-none { color: var(--text-muted); }
+    .td-percent { text-align: right; font-size: 12px; color: var(--text-secondary); }
+
+    /* ── 페이지네이션 ────────────────────────────────── */
+    #pagination {
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+      padding: 14px;
+    }
+    .page-btn {
+      min-width: 32px; height: 32px; padding: 0 8px;
+      border: 1px solid var(--border); border-radius: 6px;
+      background: #fff; font-size: 13px; color: var(--text-secondary);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      font-family: inherit;
+    }
+    .page-btn:hover:not(:disabled):not(.active) { background: var(--row-alt); }
+    .page-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 600; }
+    .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── 빈 상태 ─────────────────────────────────────── */
+    .empty-state {
+      padding: 64px 24px; text-align: center;
+    }
+    .empty-icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-title { font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
+    .empty-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+    .empty-desc code {
+      background: #f1f5f9; padding: 2px 6px;
+      border-radius: 4px; font-family: monospace; font-size: 12px;
+    }
+
+    /* ── 로딩 스피너 ─────────────────────────────────── */
+    .loading-wrap { padding: 48px; display: flex; align-items: center; justify-content: center; gap: 12px; }
+    .spinner {
+      width: 24px; height: 24px;
+      border: 3px solid var(--border); border-top-color: var(--primary);
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── 반응형 ──────────────────────────────────────── */
+    @media (max-width: 1199px) {
+      #sidebar { width: 56px; min-width: 56px; }
+      .sidebar-logo-text, .nav-label, .nav-badge, .sidebar-section-label { opacity: 0; pointer-events: none; }
+    }
+    @media (max-width: 767px) {
+      #sidebar { display: none; }
+      #filter-bar { padding: 10px 16px; }
+      #view-container { padding: 16px; }
+      #ranking-table thead th:nth-child(3),
+      #ranking-table thead th:nth-child(4),
+      #ranking-table tbody td:nth-child(3),
+      #ranking-table tbody td:nth-child(4) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="app-shell">
+
+  <!-- ── 사이드바 ─────────────────────────────────── -->
+  <nav id="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">🎓</div>
+      <div class="sidebar-logo-text">
+        <strong>공시 분석툴</strong>
+        <span>대학알리미 데이터</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section-label">분석 메뉴</div>
+
+    <div class="sidebar-nav">
+      <div class="nav-item active" data-view="ranking">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">순위 보기</span>
+      </div>
+      <div class="nav-item disabled" title="준비 중 (Phase 2)">
+        <span class="nav-icon">📈</span>
+        <span class="nav-label">그룹 비교</span>
+        <span class="nav-badge">준비중</span>
+      </div>
+      <div class="nav-item disabled" title="준비 중 (Phase 2)">
+        <span class="nav-icon">📉</span>
+        <span class="nav-label">추이 분석</span>
+        <span class="nav-badge">준비중</span>
+      </div>
+      <div class="nav-item disabled" title="준비 중 (Phase 3)">
+        <span class="nav-icon">⚖️</span>
+        <span class="nav-label">직접 비교</span>
+        <span class="nav-badge">준비중</span>
+      </div>
+    </div>
+
+    <div class="sidebar-toggle">
+      <button class="toggle-btn" id="sidebar-toggle" title="사이드바 접기/펼치기">⇄</button>
+    </div>
+  </nav>
+
+  <!-- ── 메인 콘텐츠 ───────────────────────────────── -->
+  <div id="main-content">
+
+    <!-- CORS 경고 배너 -->
+    <div id="cors-warning">
+      ⚠️ <strong>로컬 파일 직접 열기가 감지되었습니다.</strong>
+      데이터를 불러오려면 <code>python -m http.server 8080</code> 실행 후
+      <code>http://localhost:8080</code>으로 접속하세요.
+    </div>
+
+    <!-- 필터 바 -->
+    <div id="filter-bar">
+      <span class="filter-label">공시항목</span>
+      <select class="filter-select" id="filter-item">
+        <option value="">— 항목 선택 —</option>
+      </select>
+
+      <span class="filter-label">연도</span>
+      <select class="filter-select" id="filter-year" style="min-width:90px;">
+        <option value="">—</option>
+      </select>
+
+      <div class="filter-divider"></div>
+
+      <div class="multi-select" id="ms-univ-type">
+        <button class="multi-select-trigger" type="button">
+          <span class="ms-label">대학구분</span>
+          <span class="arrow">▾</span>
+        </button>
+        <div class="multi-select-dropdown"></div>
+      </div>
+
+      <div class="multi-select" id="ms-found-type">
+        <button class="multi-select-trigger" type="button">
+          <span class="ms-label">설립구분</span>
+          <span class="arrow">▾</span>
+        </button>
+        <div class="multi-select-dropdown"></div>
+      </div>
+
+      <div class="multi-select" id="ms-region">
+        <button class="multi-select-trigger" type="button">
+          <span class="ms-label">지역</span>
+          <span class="arrow">▾</span>
+        </button>
+        <div class="multi-select-dropdown"></div>
+      </div>
+
+      <div class="filter-divider"></div>
+
+      <div class="metro-toggle" id="metro-toggle">
+        <button class="metro-btn active" data-val="전체">전체</button>
+        <button class="metro-btn" data-val="수도권">수도권</button>
+        <button class="metro-btn" data-val="비수도권">비수도권</button>
+      </div>
+    </div>
+
+    <!-- 뷰 컨테이너 -->
+    <div id="view-container">
+
+      <!-- 순위보기 뷰 -->
+      <div id="ranking-view">
+        <!-- KPI 바 -->
+        <div id="kpi-bar"></div>
+
+        <!-- 테이블 카드 -->
+        <div class="card" id="table-card" style="display:none;">
+          <div id="table-controls">
+            <div class="table-info" id="table-info"></div>
+            <button class="btn" id="btn-csv">⬇ CSV 다운로드</button>
+          </div>
+          <div id="ranking-table-wrap">
+            <table id="ranking-table">
+              <thead id="ranking-thead"></thead>
+              <tbody id="ranking-tbody"></tbody>
+            </table>
+          </div>
+          <div id="pagination"></div>
+        </div>
+
+        <!-- 빈 상태 -->
+        <div id="empty-state" class="card">
+          <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            <div class="empty-title">공시 항목을 선택해 주세요</div>
+            <div class="empty-desc">상단 필터에서 공시 항목을 선택하면<br>전국 대학 순위 데이터가 표시됩니다.</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /view-container -->
+  </div><!-- /main-content -->
+</div><!-- /app-shell -->
+
+<script>
+'use strict';
+
+/* ═══════════════════════════════════════════════════════
+   상수
+═══════════════════════════════════════════════════════ */
+const OUR_UNIV = '부산외국어대학교';
+const ROWS_PER_PAGE = 50;
+const DATA_PATH = './data/';
+
+/* ═══════════════════════════════════════════════════════
+   AppState
+═══════════════════════════════════════════════════════ */
+const AppState = {
+  filters: {
+    항목키: null,
+    연도: null,
+    대학구분: [],   // [] = 전체
+    설립구분: [],
+    지역: [],
+    수도권여부: '전체',
+  },
+  raw: {
+    manifest: [],
+    기준대학: [],
+    항목데이터: [],
+    calcRules: {},
+  },
+  computed: {
+    aggregated: [],
+    filtered: [],
+    sorted: [],
+    currentPage: 1,
+    sortKey: null,
+    sortDir: 'desc',
+  },
+  _baseUnivMap: new Map(),
+};
+
+/* ═══════════════════════════════════════════════════════
+   Utils
+═══════════════════════════════════════════════════════ */
+const Utils = {
+  formatNumber(n, decimals = 0) {
+    if (n == null || isNaN(n)) return '-';
+    return n.toLocaleString('ko-KR', { maximumFractionDigits: decimals, minimumFractionDigits: decimals });
+  },
+  formatPercent(n, decimals = 1) {
+    if (n == null || isNaN(n)) return '-';
+    return n.toLocaleString('ko-KR', { maximumFractionDigits: decimals, minimumFractionDigits: decimals }) + '%';
+  },
+  formatDelta(cur, prev) {
+    if (cur == null || prev == null || isNaN(cur) || isNaN(prev)) return '<span class="delta-none">-</span>';
+    const diff = cur - prev;
+    if (diff === 0) return '<span class="delta-none">±0</span>';
+    const cls = diff > 0 ? 'delta-up' : 'delta-down';
+    const sign = diff > 0 ? '▲' : '▼';
+    return `<span class="${cls}">${sign} ${Math.abs(diff).toLocaleString('ko-KR', { maximumFractionDigits: 1 })}</span>`;
+  },
+  calcTopPercent(rank, total) {
+    if (!total) return '-';
+    return ((rank / total) * 100).toFixed(1);
+  },
+  buildFilterDescription(filters) {
+    const parts = [];
+    if (filters.수도권여부 !== '전체') parts.push(filters.수도권여부);
+    if (filters.대학구분.length) parts.push(filters.대학구분.join('·'));
+    if (filters.설립구분.length) parts.push(filters.설립구분.join('·'));
+    if (filters.지역.length) parts.push(filters.지역.join('·') + ' 소재');
+    return parts.length ? parts.join(' ') : '전국';
+  },
+  showLoading(containerId) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    el.innerHTML = '<div class="loading-wrap"><div class="spinner"></div><span style="color:#64748b;font-size:13px;">데이터 불러오는 중...</span></div>';
+  },
+  showEmptyState(reason) {
+    const messages = {
+      'no-item': { icon: '📋', title: '공시 항목을 선택해 주세요', desc: '상단 필터에서 공시 항목을 선택하면<br>전국 대학 순위 데이터가 표시됩니다.' },
+      'no-data': { icon: '📂', title: '데이터가 없습니다', desc: '<code>normalize_gui.py</code>로 데이터를 먼저 처리해 주세요.<br>처리 후 <code>data/</code> 폴더에 JSON 파일이 생성됩니다.' },
+      'fetch-error': { icon: '⚠️', title: '데이터를 불러오지 못했습니다', desc: '로컬에서 실행 중이라면:<br><code>python -m http.server 8080</code> 실행 후<br><code>http://localhost:8080</code>으로 접속하세요.' },
+      'no-results': { icon: '🔍', title: '조건에 해당하는 대학이 없습니다', desc: '필터 조건을 조정해 보세요.' },
+    };
+    const m = messages[reason] || messages['no-item'];
+    const emptyEl = document.getElementById('empty-state');
+    const tableCard = document.getElementById('table-card');
+    const kpiBar = document.getElementById('kpi-bar');
+    if (emptyEl) {
+      emptyEl.style.display = '';
+      emptyEl.innerHTML = `<div class="empty-state"><div class="empty-icon">${m.icon}</div><div class="empty-title">${m.title}</div><div class="empty-desc">${m.desc}</div></div>`;
+    }
+    if (tableCard) tableCard.style.display = 'none';
+    if (kpiBar) kpiBar.innerHTML = '';
+  },
+  exportCSV(rows, columns, filename) {
+    const BOM = '\uFEFF';
+    const header = columns.map(c => c.label).join(',');
+    const body = rows.map(row =>
+      columns.map(c => {
+        const val = (row[c.key] != null ? row[c.key] : '');
+        return String(val).includes(',') ? `"${val}"` : val;
+      }).join(',')
+    ).join('\n');
+    const blob = new Blob([BOM + header + '\n' + body], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },
+};
+
+/* ═══════════════════════════════════════════════════════
+   DataService
+═══════════════════════════════════════════════════════ */
+const DataService = {
+  async fetchJSON(path, fallback) {
+    try {
+      const res = await fetch(path);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch {
+      return fallback;
+    }
+  },
+  async fetchManifest() {
+    return this.fetchJSON(`${DATA_PATH}manifest.json`, []);
+  },
+  async fetchBaseUnivData() {
+    return this.fetchJSON(`${DATA_PATH}기준대학.json`, []);
+  },
+  async fetchCalcRules() {
+    return this.fetchJSON('./calc_rules.json', {});
+  },
+  async fetchItemData(itemKey) {
+    const encodedKey = encodeURIComponent(itemKey);
+    try {
+      const res = await fetch(`${DATA_PATH}${encodedKey}.json`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+  buildBaseUnivMap(rows) {
+    const map = new Map();
+    for (const row of rows) {
+      const key = row['기준대학명'] || row['대학명'];
+      if (key) map.set(key, row);
+    }
+    return map;
+  },
+  extractYears(rows) {
+    const years = [...new Set(rows.map(r => r['기준연도']).filter(y => y != null))];
+    return years.sort((a, b) => b - a);
+  },
+  // 학과별 행 → 대학+연도 단위 SUM 집계 + 비율 계산 + 기준대학 JOIN
+  aggregateByUniversity(rows, targetYear, calcRules, baseUnivMap, prevYear = null) {
+    // 비율 키 목록 (SUM 제외 대상)
+    const ratioKeys = new Set(Object.keys(calcRules));
+
+    // 대상 연도 필터
+    const yearRows = rows.filter(r => r['기준연도'] === targetYear);
+    const prevRows = prevYear != null ? rows.filter(r => r['기준연도'] === prevYear) : [];
+
+    const groupBy = (rowSet) => {
+      const groups = new Map();
+      for (const row of rowSet) {
+        const key = row['기준대학명'] || row['학교'] || row['대학명'] || '(미확인)';
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(row);
+      }
+      return groups;
+    };
+
+    const sumGroup = (groupRows) => {
+      if (!groupRows.length) return {};
+      const result = {};
+      const firstRow = groupRows[0];
+      for (const field of Object.keys(firstRow)) {
+        if (ratioKeys.has(field)) continue; // 비율 필드 SUM 제외
+        const nums = groupRows.map(r => r[field]).filter(v => typeof v === 'number' && !isNaN(v));
+        if (nums.length > 0) {
+          result[field] = nums.reduce((a, b) => a + b, 0);
+        } else {
+          result[field] = firstRow[field]; // 문자열 필드: 첫 행 값 유지
+        }
+      }
+      return result;
+    };
+
+    const applyCalcRules = (summed) => {
+      const result = { ...summed };
+      for (const [key, rule] of Object.entries(calcRules)) {
+        const numerators = rule.numerator || [];
+        const num = numerators.reduce((acc, f) => acc + (summed[f] ?? 0), 0);
+        let den = summed[rule.denominator_base] ?? 0;
+        for (const excl of (rule.denominator_exclude || [])) {
+          den -= (summed[excl] ?? 0);
+        }
+        result[key] = den > 0 ? (num / den) * (rule.multiply ?? 1) : null;
+      }
+      return result;
+    };
+
+    const currentGroups = groupBy(yearRows);
+    const prevGroups = prevYear != null ? groupBy(prevRows) : new Map();
+
+    const result = [];
+    for (const [univName, univRows] of currentGroups) {
+      const summed = sumGroup(univRows);
+      const withRatios = applyCalcRules(summed);
+
+      // 기준대학 JOIN
+      const baseInfo = baseUnivMap.get(univName) || {};
+      const 지역 = baseInfo['지역'] || univRows[0]['지역'] || '미확인';
+      const 설립구분 = baseInfo['설립구분'] || univRows[0]['설립구분'] || '미확인';
+      const 대학구분 = baseInfo['대학구분'] || univRows[0]['학교종류'] || '미확인';
+      const 수도권여부 = baseInfo['수도권여부'] || 'N';
+
+      // 전년도 집계
+      let prevSummed = null;
+      if (prevGroups.has(univName)) {
+        const ps = sumGroup(prevGroups.get(univName));
+        prevSummed = applyCalcRules(ps);
+      }
+
+      result.push({
+        기준대학명: univName,
+        지역, 설립구분, 대학구분, 수도권여부,
+        ...withRatios,
+        _prev: prevSummed,
+        _isOurs: univName === OUR_UNIV,
+      });
+    }
+    return result;
+  },
+  // 어떤 필드를 기본 정렬 기준으로 쓸지 결정
+  detectPrimaryValueField(aggregated, calcRules) {
+    if (!aggregated.length) return null;
+    const calcKeys = Object.keys(calcRules);
+    // 비율 지표가 있으면 첫 번째를 기본 정렬
+    if (calcKeys.length) return calcKeys[0];
+    // 없으면 숫자 필드 중 첫 번째
+    const sample = aggregated[0];
+    for (const [k, v] of Object.entries(sample)) {
+      if (k.startsWith('_') || ['기준대학명','지역','설립구분','대학구분','수도권여부','기준연도'].includes(k)) continue;
+      if (typeof v === 'number') return k;
+    }
+    return null;
+  },
+};
+
+/* ═══════════════════════════════════════════════════════
+   FilterManager
+═══════════════════════════════════════════════════════ */
+const FilterManager = {
+  _msState: {
+    'ms-univ-type': { key: '대학구분', label: '대학구분', options: ['4년제', '전문대', '대학원대'] },
+    'ms-found-type': { key: '설립구분', label: '설립구분', options: ['국공립', '사립'] },
+    'ms-region': { key: '지역', label: '지역', options: [] },
+  },
+
+  init() {
+    // 항목 드롭다운
+    document.getElementById('filter-item').addEventListener('change', e => {
+      this.onItemChange(e.target.value || null);
+    });
+    // 연도 드롭다운
+    document.getElementById('filter-year').addEventListener('change', e => {
+      this.onYearChange(e.target.value ? parseInt(e.target.value) : null);
+    });
+    // 수도권 토글
+    document.getElementById('metro-toggle').addEventListener('click', e => {
+      const btn = e.target.closest('.metro-btn');
+      if (!btn) return;
+      this.onMetroToggle(btn.dataset.val);
+    });
+    // 멀티셀렉트 외부 클릭 닫기
+    document.addEventListener('click', e => {
+      for (const msId of Object.keys(this._msState)) {
+        const el = document.getElementById(msId);
+        if (el && !el.contains(e.target)) {
+          el.querySelector('.multi-select-dropdown').classList.remove('open');
+          el.querySelector('.multi-select-trigger').classList.remove('open');
+        }
+      }
+    });
+  },
+
+  renderItemSelect(manifest) {
+    const sel = document.getElementById('filter-item');
+    sel.innerHTML = '<option value="">— 항목 선택 —</option>';
+    if (!manifest.length) {
+      sel.innerHTML += '<option value="" disabled>등록된 항목이 없습니다</option>';
+      return;
+    }
+    for (const key of manifest) {
+      const opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = key;
+      sel.appendChild(opt);
+    }
+  },
+
+  renderYearSelect(years) {
+    const sel = document.getElementById('filter-year');
+    sel.innerHTML = '';
+    for (const y of years) {
+      const opt = document.createElement('option');
+      opt.value = y;
+      opt.textContent = y + '년';
+      sel.appendChild(opt);
+    }
+    if (years.length) {
+      AppState.filters.연도 = years[0];
+      sel.value = years[0];
+    }
+  },
+
+  renderMultiSelect(msId, options) {
+    const config = this._msState[msId];
+    const container = document.getElementById(msId);
+    const trigger = container.querySelector('.multi-select-trigger');
+    const dropdown = container.querySelector('.multi-select-dropdown');
+
+    // 드롭다운 내용
+    dropdown.innerHTML = `
+      <div class="multi-select-item" data-all>
+        <input type="checkbox" id="${msId}-all" checked>
+        <label for="${msId}-all" style="cursor:pointer;flex:1;">전체 선택</label>
+      </div>
+      <div class="multi-select-divider"></div>
+    `;
+
+    for (const opt of options) {
+      const id = `${msId}-${opt}`;
+      const item = document.createElement('div');
+      item.className = 'multi-select-item';
+      item.innerHTML = `<input type="checkbox" id="${id}" value="${opt}" checked><label for="${id}" style="cursor:pointer;flex:1;">${opt}</label>`;
+      dropdown.appendChild(item);
+    }
+
+    // 토글 열기/닫기
+    trigger.addEventListener('click', e => {
+      e.stopPropagation();
+      const isOpen = dropdown.classList.toggle('open');
+      trigger.classList.toggle('open', isOpen);
+    });
+
+    // 전체 선택 체크박스
+    const allChk = dropdown.querySelector(`#${msId}-all`);
+    allChk.addEventListener('change', () => {
+      const checked = allChk.checked;
+      dropdown.querySelectorAll('input[type="checkbox"]:not([id$="-all"])').forEach(cb => cb.checked = checked);
+      AppState.filters[config.key] = checked ? [] : options.slice();
+      this._updateTriggerLabel(msId);
+      this._triggerRender();
+    });
+
+    // 개별 체크박스
+    dropdown.querySelectorAll(`input[type="checkbox"]:not([id$="-all"])`).forEach(cb => {
+      cb.addEventListener('change', () => {
+        const selected = [...dropdown.querySelectorAll(`input[type="checkbox"]:not([id$="-all"])`)]
+          .filter(c => c.checked).map(c => c.value);
+        AppState.filters[config.key] = selected.length === options.length ? [] : selected;
+        allChk.checked = selected.length === options.length;
+        this._updateTriggerLabel(msId);
+        this._triggerRender();
+      });
+    });
+
+    this._updateTriggerLabel(msId);
+  },
+
+  renderAllMultiSelects() {
+    // 지역 옵션을 기준대학 데이터에서 추출
+    const regions = [...new Set(AppState.raw.기준대학.map(r => r['지역']).filter(Boolean))].sort();
+    if (regions.length) this._msState['ms-region'].options = regions;
+
+    for (const msId of Object.keys(this._msState)) {
+      this.renderMultiSelect(msId, this._msState[msId].options);
+    }
+  },
+
+  _updateTriggerLabel(msId) {
+    const config = this._msState[msId];
+    const container = document.getElementById(msId);
+    const trigger = container.querySelector('.multi-select-trigger .ms-label');
+    const selected = AppState.filters[config.key];
+    if (!selected.length) {
+      trigger.textContent = config.label;
+    } else {
+      trigger.textContent = `${config.label} (${selected.length}개)`;
+    }
+  },
+
+  onMetroToggle(val) {
+    AppState.filters.수도권여부 = val;
+    document.querySelectorAll('.metro-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.val === val);
+    });
+    this._triggerRender();
+  },
+
+  async onItemChange(itemKey) {
+    AppState.filters.항목키 = itemKey;
+    if (!itemKey) {
+      Utils.showEmptyState('no-item');
+      return;
+    }
+    Utils.showLoading('ranking-view');
+    document.getElementById('table-card').style.display = 'none';
+
+    const rows = await DataService.fetchItemData(itemKey);
+    AppState.raw.항목데이터 = rows || [];
+
+    if (!rows) {
+      Utils.showEmptyState('fetch-error');
+      return;
+    }
+    if (!rows.length) {
+      Utils.showEmptyState('no-data');
+      return;
+    }
+
+    // 연도 드롭다운 갱신
+    const years = DataService.extractYears(rows);
+    this.renderYearSelect(years);
+
+    // 집계 → 필터 → 렌더
+    this._reAggregate();
+  },
+
+  onYearChange(year) {
+    AppState.filters.연도 = year;
+    this._reAggregate();
+  },
+
+  _reAggregate() {
+    const { 항목데이터, calcRules } = AppState.raw;
+    const year = AppState.filters.연도;
+    if (!year || !항목데이터.length) return;
+    AppState.computed.aggregated = DataService.aggregateByUniversity(
+      항목데이터, year, calcRules, AppState._baseUnivMap, year - 1
+    );
+    AppState.computed.sortKey = DataService.detectPrimaryValueField(AppState.computed.aggregated, calcRules);
+    AppState.computed.sortDir = 'desc';
+    AppState.computed.currentPage = 1;
+    this.applyFilters();
+  },
+
+  applyFilters() {
+    const { aggregated } = AppState.computed;
+    const f = AppState.filters;
+    let filtered = aggregated.filter(row => {
+      if (f.대학구분.length && !f.대학구분.includes(row.대학구분)) return false;
+      if (f.설립구분.length && !f.설립구분.includes(row.설립구분)) return false;
+      if (f.지역.length && !f.지역.includes(row.지역)) return false;
+      if (f.수도권여부 === '수도권' && row.수도권여부 !== 'Y') return false;
+      if (f.수도권여부 === '비수도권' && row.수도권여부 !== 'N') return false;
+      return true;
+    });
+    AppState.computed.filtered = filtered;
+    this._sortAndRender();
+  },
+
+  _sortAndRender() {
+    const { filtered, sortKey, sortDir } = AppState.computed;
+    if (sortKey) {
+      AppState.computed.sorted = [...filtered].sort((a, b) => {
+        const av = a[sortKey] ?? -Infinity;
+        const bv = b[sortKey] ?? -Infinity;
+        if (typeof av === 'string') {
+          return sortDir === 'asc' ? av.localeCompare(bv, 'ko') : bv.localeCompare(av, 'ko');
+        }
+        return sortDir === 'asc' ? av - bv : bv - av;
+      });
+    } else {
+      AppState.computed.sorted = [...filtered];
+    }
+    RankingView.render();
+  },
+
+  _triggerRender() {
+    this.applyFilters();
+  },
+};
+
+/* ═══════════════════════════════════════════════════════
+   RankingView
+═══════════════════════════════════════════════════════ */
+const RankingView = {
+  render() {
+    const { sorted, filtered, currentPage } = AppState.computed;
+    const emptyEl = document.getElementById('empty-state');
+    const tableCard = document.getElementById('table-card');
+
+    if (!sorted.length) {
+      Utils.showEmptyState('no-results');
+      return;
+    }
+
+    if (emptyEl) emptyEl.style.display = 'none';
+    if (tableCard) tableCard.style.display = '';
+
+    this.renderKpiBar(sorted, filtered);
+    this.renderTable(sorted, currentPage);
+    this.renderPagination(sorted.length, currentPage);
+  },
+
+  renderKpiBar(sorted, filtered) {
+    const kpiEl = document.getElementById('kpi-bar');
+    const ourIdx = sorted.findIndex(r => r._isOurs);
+    const total = sorted.length;
+    const filterDesc = Utils.buildFilterDescription(AppState.filters);
+    const itemKey = AppState.filters.항목키 || '';
+    const year = AppState.filters.연도 || '';
+    const calcRules = AppState.raw.calcRules;
+    const primaryKey = AppState.computed.sortKey;
+
+    const calcLabel = primaryKey && calcRules[primaryKey]
+      ? calcRules[primaryKey].label
+      : primaryKey || '';
+
+    if (ourIdx === -1) {
+      kpiEl.innerHTML = `
+        <div class="card kpi-card">
+          <div class="kpi-badge">🏫</div>
+          <div class="kpi-info">
+            <div class="kpi-univ">${OUR_UNIV}</div>
+            <div class="kpi-context">${filterDesc} · ${year}년 · ${itemKey}</div>
+          </div>
+          <div class="kpi-warn">현재 필터 조건에 ${OUR_UNIV}이(가) 포함되어 있지 않습니다.</div>
+        </div>`;
+      return;
+    }
+
+    const rank = ourIdx + 1;
+    const topPct = Utils.calcTopPercent(rank, total);
+    const ourRow = sorted[ourIdx];
+    const ratioVal = calcLabel && primaryKey ? ourRow[primaryKey] : null;
+    const rawKey = Object.keys(ourRow).find(k => !k.startsWith('_') && !Object.keys(calcRules).includes(k) && typeof ourRow[k] === 'number' && !['기준연도'].includes(k));
+
+    kpiEl.innerHTML = `
+      <div class="card kpi-card">
+        <div class="kpi-badge">🏫</div>
+        <div class="kpi-info">
+          <div class="kpi-univ">${OUR_UNIV}</div>
+          <div class="kpi-context">${filterDesc} · ${year}년 · ${itemKey}</div>
+          <div class="kpi-rank-detail">${total}개교 중 정렬 기준: ${calcLabel || itemKey}</div>
+        </div>
+        <div class="kpi-stats">
+          <div class="kpi-stat">
+            <div class="kpi-stat-value highlight" style="color:var(--primary)">상위 ${topPct}%</div>
+            <div class="kpi-stat-label">상위 백분율</div>
+          </div>
+          <div class="kpi-stat">
+            <div class="kpi-stat-value">${rank}위</div>
+            <div class="kpi-stat-label">순위 (${total}개교 중)</div>
+          </div>
+          ${ratioVal != null ? `<div class="kpi-stat"><div class="kpi-stat-value">${Utils.formatPercent(ratioVal)}</div><div class="kpi-stat-label">${calcLabel}</div></div>` : ''}
+          ${rawKey ? `<div class="kpi-stat"><div class="kpi-stat-value" style="font-size:20px;">${Utils.formatNumber(ourRow[rawKey])}</div><div class="kpi-stat-label">${rawKey}</div></div>` : ''}
+        </div>
+      </div>`;
+  },
+
+  renderTable(sorted, page) {
+    const calcRules = AppState.raw.calcRules;
+    const primaryKey = AppState.computed.sortKey;
+
+    // 표시할 숫자 필드 목록 결정
+    const metaFields = new Set(['기준대학명', '지역', '설립구분', '대학구분', '수도권여부', '기준연도']);
+    const numericFields = Object.keys(sorted[0] || {})
+      .filter(k => !k.startsWith('_') && !metaFields.has(k) && typeof sorted[0][k] === 'number');
+
+    // 비율 키와 자수 키 분리
+    const ratioKeys = Object.keys(calcRules);
+    const rawFields = numericFields.filter(k => !ratioKeys.includes(k));
+    const displayRatioKey = ratioKeys.length ? ratioKeys[0] : null;
+    const displayRawKey = rawFields.length ? rawFields[0] : null;
+
+    // 헤더
+    const { sortKey, sortDir } = AppState.computed;
+    const makeSortIcon = (key) => {
+      if (key !== sortKey) return '<span class="sort-icon none"></span>';
+      return `<span class="sort-icon ${sortDir}"></span>`;
+    };
+    const thead = document.getElementById('ranking-thead');
+    thead.innerHTML = `<tr>
+      <th style="width:50px;text-align:center;">순위</th>
+      <th class="sortable" data-key="기준대학명">대학명 ${makeSortIcon('기준대학명')}</th>
+      <th class="sortable" data-key="지역">지역 ${makeSortIcon('지역')}</th>
+      <th class="sortable" data-key="설립구분">설립 ${makeSortIcon('설립구분')}</th>
+      ${displayRawKey ? `<th class="sortable td-num" data-key="${displayRawKey}">${displayRawKey} ${makeSortIcon(displayRawKey)}</th>` : ''}
+      ${displayRatioKey ? `<th class="sortable td-num" data-key="${displayRatioKey}">${calcRules[displayRatioKey]?.label || displayRatioKey} ${makeSortIcon(displayRatioKey)}</th>` : ''}
+      <th class="td-num">전년대비</th>
+      <th class="td-num">상위%</th>
+    </tr>`;
+
+    // 헤더 클릭 이벤트
+    thead.querySelectorAll('th.sortable').forEach(th => {
+      th.addEventListener('click', () => this.onHeaderClick(th.dataset.key));
+    });
+
+    // 바디
+    const start = (page - 1) * ROWS_PER_PAGE;
+    const pageRows = sorted.slice(start, start + ROWS_PER_PAGE);
+    const total = sorted.length;
+
+    const tbody = document.getElementById('ranking-tbody');
+    tbody.innerHTML = '';
+    pageRows.forEach((row, i) => {
+      const rank = start + i + 1;
+      const tr = document.createElement('tr');
+      if (row._isOurs) tr.classList.add('our-university');
+
+      const topPct = Utils.calcTopPercent(rank, total);
+      const prevRow = row._prev;
+      const deltaKey = displayRatioKey || displayRawKey;
+      const deltaVal = deltaKey ? Utils.formatDelta(row[deltaKey], prevRow ? prevRow[deltaKey] : null) : '-';
+
+      const rankClass = rank <= 3 ? ' top3' : '';
+
+      tr.innerHTML = `
+        <td class="td-rank${rankClass}">${rank}</td>
+        <td class="td-univ">${row.기준대학명}${row._isOurs ? '<span class="our-tag">우리</span>' : ''}</td>
+        <td>${row.지역 || '-'}</td>
+        <td>${row.설립구분 || '-'}</td>
+        ${displayRawKey ? `<td class="td-num">${Utils.formatNumber(row[displayRawKey])}</td>` : ''}
+        ${displayRatioKey ? `<td class="td-num">${Utils.formatPercent(row[displayRatioKey])}</td>` : ''}
+        <td class="td-delta">${deltaVal}</td>
+        <td class="td-percent">${topPct}%</td>`;
+      tbody.appendChild(tr);
+    });
+
+    // 테이블 정보
+    const infoEl = document.getElementById('table-info');
+    if (infoEl) {
+      infoEl.innerHTML = `총 <strong>${total.toLocaleString()}</strong>개교 · ${AppState.filters.연도}년 기준`;
+    }
+  },
+
+  renderPagination(total, currentPage) {
+    const totalPages = Math.ceil(total / ROWS_PER_PAGE);
+    const pagEl = document.getElementById('pagination');
+    if (totalPages <= 1) { pagEl.innerHTML = ''; return; }
+
+    const maxBtns = 7;
+    let start = Math.max(1, currentPage - Math.floor(maxBtns / 2));
+    let end = Math.min(totalPages, start + maxBtns - 1);
+    if (end - start < maxBtns - 1) start = Math.max(1, end - maxBtns + 1);
+
+    let html = `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} data-page="${currentPage - 1}">‹</button>`;
+    if (start > 1) html += `<button class="page-btn" data-page="1">1</button><span style="color:#94a3b8;padding:0 4px;">…</span>`;
+    for (let p = start; p <= end; p++) {
+      html += `<button class="page-btn ${p === currentPage ? 'active' : ''}" data-page="${p}">${p}</button>`;
+    }
+    if (end < totalPages) html += `<span style="color:#94a3b8;padding:0 4px;">…</span><button class="page-btn" data-page="${totalPages}">${totalPages}</button>`;
+    html += `<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} data-page="${currentPage + 1}">›</button>`;
+
+    pagEl.innerHTML = html;
+    pagEl.querySelectorAll('.page-btn:not(:disabled)').forEach(btn => {
+      btn.addEventListener('click', () => this.onPageChange(parseInt(btn.dataset.page)));
+    });
+  },
+
+  onHeaderClick(key) {
+    if (AppState.computed.sortKey === key) {
+      AppState.computed.sortDir = AppState.computed.sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      AppState.computed.sortKey = key;
+      AppState.computed.sortDir = 'desc';
+    }
+    AppState.computed.currentPage = 1;
+    FilterManager._sortAndRender();
+  },
+
+  onPageChange(page) {
+    AppState.computed.currentPage = page;
+    this.renderTable(AppState.computed.sorted, page);
+    this.renderPagination(AppState.computed.sorted.length, page);
+    document.getElementById('view-container').scrollTop = 0;
+  },
+};
+
+/* ═══════════════════════════════════════════════════════
+   App
+═══════════════════════════════════════════════════════ */
+const App = {
+  async init() {
+    // file:// 프로토콜 감지
+    if (location.protocol === 'file:') {
+      document.getElementById('cors-warning').style.display = 'block';
+    }
+
+    // 사이드바 접기 상태 복원
+    const sidebarCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
+    if (sidebarCollapsed) document.getElementById('sidebar').classList.add('collapsed');
+
+    document.getElementById('sidebar-toggle').addEventListener('click', () => {
+      const sidebar = document.getElementById('sidebar');
+      const isCollapsed = sidebar.classList.toggle('collapsed');
+      localStorage.setItem('sidebar-collapsed', isCollapsed);
+    });
+
+    // CSV 버튼
+    document.getElementById('btn-csv').addEventListener('click', () => {
+      const { sorted } = AppState.computed;
+      const calcRules = AppState.raw.calcRules;
+      const ratioKeys = Object.keys(calcRules);
+      const metaFields = new Set(['기준대학명', '지역', '설립구분', '대학구분', '수도권여부', '기준연도']);
+      const numFields = Object.keys(sorted[0] || {})
+        .filter(k => !k.startsWith('_') && !metaFields.has(k) && typeof sorted[0][k] === 'number');
+
+      const columns = [
+        { key: '_rank', label: '순위' },
+        { key: '기준대학명', label: '대학명' },
+        { key: '지역', label: '지역' },
+        { key: '설립구분', label: '설립구분' },
+        { key: '대학구분', label: '대학구분' },
+        ...numFields.map(k => ({
+          key: k,
+          label: calcRules[k]?.label || k,
+        })),
+      ];
+
+      const rowsWithRank = sorted.map((r, i) => ({ ...r, _rank: i + 1 }));
+      const filename = `순위_${AppState.filters.항목키}_${AppState.filters.연도}_${new Date().toISOString().slice(0,10)}.csv`;
+      Utils.exportCSV(rowsWithRank, columns, filename);
+    });
+
+    // 초기 데이터 병렬 로드
+    const [manifest, 기준대학, calcRules] = await Promise.all([
+      DataService.fetchManifest(),
+      DataService.fetchBaseUnivData(),
+      DataService.fetchCalcRules(),
+    ]);
+
+    AppState.raw.manifest = manifest;
+    AppState.raw.기준대학 = 기준대학;
+    AppState.raw.calcRules = calcRules;
+    AppState._baseUnivMap = DataService.buildBaseUnivMap(기준대학);
+
+    // 필터 UI 초기화
+    FilterManager.init();
+    FilterManager.renderItemSelect(manifest);
+    FilterManager.renderAllMultiSelects();
+
+    // 초기 빈 상태
+    Utils.showEmptyState('no-item');
+  },
+};
+
+// 시작
+document.addEventListener('DOMContentLoaded', () => App.init());
+</script>
+</body>
+</html>

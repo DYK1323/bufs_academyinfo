@@ -1,0 +1,16 @@
+# 엑셀 및 CSV 원본 데이터 (용량 큰 원본 파일 제외)
+*.xlsx
+*.xls
+*.csv
+
+# 공시자료 폴더 (원본 다운로드 파일)
+공시자료/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# OS
+.DS_Store
+Thumbs.db
