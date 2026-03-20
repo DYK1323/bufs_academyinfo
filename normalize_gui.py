@@ -29,6 +29,29 @@ import pandas as pd
 from pathlib import Path
 from copy import deepcopy
 
+# ── 대학알리미 xlsx 파일 내부 XML 버그 대응 ──────────────
+# (1) 'cumstomWidth'(오타) 키워드 무시
+_orig_col_init = openpyxl.worksheet.dimensions.ColumnDimension.__init__
+def _patched_col_init(self, worksheet, *args, **kwargs):
+    kwargs.pop('cumstomWidth', None)
+    _orig_col_init(self, worksheet, *args, **kwargs)
+openpyxl.worksheet.dimensions.ColumnDimension.__init__ = _patched_col_init
+
+# (2) 존재하지 않는 drawing XML 참조 무시
+#     xlsx 내부 ZIP에 drawing1.xml이 없는데 참조만 있는 경우 KeyError 발생
+from openpyxl.reader import drawings as _drawings_mod
+_orig_find_images = _drawings_mod.find_images
+def _patched_find_images(archive, path):
+    try:
+        return _orig_find_images(archive, path)
+    except KeyError:
+        return [], []   # drawing 파일 누락 → 빈 결과로 계속
+_drawings_mod.find_images = _patched_find_images
+# excel reader도 같은 함수를 직접 import해서 쓰므로 거기도 교체
+from openpyxl.reader import excel as _excel_mod
+_excel_mod.find_images = _patched_find_images
+# ─────────────────────────────────────────────────────────
+
 # ─────────────────────────────────────────────────────
 # 설정
 # ─────────────────────────────────────────────────────
@@ -241,7 +264,8 @@ class FieldMappingDialog(tk.Toplevel):
       - 새 필드로 추가
       - 이 파일에서만 무시
     """
-    def __init__(self, parent, new_fields: list, existing_std_fields: list, filename: str):
+    def __init__(self, parent, new_fields: list, existing_std_fields: list, filename: str,
+                 all_raw_headers: list = None):
         super().__init__(parent)
         self.title("필드 확인 필요")
         self.geometry("700x500")
@@ -251,7 +275,11 @@ class FieldMappingDialog(tk.Toplevel):
         self.result   = None   # "ok" or "cancel"
         self.decisions = {}    # field → ("map", std_name) | ("add",) | ("ignore",)
 
-        self._build(new_fields, existing_std_fields, filename)
+        # 매핑 후보: 기존 표준 필드 + 이 파일의 이미 인식된 컬럼명 (중복 제거, 정렬)
+        extra = [h for h in (all_raw_headers or []) if h not in new_fields and h not in existing_std_fields]
+        combined_std = sorted(set(existing_std_fields + extra))
+
+        self._build(new_fields, combined_std, filename)
 
     def _build(self, new_fields, existing_std_fields, filename):
         # 안내
@@ -296,15 +324,15 @@ class FieldMappingDialog(tk.Toplevel):
                                        values=options_action, state="readonly", width=16)
             cb_action.grid(row=i, column=1, padx=6, pady=4)
 
-            # 매핑 대상 드롭다운
+            # 매핑 대상 드롭다운 (자유 입력 허용: 목록이 비어도 직접 타이핑 가능)
             var_target = tk.StringVar(value="")
             cb_target  = ttk.Combobox(frame, textvariable=var_target,
-                                       values=existing_std_fields, state="readonly", width=26)
+                                       values=existing_std_fields, state="disabled", width=26)
             cb_target.grid(row=i, column=2, padx=6, pady=4)
 
             # 처리 방식 변경 시 매핑 대상 활성/비활성
             def on_action_change(event, ct=cb_target, va=var_action):
-                ct.configure(state="readonly" if va.get() == "기존 필드에 매핑" else "disabled")
+                ct.configure(state="normal" if va.get() == "기존 필드에 매핑" else "disabled")
                 if va.get() != "기존 필드에 매핑":
                     ct.set("")
 
@@ -526,7 +554,8 @@ class App(tk.Tk):
                               f"{new_fields[:3]}{'...' if len(new_fields)>3 else ''}", "warn")
 
                     existing_std = list(mapping.keys())
-                    decisions    = self._ask_mapping(new_fields, existing_std, fname)
+                    decisions    = self._ask_mapping(new_fields, existing_std, fname,
+                                                     all_raw_headers=raw_headers)
 
                     if decisions is None:
                         self._log("  ⏭  사용자가 건너뜀", "skip")
@@ -612,12 +641,13 @@ class App(tk.Tk):
         self._log(f"완료: {ok}개 성공  /  {error}개 오류  /  {skip}개 스킵", "bold")
         self.btn_run.configure(state="normal")
 
-    def _ask_mapping(self, new_fields, existing_std, filename) -> dict | None:
+    def _ask_mapping(self, new_fields, existing_std, filename, all_raw_headers=None) -> dict | None:
         """메인 스레드에서 필드 매핑 팝업 실행 후 결과 반환"""
         result_holder = [None]
 
         def show():
-            dlg = FieldMappingDialog(self, new_fields, existing_std, filename)
+            dlg = FieldMappingDialog(self, new_fields, existing_std, filename,
+                                     all_raw_headers=all_raw_headers)
             self.wait_window(dlg)
             result_holder[0] = (dlg.result, dlg.decisions)
 
