@@ -267,6 +267,8 @@
       white-space: nowrap; align-self: center; letter-spacing: 0.01em;
     }
     .filter-divider { width: 1px; height: 20px; background: var(--border); margin: 0 2px; }
+    .filter-check { display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--text-secondary); cursor: pointer; user-select: none; white-space: nowrap; }
+    .filter-check input[type=checkbox] { accent-color: var(--primary); width: 14px; height: 14px; cursor: pointer; }
 
     /* 단일 셀렉트 */
     .filter-select {
@@ -627,6 +629,11 @@
         </div>
       </div>
 
+      <label class="filter-check" id="filter-special-excl">
+        <input type="checkbox" id="chk-special-excl" checked>
+        <span>특별법·기타 제외</span>
+      </label>
+
       <div class="seg-group">
         <span class="seg-label">지역</span>
         <div class="seg-toggle" id="region-group">
@@ -733,6 +740,7 @@ const AppState = {
     연도: null,
     지역: [],
     설립Quick: '전체',     // '전체' | '사립'
+    특별법제외: true,      // 특별법국립·특별법법인·기타 제외 여부
     지역그룹: '전국',      // '전국' | '비수도권' | '동남권' | '부산'
     대학구분그룹: '일반대학', // '전체' | '일반대학' | '교육대학포함'
   },
@@ -1068,6 +1076,11 @@ const FilterManager = {
       if (!btn) return;
       this.onFoundQuick(btn.dataset.val);
     });
+    // 특별법·기타 제외 체크박스
+    document.getElementById('chk-special-excl').addEventListener('change', e => {
+      AppState.filters.특별법제외 = e.target.checked;
+      FilterManager.applyFilters();
+    });
     // 지역그룹 토글
     document.getElementById('region-group').addEventListener('click', e => {
       const btn = e.target.closest('.seg-btn');
@@ -1295,6 +1308,7 @@ const FilterManager = {
       if (허용대학구분 && row.대학구분 && row.대학구분 !== '미확인' && !허용대학구분.has(row.대학구분)) return false;
       if (f.지역.length && !f.지역.includes(row.지역)) return false;
       if (f.설립Quick === '사립' && row.설립구분 !== '사립') return false;
+      if (f.특별법제외 && ['특별법국립','특별법법인','기타'].includes(row.설립구분)) return false;
       if (f.지역그룹 === '비수도권' && METRO.has(row.지역)) return false;
       if (f.지역그룹 === '동남권' && !DONGNAM.has(row.지역)) return false;
       if (f.지역그룹 === '부산' && row.지역 !== '부산') return false;
