@@ -112,7 +112,6 @@
       background: var(--sidebar-active-bg);
       box-shadow: inset 3px 0 0 var(--sidebar-active-bar);
     }
-    .nav-item.disabled { opacity: 0.35; cursor: not-allowed; }
 
     .nav-icon {
       width: 20px; height: 20px;
@@ -127,15 +126,7 @@
       transition: opacity 0.15s ease, transform 0.15s ease;
     }
     .nav-item.active .nav-label { color: var(--sidebar-text-active); font-weight: 600; }
-    .nav-badge {
-      margin-left: auto;
-      font-size: 9px; padding: 2px 7px;
-      background: #f1f5f9; border-radius: 20px;
-      color: var(--text-muted); font-weight: 600; letter-spacing: 0.02em;
-      transition: opacity 0.15s ease;
-    }
-    #sidebar.collapsed .nav-label,
-    #sidebar.collapsed .nav-badge { opacity: 0; pointer-events: none; }
+    #sidebar.collapsed .nav-label { opacity: 0; pointer-events: none; }
 
     .sidebar-toggle {
       padding: 10px 10px;
@@ -524,16 +515,27 @@
     /* ── 반응형 ──────────────────────────────────────── */
     @media (max-width: 1199px) {
       #sidebar { width: 54px; min-width: 54px; }
-      .sidebar-logo-text, .nav-label, .nav-badge, .sidebar-section-label { opacity: 0; pointer-events: none; }
+      .sidebar-logo-text, .nav-label, .sidebar-section-label { opacity: 0; pointer-events: none; }
     }
+    /* ── 모바일 네비 바 ── */
+    #mobile-nav {
+      display: none;
+      background: var(--sidebar-bg);
+      border-bottom: 1px solid var(--sidebar-border);
+      padding: 0 14px;
+      gap: 4px;
+    }
+    .mobile-nav-item {
+      flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 10px 0; font-size: 13px; font-weight: 500; color: var(--sidebar-text);
+      cursor: pointer; border-bottom: 2px solid transparent; transition: color 0.15s, border-color 0.15s;
+    }
+    .mobile-nav-item.active { color: var(--sidebar-text-active); border-bottom-color: var(--primary); font-weight: 600; }
     @media (max-width: 767px) {
       #sidebar { display: none; }
+      #mobile-nav { display: flex; }
       #filter-bar { padding: 8px 14px; }
       #view-container { padding: 14px; }
-      #ranking-table thead th:nth-child(3),
-      #ranking-table thead th:nth-child(4),
-      #ranking-table tbody td:nth-child(3),
-      #ranking-table tbody td:nth-child(4) { display: none; }
     }
   </style>
 </head>
@@ -558,19 +560,9 @@
         <span class="nav-icon">📊</span>
         <span class="nav-label">순위 보기</span>
       </div>
-      <div class="nav-item disabled" title="준비 중 (Phase 2)">
-        <span class="nav-icon">📈</span>
-        <span class="nav-label">그룹 비교</span>
-        <span class="nav-badge">준비중</span>
-      </div>
       <div class="nav-item" data-view="trend">
         <span class="nav-icon">📉</span>
         <span class="nav-label">추이 분석</span>
-      </div>
-      <div class="nav-item disabled" title="준비 중 (Phase 3)">
-        <span class="nav-icon">⚖️</span>
-        <span class="nav-label">직접 비교</span>
-        <span class="nav-badge">준비중</span>
       </div>
     </div>
 
@@ -594,6 +586,12 @@
       ⚠️ <strong>로컬 파일 직접 열기가 감지되었습니다.</strong>
       데이터를 불러오려면 <code>python -m http.server 8080</code> 실행 후
       <code>http://localhost:8080</code>으로 접속하세요.
+    </div>
+
+    <!-- 모바일 네비 바 -->
+    <div id="mobile-nav">
+      <div class="mobile-nav-item active" data-view="ranking">📊 순위 보기</div>
+      <div class="mobile-nav-item" data-view="trend">📉 추이 분석</div>
     </div>
 
     <!-- 필터 바 -->
@@ -1585,6 +1583,7 @@ const CUSTOM_COLORS = ['#f97316','#06b6d4','#84cc16','#ec4899','#6366f1'];
 
 const TrendView = {
   _chart: null,
+  _lastSeries: [],
 
   _baseFilter(r) {
     // 원시 데이터는 '국립'/'공립'/'국립대법인' 등으로 저장될 수 있으므로
@@ -1702,6 +1701,7 @@ const TrendView = {
       series.push({ name: univName, data, color: CUSTOM_COLORS[idx % CUSTOM_COLORS.length] });
     });
 
+    this._lastSeries = series;
     this._renderChart(years, series, label);
     this._renderTable(years, series);
   },
@@ -1791,7 +1791,7 @@ const App = {
 
     // ── 뷰 전환 ──
     const switchView = (viewName) => {
-      document.querySelectorAll('.nav-item[data-view]').forEach(el => {
+      document.querySelectorAll('.nav-item[data-view], .mobile-nav-item[data-view]').forEach(el => {
         el.classList.toggle('active', el.dataset.view === viewName);
       });
       document.getElementById('ranking-view').classList.toggle('hidden-view', viewName !== 'ranking');
@@ -1799,7 +1799,7 @@ const App = {
       document.getElementById('filter-bar').classList.toggle('trend-mode', viewName === 'trend');
       if (viewName === 'trend') TrendView.activate();
     };
-    document.querySelectorAll('.nav-item[data-view]').forEach(el => {
+    document.querySelectorAll('.nav-item[data-view], .mobile-nav-item[data-view]').forEach(el => {
       el.addEventListener('click', () => switchView(el.dataset.view));
     });
 
@@ -1868,10 +1868,29 @@ const App = {
       if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
     });
     document.getElementById('trend-auto-axis').addEventListener('click', () => {
-      AppState.trend.yMin = null;
-      AppState.trend.yMax = null;
-      document.getElementById('trend-ymin').value = '';
-      document.getElementById('trend-ymax').value = '';
+      // 현재 시리즈의 모든 값에서 min/max 계산 후 10% 여유를 두어 반올림
+      const vals = TrendView._lastSeries.flatMap(s => s.data).filter(v => v != null && !isNaN(v));
+      if (vals.length) {
+        const dataMin = Math.min(...vals);
+        const dataMax = Math.max(...vals);
+        const span = dataMax - dataMin || dataMax * 0.2 || 10;
+        const pad  = span * 0.5;                           // 데이터 범위의 50% 여유
+        const rawMin = dataMin - pad;
+        const rawMax = dataMax + pad;
+        // 유효 자릿수에 맞게 반올림 (span 기준 한 자릿수 낮게)
+        const mag = Math.pow(10, Math.floor(Math.log10(span)) - 1);
+        const niceMin = Math.max(0, Math.floor(rawMin / mag) * mag);
+        const niceMax = Math.ceil(rawMax / mag) * mag;
+        AppState.trend.yMin = +niceMin.toFixed(2);
+        AppState.trend.yMax = +niceMax.toFixed(2);
+        document.getElementById('trend-ymin').value = AppState.trend.yMin;
+        document.getElementById('trend-ymax').value = AppState.trend.yMax;
+      } else {
+        AppState.trend.yMin = null;
+        AppState.trend.yMax = null;
+        document.getElementById('trend-ymin').value = '';
+        document.getElementById('trend-ymax').value = '';
+      }
       if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
     });
 
