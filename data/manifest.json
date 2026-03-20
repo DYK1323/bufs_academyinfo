@@ -13,7 +13,9 @@
         "decimal_places": 1,
         "sort_asc": false,
         "is_primary": true,
-        "sources": ["대학_4-다. 신입생 충원 현황_학과별자료"]
+        "sources": [
+          "대학_4-다. 신입생 충원 현황_학과별자료"
+        ]
       }
     ],
     "columns": [
@@ -58,19 +60,23 @@
         "id": "중도탈락률(재학생)",
         "label": "재학생 중도탈락률",
         "unit": "%",
-        "decimal_places": 1,
+        "decimal_places": 2,
         "sort_asc": true,
         "is_primary": true,
-        "sources": ["대학_4-사. 중도탈락 학생 현황_학교별자료"]
+        "sources": [
+          "대학_4-사. 중도탈락 학생 현황_학교별자료"
+        ]
       },
       {
         "id": "중도탈락률(신입생)",
         "label": "신입생 중도탈락률",
         "unit": "%",
-        "decimal_places": 1,
+        "decimal_places": 2,
         "sort_asc": true,
         "is_primary": false,
-        "sources": ["대학_4-사. 중도탈락 학생 현황_학교별자료"]
+        "sources": [
+          "대학_4-사. 중도탈락 학생 현황_학교별자료"
+        ]
       }
     ],
     "columns": [
@@ -114,8 +120,14 @@
         "decimal_places": 2,
         "sort_asc": false,
         "is_primary": true,
-        "sources": ["대학_6-나-(1). 전임교원 1인당 학생 수 및 전임교원 확보율_학과별자료"],
-        "exclude_rows": { "계열": ["의학계열"] }
+        "sources": [
+          "대학_6-나-(1). 전임교원 1인당 학생 수 및 전임교원 확보율_학과별자료"
+        ],
+        "exclude_rows": {
+          "계열": [
+            "의학계열"
+          ]
+        }
       }
     ],
     "columns": [
