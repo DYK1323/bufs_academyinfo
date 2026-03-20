@@ -699,9 +699,10 @@ const DataService = {
     const groupBy = (rowSet) => {
       const groups = new Map();
       for (const row of rowSet) {
-        const rawName = row['학교'] || row['대학명'] || '(미확인)';
-        // 기준대학.json에 등록된 캠퍼스면 기준대학명으로 치환, 아니면 원본 사용
-        const key = baseUnivMap.get(rawName)?.['기준대학명'] || rawName;
+        // normalize_gui.py가 파싱한 '대학명' 우선, 없으면 '학교' fallback
+        const parsedName = row['대학명'] || row['학교'] || '(미확인)';
+        // 통폐합 등 기준대학.json에 등록된 경우 기준대학명으로 치환
+        const key = baseUnivMap.get(parsedName)?.['기준대학명'] || parsedName;
         if (!groups.has(key)) groups.set(key, []);
         groups.get(key).push(row);
       }
@@ -726,7 +727,9 @@ const DataService = {
 
     const applyCalcRules = (summed) => {
       const result = { ...summed };
+      // 1단계: 일반 산식 (numerator/denominator)
       for (const [key, rule] of Object.entries(calcRules)) {
+        if (rule.min_of) continue;
         const numerators = rule.numerator || [];
         const num = numerators.reduce((acc, f) => acc + (summed[f] ?? 0), 0);
         let den = summed[rule.denominator_base] ?? 0;
@@ -734,6 +737,12 @@ const DataService = {
           den -= (summed[excl] ?? 0);
         }
         result[key] = den > 0 ? (num / den) * (rule.multiply ?? 1) : null;
+      }
+      // 2단계: min_of (1단계 결과를 참조)
+      for (const [key, rule] of Object.entries(calcRules)) {
+        if (!rule.min_of) continue;
+        const vals = rule.min_of.map(k => result[k]).filter(v => v != null && !isNaN(v));
+        result[key] = vals.length ? Math.min(...vals) : null;
       }
       return result;
     };

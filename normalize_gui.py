@@ -167,6 +167,39 @@ def item_key_from_filename(filename: str) -> str:
 # 필드 매핑 관리
 # ─────────────────────────────────────────────────────
 
+def parse_학교_field(df: "pd.DataFrame") -> "pd.DataFrame":
+    """
+    '학교' 컬럼을 파싱하여 '대학명', '본분교', '캠퍼스' 컬럼을 추가한다.
+
+    학교 필드 규칙:
+      {대학명} _제N캠퍼스  →  본분교=본교, 캠퍼스=제N캠퍼스
+      {대학명} _분교       →  본분교=분교, 캠퍼스=
+      {대학명}             →  본분교=본교, 캠퍼스=
+    구분자: ' _' (공백 + 언더스코어)
+    """
+    if '학교' not in df.columns:
+        return df
+
+    def _parse(val: str):
+        if not isinstance(val, str):
+            return val, '본교', ''
+        parts = val.split(' _', 1)
+        대학명 = parts[0].strip()
+        if len(parts) == 1:
+            return 대학명, '본교', ''
+        suffix = parts[1].strip()
+        if suffix == '분교':
+            return 대학명, '분교', ''
+        return 대학명, '본교', suffix   # 제N캠퍼스 등
+
+    parsed = df['학교'].apply(_parse)
+    idx = df.columns.get_loc('학교') + 1   # '학교' 컬럼 바로 뒤에 삽입
+    df.insert(idx,     '대학명', [r[0] for r in parsed])
+    df.insert(idx + 1, '본분교', [r[1] for r in parsed])
+    df.insert(idx + 2, '캠퍼스', [r[2] for r in parsed])
+    return df
+
+
 def load_mapping() -> dict:
     """field_mapping.json 로드. 없으면 빈 dict."""
     if MAPPING_FILE.exists():
@@ -596,6 +629,9 @@ class App(tk.Tk):
                 # 4. 컬럼명 교체
                 df = df.iloc[:, :len(resolved)]
                 df.columns = resolved
+
+                # 4-1. '학교' 필드 파싱 → 대학명 / 본분교 / 캠퍼스 추가
+                df = parse_학교_field(df)
 
                 item_key = item_key_from_filename(fname)
 
