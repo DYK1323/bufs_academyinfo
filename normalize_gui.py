@@ -292,6 +292,61 @@ def accumulate_json(item_key: str, df: pd.DataFrame):
     return len(new_records), len(combined)
 
 
+def validate_df(df: pd.DataFrame) -> list[str]:
+    """정제 후 df의 데이터 이상 여부를 검사하여 경고 메시지 목록을 반환."""
+    warnings: list[str] = []
+
+    if df.empty:
+        warnings.append("데이터 행이 없습니다.")
+        return warnings
+
+    # 기준연도 검사
+    year_col = df.columns[0]
+    bad_years = df[~df[year_col].astype(str).str.match(r"^(19|20)\d{2}$")][year_col]
+    if not bad_years.empty:
+        unique_bad = bad_years.dropna().unique()[:5]
+        warnings.append(f"기준연도 이상값 {len(bad_years)}개: {list(unique_bad)}")
+
+    # 대학명 / 학교 공백 검사
+    for col in ("대학명", "학교"):
+        if col in df.columns:
+            null_cnt = df[col].isna().sum() + (df[col].astype(str).str.strip() == "").sum()
+            if null_cnt:
+                warnings.append(f"'{col}' 빈 값 {null_cnt}개")
+
+    # 전체 행 대비 NaN 비율이 50% 초과인 컬럼
+    threshold = len(df) * 0.5
+    numeric_cols = [c for c in df.columns if c not in ("기준연도", "학교", "대학명", "본분교", "캠퍼스", "학과명")]
+    for col in numeric_cols:
+        if df[col].isna().sum() > threshold:
+            warnings.append(f"'{col}' NaN {df[col].isna().sum()}/{len(df)}행 (50% 초과)")
+
+    return warnings
+
+
+def accumulate_csv(item_key: str, df: pd.DataFrame, output_dir: str) -> tuple[int, int]:
+    """항목별 CSV 파일에 df 데이터를 연도 기준으로 누적 저장."""
+    os.makedirs(output_dir, exist_ok=True)
+    csv_path = os.path.join(output_dir, f"{item_key}.csv")
+
+    year_col = df.columns[0]  # 첫 번째 컬럼이 기준연도
+    new_years = df[year_col].astype(str).unique().tolist()
+
+    # 기존 CSV 로드 후 같은 연도 제거 (덮어쓰기)
+    existing_df = pd.DataFrame()
+    if os.path.exists(csv_path):
+        try:
+            existing_df = pd.read_csv(csv_path, encoding="utf-8-sig", dtype=str)
+            existing_df = existing_df[~existing_df[year_col].astype(str).isin(new_years)]
+        except Exception:
+            existing_df = pd.DataFrame()
+
+    combined = pd.concat([existing_df, df], ignore_index=True)
+    combined.to_csv(csv_path, index=False, encoding="utf-8-sig")
+
+    return len(df), len(combined)
+
+
 # ─────────────────────────────────────────────────────
 # 필드 매핑 확인 팝업
 # ─────────────────────────────────────────────────────
@@ -642,11 +697,13 @@ class App(tk.Tk):
 
                 item_key = item_key_from_filename(fname)
 
-                # 5. CSV 저장
+                # 4-2. 데이터 검증
+                for warn_msg in validate_df(df):
+                    self._log(f"  ⚠️  검증 경고: {warn_msg}", "warn")
+
+                # 5. CSV 저장 (연도별 누적)
                 if self.var_csv.get():
-                    os.makedirs(output_dir, exist_ok=True)
-                    csv_path = os.path.join(output_dir, f"{filepath.stem}.csv")
-                    df.to_csv(csv_path, index=False, encoding="utf-8-sig")
+                    csv_new, csv_total = accumulate_csv(item_key, df, output_dir)
 
                 # 6. Excel 저장
                 if self.var_xlsx_out.get():
@@ -655,13 +712,17 @@ class App(tk.Tk):
                     df.to_excel(xl_path, index=False)
 
                 # 7. JSON 누적
+                csv_msg = ""
+                if self.var_csv.get():
+                    csv_msg = f" | CSV +{csv_new}행 (누적 {csv_total}행)"
+
                 json_msg = ""
                 if self.var_json_acc.get():
                     new_cnt, total_cnt = accumulate_json(item_key, df)
                     json_msg = f" | JSON +{new_cnt}행 (누적 {total_cnt}행)"
 
                 saved_fmts = []
-                if self.var_csv.get():      saved_fmts.append("CSV")
+                if self.var_csv.get():      saved_fmts.append("CSV누적")
                 if self.var_xlsx_out.get(): saved_fmts.append("Excel")
                 if self.var_json_acc.get(): saved_fmts.append("JSON누적")
 
@@ -669,7 +730,7 @@ class App(tk.Tk):
                     f"  ✅ {len(df)}행 × {len(df.columns)}열"
                     f" | 시트: {sheet_name}"
                     f" | 헤더: {header_rows}행"
-                    f"{json_msg}", "ok")
+                    f"{csv_msg}{json_msg}", "ok")
                 ok += 1
 
             except Exception as e:
