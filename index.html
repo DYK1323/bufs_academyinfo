@@ -160,13 +160,44 @@
       padding: 0 4px 6px; white-space: nowrap;
     }
     .trend-check-item {
-      display: flex; align-items: center; gap: 7px;
-      padding: 5px 6px; border-radius: 6px; cursor: pointer;
-      font-size: 12.5px; color: var(--sidebar-text);
-      transition: background .1s;
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 8px; border-radius: 6px; cursor: pointer;
+      font-size: 12.5px; color: var(--text-secondary);
+      transition: background .1s; user-select: none;
+      border: 1px solid transparent;
     }
-    .trend-check-item:hover { background: var(--sidebar-hover); }
-    .trend-check-item input[type="checkbox"] { accent-color: var(--primary); width:14px; height:14px; flex-shrink:0; cursor:pointer; }
+    .trend-check-item:hover { background: #f8fafc; }
+    .trend-check-item.is-checked {
+      background: var(--primary-light);
+      border-color: var(--primary-muted);
+      color: var(--primary);
+      font-weight: 600;
+    }
+    .trend-check-item input[type="checkbox"] { display: none; }
+    .chk-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      flex-shrink: 0; background: var(--dot-color, #94a3b8);
+      border: 2px solid var(--dot-color, #94a3b8);
+      transition: transform .1s;
+    }
+    .trend-check-item.is-checked .chk-dot { transform: scale(1.2); }
+    .trend-axis-input {
+      width: 0; flex: 1; height: 28px; padding: 0 6px;
+      border: 1px solid var(--border); border-radius: 6px;
+      font-size: 12px; font-family: inherit; outline: none;
+      background: #f8fafc;
+    }
+    .trend-axis-input:focus { border-color: var(--primary); background: #fff; }
+    .trend-apply-btn {
+      width: 100%; height: 28px; border: 1px solid var(--primary);
+      border-radius: 6px; background: var(--primary); color: #fff;
+      font-size: 12px; font-family: inherit; font-weight: 600;
+      cursor: pointer; margin-top: 6px;
+    }
+    .trend-apply-btn:hover { background: var(--primary-dark); }
+    /* 필터바 — 추이 뷰에서는 항목 선택만 표시 */
+    #filter-bar.trend-mode > *:not(.filter-label):not(#filter-item) { display: none; }
+    #filter-bar.trend-mode > .filter-label:not(:first-child) { display: none; }
     .trend-univ-input {
       width: 100%; height: 28px; padding: 0 8px;
       border: 1px solid var(--border); border-radius: 6px;
@@ -189,7 +220,7 @@
     #ranking-view.hidden-view { display: none; }
     #trend-view { display: none; padding: 20px; gap: 16px; }
     #trend-view.visible { display: flex; align-items: flex-start; }
-    #trend-side-panel { width: 200px; flex-shrink: 0; padding: 16px 12px; }
+    #trend-side-panel { width: 200px; flex-shrink: 0; padding: 16px 12px; overflow-y: auto; max-height: calc(100vh - 120px); }
     #trend-main { flex: 1; min-width: 0; }
     #trend-chart { width: 100%; height: 380px; }
     .trend-summary-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 4px; }
@@ -648,11 +679,20 @@
         <!-- 좌측 패널 -->
         <div id="trend-side-panel" class="card">
           <div class="trend-section-label">비교 그룹</div>
-          <label class="trend-check-item"><input type="checkbox" data-group="전국 평균" checked> 전국 평균</label>
-          <label class="trend-check-item"><input type="checkbox" data-group="전국 사립" checked> 전국 사립 평균</label>
-          <label class="trend-check-item"><input type="checkbox" data-group="비수도권" checked> 비수도권 평균</label>
-          <label class="trend-check-item"><input type="checkbox" data-group="동남권" checked> 동남권 평균</label>
-          <label class="trend-check-item"><input type="checkbox" data-group="부산"> 부산 평균</label>
+          <label class="trend-check-item is-checked" style="--dot-color:#94a3b8"><input type="checkbox" data-group="전국 평균" checked><span class="chk-dot"></span>전국 평균</label>
+          <label class="trend-check-item is-checked" style="--dot-color:#f59e0b"><input type="checkbox" data-group="전국 사립" checked><span class="chk-dot"></span>전국 사립 평균</label>
+          <label class="trend-check-item is-checked" style="--dot-color:#10b981"><input type="checkbox" data-group="비수도권" checked><span class="chk-dot"></span>비수도권 평균</label>
+          <label class="trend-check-item is-checked" style="--dot-color:#8b5cf6"><input type="checkbox" data-group="동남권" checked><span class="chk-dot"></span>동남권 평균</label>
+          <label class="trend-check-item" style="--dot-color:#ef4444"><input type="checkbox" data-group="부산"><span class="chk-dot"></span>부산 평균</label>
+          <div class="trend-section-label" style="margin-top:14px;">연도 선택</div>
+          <div id="trend-year-checks"></div>
+          <div class="trend-section-label" style="margin-top:14px;">Y축 범위</div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input class="trend-axis-input" id="trend-ymin" type="number" placeholder="최소">
+            <span style="font-size:11px;color:var(--text-muted);flex-shrink:0;">~</span>
+            <input class="trend-axis-input" id="trend-ymax" type="number" placeholder="최대">
+          </div>
+          <button class="trend-apply-btn" id="trend-apply-axis">적용</button>
           <div class="trend-section-label" style="margin-top:14px;">대학 추가 비교</div>
           <input class="trend-univ-input" id="trend-univ-input" list="trend-univ-list" placeholder="대학명 검색…" autocomplete="off">
           <datalist id="trend-univ-list"></datalist>
@@ -715,7 +755,10 @@ const AppState = {
   trend: {
     groups: new Set(['전국 평균', '전국 사립', '비수도권', '동남권']),
     customUnivs: [],
-    allYears: null,   // Map<year, university[]>
+    allYears: null,     // Map<year, university[]>
+    selectedYears: new Set(), // 비어있으면 전체 연도
+    yMin: null,
+    yMax: null,
   },
   _baseUnivMap: new Map(),
   _univInfoMap: new Map(),  // 학교명 → { 지역, 설립구분, 대학구분 }
@@ -1166,7 +1209,8 @@ const FilterManager = {
     AppState.raw.currentItem = AppState.raw.manifest.find(
       m => (m?.key ?? m) === itemKey
     ) || null;
-    AppState.trend.allYears = null; // 항목 변경 시 추이 캐시 초기화
+    AppState.trend.allYears = null;     // 항목 변경 시 추이 캐시 초기화
+    AppState.trend.selectedYears.clear(); // 연도 선택 초기화
     if (!itemKey) {
       Utils.showEmptyState('no-item');
       return;
@@ -1575,6 +1619,22 @@ const TrendView = {
     AppState.trend.allYears = allYears;
   },
 
+  updateYearChecks() {
+    const allYears = AppState.trend.allYears;
+    if (!allYears) return;
+    const years = [...allYears.keys()].sort((a,b)=>a-b);
+    const container = document.getElementById('trend-year-checks');
+    if (!container) return;
+    // 첫 빌드 시 전체 연도 선택
+    if (AppState.trend.selectedYears.size === 0) {
+      years.forEach(y => AppState.trend.selectedYears.add(y));
+    }
+    container.innerHTML = years.map(y => {
+      const checked = AppState.trend.selectedYears.has(y);
+      return `<label class="trend-check-item${checked ? ' is-checked' : ''}" style="--dot-color:#64748b"><input type="checkbox" data-year="${y}"${checked ? ' checked' : ''}><span class="chk-dot"></span>${y}년</label>`;
+    }).join('');
+  },
+
   updateDatalist() {
     const allYears = AppState.trend.allYears;
     if (!allYears) return;
@@ -1594,7 +1654,10 @@ const TrendView = {
     const rankKey = AppState.computed.rankKey;
     if (!rankKey) return;
 
-    const years = [...allYears.keys()].sort((a,b)=>a-b);
+    let years = [...allYears.keys()].sort((a,b)=>a-b);
+    if (AppState.trend.selectedYears.size > 0) {
+      years = years.filter(y => AppState.trend.selectedYears.has(y));
+    }
     const calcRules = AppState.raw.calcRules;
     const label = calcRules[rankKey]?.label || rankKey;
     const series = [];
@@ -1645,10 +1708,16 @@ const TrendView = {
         },
       },
       legend: { bottom: 0, type: 'scroll', textStyle: { fontSize: 11 } },
-      grid: { top: 20, right: 40, bottom: 55, left: 60 },
+      grid: { top: 40, right: 40, bottom: 55, left: 72 },
       toolbox: { feature: { saveAsImage: { title: '이미지 저장' } }, right: 8, top: 0 },
       xAxis: { type: 'category', data: years.map(String), axisLabel: { formatter: v => `${v}년` } },
-      yAxis: { type: 'value', name: label, nameTextStyle: { fontSize: 11 }, axisLabel: { formatter: v => `${v}%` } },
+      yAxis: {
+        type: 'value', name: label,
+        nameLocation: 'middle', nameGap: 50, nameTextStyle: { fontSize: 11 },
+        axisLabel: { formatter: v => `${v}%` },
+        min: AppState.trend.yMin ?? undefined,
+        max: AppState.trend.yMax ?? undefined,
+      },
       series: series.map(s => ({
         name: s.name, type: 'line', data: s.data, connectNulls: false,
         lineStyle: { width: s.isOurs ? 3 : 1.5, type: s.isGroup ? 'dashed' : 'solid', color: s.color },
@@ -1680,6 +1749,7 @@ const TrendView = {
       return;
     }
     if (!AppState.trend.allYears) this.buildAllYears();
+    this.updateYearChecks();
     this.updateDatalist();
     this.render();
     if (this._chart) setTimeout(() => this._chart.resize(), 60);
@@ -1714,6 +1784,7 @@ const App = {
       });
       document.getElementById('ranking-view').classList.toggle('hidden-view', viewName !== 'ranking');
       document.getElementById('trend-view').classList.toggle('visible', viewName === 'trend');
+      document.getElementById('filter-bar').classList.toggle('trend-mode', viewName === 'trend');
       if (viewName === 'trend') TrendView.activate();
     };
     document.querySelectorAll('.nav-item[data-view]').forEach(el => {
@@ -1755,13 +1826,34 @@ const App = {
 
     // ── 추이 패널 이벤트 ──
     // 그룹 체크박스
-    document.querySelectorAll('#trend-side-panel input[type="checkbox"]').forEach(cb => {
+    document.querySelectorAll('#trend-side-panel input[type="checkbox"][data-group]').forEach(cb => {
       cb.addEventListener('change', () => {
         const g = cb.dataset.group;
-        if (cb.checked) AppState.trend.groups.add(g);
-        else AppState.trend.groups.delete(g);
+        const item = cb.closest('.trend-check-item');
+        if (cb.checked) { AppState.trend.groups.add(g); item.classList.add('is-checked'); }
+        else { AppState.trend.groups.delete(g); item.classList.remove('is-checked'); }
         if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
       });
+    });
+
+    // 연도 체크박스 (동적 생성이므로 위임)
+    document.getElementById('trend-year-checks').addEventListener('change', e => {
+      const cb = e.target;
+      if (cb.type !== 'checkbox' || !cb.dataset.year) return;
+      const y = +cb.dataset.year;
+      const item = cb.closest('.trend-check-item');
+      if (cb.checked) { AppState.trend.selectedYears.add(y); item.classList.add('is-checked'); }
+      else { AppState.trend.selectedYears.delete(y); item.classList.remove('is-checked'); }
+      if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
+    });
+
+    // Y축 범위 적용
+    document.getElementById('trend-apply-axis').addEventListener('click', () => {
+      const minVal = parseFloat(document.getElementById('trend-ymin').value);
+      const maxVal = parseFloat(document.getElementById('trend-ymax').value);
+      AppState.trend.yMin = isNaN(minVal) ? null : minVal;
+      AppState.trend.yMax = isNaN(maxVal) ? null : maxVal;
+      if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
     });
 
     // 대학 추가 검색
