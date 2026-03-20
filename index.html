@@ -1528,14 +1528,14 @@ const TrendView = {
       legend: { bottom: 0, type: 'scroll', textStyle: { fontSize: 11 } },
       grid: { top: 40, right: 40, bottom: 55, left: 72 },
       toolbox: { feature: { saveAsImage: { title: '이미지 저장' } }, right: 8, top: 0 },
-      xAxis: { type: 'category', data: years.map(String), axisLabel: { formatter: v => `${v}년` } },
-      yAxis: { type: 'value', name: label, nameLocation: 'middle', nameGap: 50, nameTextStyle: { fontSize: 11 }, axisLabel: { formatter: v => Utils.formatValue(Math.round(v), unit, 0) }, min: AppState.trend.yMin ?? undefined, max: AppState.trend.yMax ?? undefined },
+      xAxis: { type: 'category', data: years.map(String), axisLabel: { formatter: v => `${v}년`, fontsize: 14 } },
+      yAxis: { type: 'value', name: label, nameLocation: 'middle', nameGap: 50, nameTextStyle: { fontSize: 14 }, axisLabel: { formatter: v => Utils.formatValue(Math.round(v), unit, 0) }, min: AppState.trend.yMin ?? undefined, max: AppState.trend.yMax ?? undefined, fontsize: 14 },
       series: series.map(s => ({
         name: s.name, type: 'line', data: s.data, connectNulls: false,
         lineStyle: { width: s.isOurs ? 3 : 1.5, type: s.isGroup ? 'dashed' : 'solid', color: s.color },
         itemStyle: { color: s.color },
         symbol: s.isOurs ? 'circle' : 'emptyCircle', symbolSize: s.isOurs ? 7 : 5,
-        label: s.isOurs ? { show: true, position: 'top', fontSize: 10, color: ourColor, formatter: p => p.value != null ? fmt(p.value) : '' } : { show: false },
+        label: s.isOurs ? { show: true, position: 'top', fontSize: 14, color: ourColor, formatter: p => p.value != null ? fmt(p.value) : '' } : { show: false },
       })),
     }, true);
   },
