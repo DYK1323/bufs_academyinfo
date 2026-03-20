@@ -67,21 +67,28 @@
 
 ### calc_rules.json
 
-비율 지표 산식 정의. `index.html`(분석 페이지 JS)이 읽어서 즉석 계산.
+비율 지표 산식 정의. `index.html`(분석 페이지 JS)과 `admin.html`이 읽어서 사용.
 
 ```json
 {
   "지표명": {
     "label": "화면 표시명",
+    "exclude_rows": { "계열": ["의학계열"] },
     "numerator": ["분자_필드1", "분자_필드2"],
     "denominator_base": "분모_기준_필드",
     "denominator_exclude": ["분모_제외_필드1"],
     "multiply": 100
+  },
+  "최솟값 지표": {
+    "label": "화면 표시명",
+    "min_of": ["지표A", "지표B"]
   }
 }
 ```
 
-> 산식 변경 시 이 파일만 수정하면 되며 코드는 건드리지 않아도 된다.
+- `exclude_rows`: 산식 계산 전 특정 행 제외 (예: 의학계열 제외). 대학 단위 합산 전 원시 행에 적용.
+- `min_of`: 다른 산식 결과의 최솟값을 취하는 2단계 계산. 1단계 산식 완료 후 처리.
+- 산식 변경 시 이 파일만 수정하면 되며 코드는 건드리지 않아도 된다.
 
 ### download_academyinfo.py (Playwright)
 
@@ -91,11 +98,42 @@
 
 ### index.html (분석 페이지)
 
-- 단일 HTML 파일로 모든 기능을 포함 (CSS/JS 인라인 또는 같은 파일)
+- 단일 HTML 파일로 모든 기능을 포함 (CSS/JS 인라인)
 - 항목 선택 시 해당 `data/{항목키}.json`만 동적 로드 (전체 로드 금지)
 - KRDS 디자인 시스템 준수 (CDN: `cdn.jsdelivr.net/npm/krds-uiux@1.0.1`)
-- 차트: Chart.js 또는 ECharts (CDN)
-- SQL 검증: sql.js (CDN)
+- 차트: ECharts 5.4.3 (CDN, defer 로드)
+- 주요 JS 객체: `AppState`, `DataService`, `FilterManager`, `RankingView`, `TrendView`, `Utils`
+
+**순위 보기 (`#ranking-view`)**
+- `AppState.computed.rankKey`: 정렬 기준 지표 (데이터 로드 시 고정, 변경 안 됨)
+- `_rank` 필드: 정렬 고정 기준의 순위 (표시 정렬과 무관하게 항상 유지)
+- KPI 바: 상위 백분율 / 전체 순위 / 지표값 (숫자 크게, 단위 작게)
+- 대학명 검색 필터 (`nameQuery`)
+- CSV 내보내기: `_rank` 기준 순위 포함
+
+**추이 분석 (`#trend-view`)**
+- `TrendView.buildAllYears()`: 전체 연도별 `aggregateByUniversity()` 호출 → `AppState.trend.allYears` 캐시
+- 항목 변경 시 `allYears` 및 `selectedYears` 초기화
+- 좌측 패널 (`#trend-side-panel`): 비교 그룹 체크박스(색상 도트) / 연도 선택 / Y축 범위 / 대학 추가
+- 그룹 평균 필터: `['국공립','사립']` 설립구분 + `['대학교','산업대학']` 대학구분 + 3σ 이상치 제거
+- `AppState.trend.selectedYears`: 선택 연도 Set (비면 전체)
+- `AppState.trend.yMin` / `yMax`: Y축 범위 (null이면 자동)
+- 필터 바: 추이 뷰 활성 시 공시항목 드롭다운만 표시 (`#filter-bar.trend-mode`)
+
+### admin.html (관리자 페이지)
+
+- PAT(Personal Access Token) 입력 후 GitHub API로 JSON 파일 직접 편집·저장
+- 연결 성공 후 탭(기준대학 매핑 / 산식 관리 / 공시항목) 표시
+- **저장 방식**: 파일별 순차 저장 (GET SHA → PUT) — 병렬 PUT 시 GitHub race condition 방지
+- 로드 파일: `data/기준대학.json`, `calc_rules.json`, `data/manifest.json`, `field_mapping.json`
+
+**산식 관리 탭**
+- `calcData` 객체에 로컬 반영 → "적용" 버튼으로 확정 → 하단 "GitHub에 저장"
+- `exclude_rows` UI: 필드명 + 제외값 행 추가/삭제
+
+**공시항목 탭**
+- 카드별 "적용" 버튼 → `manifestData[idx]` 업데이트 (산식과 동일 패턴)
+- 필드명(KEY) 셀: `field_mapping.json` 키 + `calc_rules.json` 키를 `<optgroup>` 드롭다운으로 선택
 
 ### field_mapping.json
 
@@ -157,13 +195,14 @@
 
 ---
 
-## 개발 현황 (Phase 1)
+## 개발 현황
 
 | 파일 | 상태 | 비고 |
 |------|------|------|
 | `normalize_gui.py` | ✅ 구현 완료 | 테스트 필요 |
 | `download_academyinfo.py` | ✅ 구현 완료 | TEST_MODE=True로 먼저 테스트 |
-| `index.html` | 🔲 미착수 | Phase 1 우선 구현: 공통 필터 + 순위 보기 |
+| `index.html` | ✅ 구현 완료 | 순위 보기 + 추이 분석 뷰 모두 완성 |
+| `admin.html` | ✅ 구현 완료 | 기준대학 매핑 / 산식 관리 / 공시항목 관리 |
 | 캠퍼스 합산 로직 | 🔲 미착수 | `normalize_gui.py`에 추가 예정 |
 
 ---
@@ -187,3 +226,9 @@
 
 **Q. 같은 파일을 두 번 실행해도 괜찮나요?**
 → 안전함. 같은 연도 데이터는 덮어쓰고 다른 연도는 유지됨.
+
+**Q. admin.html 저장 시 "SHA mismatch" 오류**
+→ GitHub CDN 캐시 또는 병렬 PUT race condition. 현재 코드는 파일별 순차 저장(GET→PUT)으로 방지되어 있음. 재발 시 브라우저 새로고침 후 재시도.
+
+**Q. admin.html 공시항목에서 수정 후 저장했는데 반영이 안 됨**
+→ 카드 수정 후 반드시 **"적용" 버튼**을 눌러야 `manifestData`에 반영됨. 적용 없이 GitHub 저장 시 기존값이 그대로 저장됨.
