@@ -18,14 +18,14 @@
       --primary-dark: #1d4ed8;
       --primary-light: #eff6ff;
       --primary-muted: #dbeafe;
-      --sidebar-bg: #0f172a;
-      --sidebar-border: rgba(255,255,255,0.06);
-      --sidebar-active-bg: rgba(37,99,235,0.18);
+      --sidebar-bg: #ffffff;
+      --sidebar-border: #e2e8f0;
+      --sidebar-active-bg: #eff6ff;
       --sidebar-active-bar: #2563EB;
-      --sidebar-hover: rgba(255,255,255,0.05);
-      --sidebar-text: #94a3b8;
-      --sidebar-text-active: #f1f5f9;
-      --page-bg: #f1f5f9;
+      --sidebar-hover: #f8fafc;
+      --sidebar-text: #64748b;
+      --sidebar-text-active: #1e40af;
+      --page-bg: #f0f6ff;
       --card-bg: #ffffff;
       --border: #e2e8f0;
       --border-light: #f1f5f9;
@@ -53,6 +53,7 @@
       width: 216px;
       min-width: 216px;
       background: var(--sidebar-bg);
+      border-right: 1px solid var(--sidebar-border);
       display: flex;
       flex-direction: column;
       transition: width 0.22s cubic-bezier(.4,0,.2,1), min-width 0.22s cubic-bezier(.4,0,.2,1);
@@ -77,18 +78,17 @@
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0;
       font-size: 15px;
-      box-shadow: 0 2px 8px rgba(37,99,235,0.4);
     }
     .sidebar-logo-text {
       display: flex; flex-direction: column; overflow: hidden;
       transition: opacity 0.15s ease, transform 0.15s ease;
     }
-    .sidebar-logo-text strong { font-size: 13px; font-weight: 700; color: #f8fafc; white-space: nowrap; letter-spacing: -0.01em; }
-    .sidebar-logo-text span { font-size: 11px; color: #475569; white-space: nowrap; margin-top: 1px; }
+    .sidebar-logo-text strong { font-size: 13px; font-weight: 700; color: var(--text-primary); white-space: nowrap; letter-spacing: -0.01em; }
+    .sidebar-logo-text span { font-size: 11px; color: var(--text-muted); white-space: nowrap; margin-top: 1px; }
     #sidebar.collapsed .sidebar-logo-text { opacity: 0; pointer-events: none; transform: translateX(-6px); }
 
     .sidebar-section-label {
-      font-size: 9.5px; font-weight: 700; color: #334155;
+      font-size: 9.5px; font-weight: 700; color: var(--text-muted);
       text-transform: uppercase; letter-spacing: 0.1em;
       padding: 20px 16px 6px;
       white-space: nowrap; overflow: hidden;
@@ -118,7 +118,7 @@
       width: 20px; height: 20px;
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0; font-size: 15px;
-      opacity: 0.7;
+      opacity: 0.6;
     }
     .nav-item.active .nav-icon { opacity: 1; }
     .nav-label {
@@ -130,8 +130,8 @@
     .nav-badge {
       margin-left: auto;
       font-size: 9px; padding: 2px 7px;
-      background: rgba(255,255,255,0.06); border-radius: 20px;
-      color: #475569; font-weight: 600; letter-spacing: 0.02em;
+      background: #f1f5f9; border-radius: 20px;
+      color: var(--text-muted); font-weight: 600; letter-spacing: 0.02em;
       transition: opacity 0.15s ease;
     }
     #sidebar.collapsed .nav-label,
@@ -145,13 +145,13 @@
     }
     .toggle-btn {
       width: 26px; height: 26px;
-      border: none; background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border); background: #fff;
       border-radius: 6px; cursor: pointer;
-      color: #475569; font-size: 13px;
+      color: var(--text-muted); font-size: 13px;
       display: flex; align-items: center; justify-content: center;
-      transition: background 0.12s ease, color 0.12s ease;
+      transition: background 0.12s ease, border-color 0.12s ease;
     }
-    .toggle-btn:hover { background: rgba(255,255,255,0.1); color: #94a3b8; }
+    .toggle-btn:hover { background: var(--sidebar-hover); border-color: #cbd5e1; }
 
     /* ── 메인 콘텐츠 ────────────────────────────────── */
     #main-content {
@@ -313,7 +313,7 @@
       display: flex; align-items: center; justify-content: space-between;
       padding: 11px 16px;
       border-bottom: 1px solid var(--border-light);
-      background: var(--row-alt);
+      background: var(--card-bg);
     }
     .table-info { font-size: 12px; color: var(--text-muted); }
     .table-info strong { color: var(--text-secondary); font-weight: 600; }
@@ -506,21 +506,13 @@
 
       <div class="filter-divider"></div>
 
-      <div class="multi-select" id="ms-univ-type">
-        <button class="multi-select-trigger" type="button">
-          <span class="ms-label">대학구분</span>
-          <span class="arrow">▾</span>
-        </button>
-        <div class="multi-select-dropdown"></div>
-      </div>
-      <span class="filter-badge" id="badge-교육대학" title="교육대학 포함/제외">교육대학</span>
-
-      <div class="multi-select" id="ms-region">
-        <button class="multi-select-trigger" type="button">
-          <span class="ms-label">지역</span>
-          <span class="arrow">▾</span>
-        </button>
-        <div class="multi-select-dropdown"></div>
+      <div class="seg-group">
+        <span class="seg-label">대학구분</span>
+        <div class="seg-toggle" id="univ-type-group">
+          <button class="seg-btn" data-val="전체">전체</button>
+          <button class="seg-btn active" data-val="일반대학">4년제 일반대학</button>
+          <button class="seg-btn" data-val="교육대학포함">교육대학 포함</button>
+        </div>
       </div>
 
       <div class="filter-divider"></div>
@@ -598,11 +590,10 @@ const AppState = {
   filters: {
     항목키: null,
     연도: null,
-    대학구분: [],   // [] = 전체
     지역: [],
-    설립Quick: '전체',   // '전체' | '사립'
-    지역그룹: '전국',    // '전국' | '비수도권' | '동남권' | '부산'
-    교육대학포함: false,
+    설립Quick: '전체',     // '전체' | '사립'
+    지역그룹: '전국',      // '전국' | '비수도권' | '동남권' | '부산'
+    대학구분그룹: '일반대학', // '전체' | '일반대학' | '교육대학포함'
   },
   raw: {
     manifest: [],
@@ -616,7 +607,8 @@ const AppState = {
     filtered: [],
     sorted: [],
     currentPage: 1,
-    sortKey: null,
+    rankKey: null,   // 순위 기준 (데이터 로드 시 고정, 변경 안 됨)
+    sortKey: null,   // 표시 정렬 기준 (헤더 클릭으로 변경)
     sortDir: 'desc',
   },
   _baseUnivMap: new Map(),
@@ -649,11 +641,11 @@ const Utils = {
   },
   buildFilterDescription(filters) {
     const parts = [];
+    const 구분라벨 = { '전체': '전체대학', '일반대학': '4년제 일반대학', '교육대학포함': '교육대학 포함' };
+    parts.push(구분라벨[filters.대학구분그룹] || filters.대학구분그룹);
     if (filters.설립Quick !== '전체') parts.push(filters.설립Quick);
     if (filters.지역그룹 !== '전국') parts.push(filters.지역그룹);
-    if (filters.대학구분.length) parts.push(filters.대학구분.join('·'));
-    if (filters.지역.length) parts.push(filters.지역.join('·') + ' 소재');
-    return parts.length ? parts.join(' · ') : '전국';
+    return parts.join(' · ');
   },
   showLoading() {
     const emptyEl = document.getElementById('empty-state');
@@ -877,10 +869,7 @@ const DataService = {
    FilterManager
 ═══════════════════════════════════════════════════════ */
 const FilterManager = {
-  _msState: {
-    'ms-univ-type': { key: '대학구분', label: '대학구분', options: ['대학교', '산업대학', '교육대학', '기술대학', '전문대학', '사이버대학(대학)', '방송통신대학', '각종학교(대학)'] },
-    'ms-region': { key: '지역', label: '지역', options: [] },
-  },
+  _msState: {},
 
   init() {
     // 항목 드롭다운
@@ -891,10 +880,14 @@ const FilterManager = {
     document.getElementById('filter-year').addEventListener('change', e => {
       this.onYearChange(e.target.value ? parseInt(e.target.value) : null);
     });
-    // 교육대학 포함 뱃지
-    document.getElementById('badge-교육대학').addEventListener('click', () => {
-      AppState.filters.교육대학포함 = !AppState.filters.교육대학포함;
-      document.getElementById('badge-교육대학').classList.toggle('active', AppState.filters.교육대학포함);
+    // 대학구분 그룹 토글
+    document.getElementById('univ-type-group').addEventListener('click', e => {
+      const btn = e.target.closest('.seg-btn');
+      if (!btn) return;
+      AppState.filters.대학구분그룹 = btn.dataset.val;
+      document.querySelectorAll('#univ-type-group .seg-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.val === btn.dataset.val);
+      });
       this._triggerRender();
     });
     // 설립구분 퀵 토글
@@ -1010,15 +1003,7 @@ const FilterManager = {
   },
 
   renderAllMultiSelects(aggregated = null) {
-    // 지역 옵션: 집계 데이터가 있으면 거기서 추출, 없으면 기존 옵션 유지
-    if (aggregated) {
-      const regions = [...new Set(aggregated.map(r => r['지역']).filter(Boolean))].sort();
-      if (regions.length) this._msState['ms-region'].options = regions;
-    }
-
-    for (const msId of Object.keys(this._msState)) {
-      this.renderMultiSelect(msId, this._msState[msId].options);
-    }
+    // 멀티셀렉트 제거 후 no-op (확장 시 이 함수에 추가)
   },
 
   _updateTriggerLabel(msId) {
@@ -1107,10 +1092,12 @@ const FilterManager = {
     );
     // 지역 필터 옵션을 집계 결과에서 갱신
     this.renderAllMultiSelects(AppState.computed.aggregated);
-    // sort_key: manifest 설정 우선, 없으면 자동 감지
+    // rankKey: manifest sort_key 우선, 없으면 자동 감지 → 데이터 로드 시 고정
     const itemSortKey = AppState.raw.currentItem?.sort_key || null;
-    AppState.computed.sortKey = itemSortKey ||
+    const resolvedKey = itemSortKey ||
       DataService.detectPrimaryValueField(AppState.computed.aggregated, calcRules);
+    AppState.computed.rankKey = resolvedKey;  // 순위 기준 — 이후 변경 안 됨
+    AppState.computed.sortKey = resolvedKey;  // 표시 정렬 초기값
     AppState.computed.sortDir = 'desc';
     AppState.computed.currentPage = 1;
     this.applyFilters();
@@ -1121,14 +1108,13 @@ const FilterManager = {
     const f = AppState.filters;
     const METRO = new Set(['서울', '경기', '인천']);
     const DONGNAM = new Set(['부산', '울산', '경남']);
-    // 기본 허용 대학구분: 대학교 + 산업대학, 뱃지로 교육대학 추가 가능
-    const 허용대학구분 = new Set(['대학교', '산업대학']);
-    if (f.교육대학포함) 허용대학구분.add('교육대학');
+    // 대학구분 그룹 필터
+    const 허용대학구분 = f.대학구분그룹 === '전체'        ? null
+                      : f.대학구분그룹 === '교육대학포함' ? new Set(['대학교', '산업대학', '교육대학'])
+                      :                                    new Set(['대학교', '산업대학']);
 
     let filtered = aggregated.filter(row => {
-      // 대학구분 필터: 정보가 있는 경우만 검사 (없으면 통과)
-      if (row.대학구분 && row.대학구분 !== '미확인' && !허용대학구분.has(row.대학구분)) return false;
-      if (f.대학구분.length && !f.대학구분.includes(row.대학구분)) return false;
+      if (허용대학구분 && row.대학구분 && row.대학구분 !== '미확인' && !허용대학구분.has(row.대학구분)) return false;
       if (f.지역.length && !f.지역.includes(row.지역)) return false;
       if (f.설립Quick === '사립' && row.설립구분 !== '사립') return false;
       if (f.지역그룹 === '비수도권' && METRO.has(row.지역)) return false;
@@ -1141,14 +1127,13 @@ const FilterManager = {
   },
 
   _sortAndRender() {
-    const { filtered, sortKey, sortDir } = AppState.computed;
-    const primaryKey = AppState.computed.sortKey;
+    const { filtered, sortKey, sortDir, rankKey } = AppState.computed;
 
-    // 1단계: 기본 지표 기준 내림차순으로 _rank 부여 (정렬 변경과 무관하게 고정)
-    if (primaryKey) {
+    // 1단계: rankKey 기준 내림차순으로 _rank 부여 — 표시 정렬과 무관하게 고정
+    if (rankKey) {
       const forRank = [...filtered].sort((a, b) => {
-        const av = a[primaryKey] ?? -Infinity;
-        const bv = b[primaryKey] ?? -Infinity;
+        const av = a[rankKey] ?? -Infinity;
+        const bv = b[rankKey] ?? -Infinity;
         return typeof av === 'string' ? bv.localeCompare(av, 'ko') : bv - av;
       });
       forRank.forEach((row, i) => { row._rank = i + 1; });
