@@ -60,5 +60,21 @@
     ],
     "denominator_base": "모집인원_정원내 (B)",
     "multiply": 100
+  },
+  "중도탈락률(재학생)": {
+    "label": "재학생 중도탈락률(%)",
+    "numerator": [
+      "사유별 중도탈락 학생_계(B)"
+    ],
+    "denominator_base": "재적학생 (A)",
+    "multiply": 100
+  },
+  "중도탈락률(신입생)": {
+    "label": "신입생 중도탈락률(%)",
+    "numerator": [
+      "사유별 중도탈락 학생(신입생)_계(B`)"
+    ],
+    "denominator_base": "재적학생 (신입생) (A`)",
+    "multiply": 100
   }
 }
