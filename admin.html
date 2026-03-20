@@ -298,7 +298,7 @@ body { padding-bottom: 60px; }
 </div>
 
 <!-- ── 탭 네비게이션 ── -->
-<div class="tab-nav">
+<div class="tab-nav" id="tab-nav" style="display:none;">
   <button class="tab-btn active" onclick="switchTab('기준대학', this)">기준대학 매핑</button>
   <button class="tab-btn" onclick="switchTab('calc', this)">산식 관리</button>
   <button class="tab-btn" onclick="switchTab('manifest', this)">공시항목</button>
@@ -307,7 +307,7 @@ body { padding-bottom: 60px; }
 <!-- ══════════════════════════════════════════
      탭 1: 기준대학
 ══════════════════════════════════════════ -->
-<div class="tab-content active" id="tab-기준대학">
+<div class="tab-content active" id="tab-기준대학" style="display:none;">
   <div class="banner" id="banner-기준대학"></div>
 
   <div class="card">
@@ -508,6 +508,8 @@ async function ghConnect() {
     statusEl.textContent = `● ${repoVal}`;
     statusEl.className = 'connected';
     document.getElementById('btn-save').disabled = false;
+    document.getElementById('tab-nav').style.display = '';
+    document.getElementById('tab-기준대학').style.display = '';
     setClean('연결 완료 — 데이터를 불러왔습니다.');
   } catch (e) {
     statusEl.textContent = `● 오류: ${e.message}`;

@@ -302,8 +302,9 @@
     .kpi-context { font-size: 11.5px; color: var(--text-muted); margin-top: 3px; }
     .kpi-stats { display: flex; gap: 28px; flex-wrap: wrap; }
     .kpi-stat { text-align: center; }
-    .kpi-stat-value { font-size: 26px; font-weight: 800; color: var(--primary); line-height: 1; letter-spacing: -0.02em; }
-    .kpi-stat-value.highlight { font-size: 30px; }
+    .kpi-stat-value { font-size: 32px; font-weight: 800; color: var(--primary); line-height: 1; letter-spacing: -0.03em; }
+    .kpi-stat-pre  { font-size: 11px; font-weight: 500; color: var(--text-muted); margin-bottom: 4px; }
+    .kpi-stat-unit { font-size: 14px; font-weight: 600; color: var(--primary); letter-spacing: 0; }
     .kpi-stat-label { font-size: 10.5px; color: var(--text-muted); margin-top: 5px; font-weight: 500; }
     .kpi-rank-detail { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
     .kpi-warn { font-size: 12.5px; color: #92400e; }
@@ -475,6 +476,13 @@
         <span class="nav-label">직접 비교</span>
         <span class="nav-badge">준비중</span>
       </div>
+    </div>
+
+    <div style="padding: 8px 10px; border-top: 1px solid var(--sidebar-border);">
+      <a href="admin.html" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;font-size:12px;color:var(--text-muted);text-decoration:none;transition:background 0.1s;" onmouseover="this.style.background='var(--sidebar-hover)'" onmouseout="this.style.background=''">
+        <span>⚙️</span>
+        <span class="nav-label">관리자</span>
+      </a>
     </div>
 
     <div class="sidebar-toggle">
@@ -1212,11 +1220,11 @@ const RankingView = {
     const itemKey = AppState.filters.항목키 || '';
     const year = AppState.filters.연도 || '';
     const calcRules = AppState.raw.calcRules;
-    const primaryKey = AppState.computed.sortKey;
+    const rankKey = AppState.computed.rankKey;  // 고정 순위 기준
 
-    const calcLabel = primaryKey && calcRules[primaryKey]
-      ? calcRules[primaryKey].label
-      : primaryKey || '';
+    const rankLabel = rankKey && calcRules[rankKey]
+      ? calcRules[rankKey].label
+      : rankKey || '';
 
     if (ourIdx === -1) {
       kpiEl.innerHTML = `
@@ -1231,11 +1239,10 @@ const RankingView = {
       return;
     }
 
-    const rank = ourIdx + 1;
-    const topPct = Utils.calcTopPercent(rank, total);
     const ourRow = sorted[ourIdx];
-    const ratioVal = calcLabel && primaryKey ? ourRow[primaryKey] : null;
-    const rawKey = Object.keys(ourRow).find(k => !k.startsWith('_') && !Object.keys(calcRules).includes(k) && typeof ourRow[k] === 'number' && !['기준연도'].includes(k));
+    const rank = ourRow._rank ?? (ourIdx + 1);  // 고정 순위 사용
+    const topPct = Utils.calcTopPercent(rank, total);
+    const rankVal = rankKey ? ourRow[rankKey] : null;
 
     kpiEl.innerHTML = `
       <div class="card kpi-card">
@@ -1243,19 +1250,25 @@ const RankingView = {
         <div class="kpi-info">
           <div class="kpi-univ">${OUR_UNIV}</div>
           <div class="kpi-context">${filterDesc} · ${year}년 · ${itemKey}</div>
-          <div class="kpi-rank-detail">${total}개교 중 정렬 기준: ${calcLabel || itemKey}</div>
+          <div class="kpi-rank-detail">${total}개교 중 순위 기준: ${rankLabel || itemKey}</div>
         </div>
         <div class="kpi-stats">
           <div class="kpi-stat">
-            <div class="kpi-stat-value highlight" style="color:var(--primary)">상위 ${topPct}%</div>
+            <div class="kpi-stat-pre">상위</div>
+            <div class="kpi-stat-value">${topPct}<span class="kpi-stat-unit">%</span></div>
             <div class="kpi-stat-label">상위 백분율</div>
           </div>
           <div class="kpi-stat">
-            <div class="kpi-stat-value">${rank}위</div>
+            <div class="kpi-stat-pre">&nbsp;</div>
+            <div class="kpi-stat-value">${rank}<span class="kpi-stat-unit">위</span></div>
             <div class="kpi-stat-label">순위 (${total}개교 중)</div>
           </div>
-          ${ratioVal != null ? `<div class="kpi-stat"><div class="kpi-stat-value">${Utils.formatPercent(ratioVal)}</div><div class="kpi-stat-label">${calcLabel}</div></div>` : ''}
-          ${rawKey ? `<div class="kpi-stat"><div class="kpi-stat-value" style="font-size:20px;">${Utils.formatNumber(ourRow[rawKey])}</div><div class="kpi-stat-label">${rawKey}</div></div>` : ''}
+          ${rankVal != null ? `
+          <div class="kpi-stat">
+            <div class="kpi-stat-pre">&nbsp;</div>
+            <div class="kpi-stat-value">${Utils.formatPercent(rankVal).replace('%','')}<span class="kpi-stat-unit">%</span></div>
+            <div class="kpi-stat-label">${rankLabel}</div>
+          </div>` : ''}
         </div>
       </div>`;
   },
