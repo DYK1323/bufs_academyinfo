@@ -393,12 +393,13 @@ function parseCsv(text) {
     }
     return -1;
   };
-  const iUniv = findCol('대학명', '학교');
-  const iBase = findCol('기준대학명', '기준대학');
-  const iNote = findCol('비고', '메모', '비고(');
+  const iUniv = findCol('대학명', '이전_학교명', '학교');
+  const iBase = findCol('기준대학명', '현재_학교명', '기준대학');
+  const iTime = findCol('적용시기');
+  const iNote = findCol('비고', '메모');
 
   if (iUniv < 0 || iBase < 0) {
-    throw new Error(`'대학명'과 '기준대학명' 헤더가 필요합니다.\n현재 헤더: ${headers.join(', ')}`);
+    throw new Error(`필수 헤더가 없습니다.\n인식 가능: 대학명(또는 이전_학교명), 기준대학명(또는 현재_학교명)\n현재 헤더: ${headers.join(', ')}`);
   }
 
   const result = [];
@@ -407,10 +408,15 @@ function parseCsv(text) {
     const univName = (cols[iUniv] || '').trim();
     const baseName = (cols[iBase] || '').trim();
     if (!univName && !baseName) continue; // 빈 행 스킵
+    // 적용시기와 비고를 합쳐서 비고 컬럼으로 저장
+    const noteParts = [
+      iTime >= 0 ? (cols[iTime] || '').trim() : '',
+      iNote >= 0 ? (cols[iNote] || '').trim() : '',
+    ].filter(Boolean);
     result.push({
       '대학명': univName,
       '기준대학명': baseName,
-      '비고': iNote >= 0 ? (cols[iNote] || '').trim() : '',
+      '비고': noteParts.join(' / '),
     });
   }
   return result;
