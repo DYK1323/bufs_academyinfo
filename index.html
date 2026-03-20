@@ -19,8 +19,8 @@
       /* ── Primary (청록) ── */
       --primary:        #2563eb;
       --primary-dark:   #1e40af;   /* hover */
-      --primary-light:  #dbeafe;   /* 강조 배경 (our-bg, sidebar-active-bg) */
-      --primary-muted:  #bfdbfe;   /* 뱃지·태그 배경 */
+      --primary-light:  #e3efff;   /* 강조 배경 (our-bg, sidebar-active-bg) */
+      --primary-muted:  #d9e1eb;   /* 뱃지·태그 배경 */
 
       /* ── 텍스트 ── */
       --text-body:      #2B304A;   /* body 기본 텍스트 */
@@ -31,7 +31,7 @@
       /* ── 배경 ── */
       --page-bg:        #F0F4FF;   /* 앱 전체 배경 */
       --card-bg:        #ffffff;
-      --surface-1:      #f8fafc;   /* 카드 내부·input·thead 배경 (row-alt 통합) */
+      --surface-1:      #F0F4FF;   /* 카드 내부·input·thead 배경 (row-alt 통합) */
       --surface-2:      #f1f5f9;   /* hover 배경 */
 
       /* ── 테두리 ── */
@@ -78,9 +78,6 @@
       --series-4: #ec4899;
       --series-5: #6366f1;
 
-      /* ── 그림자 ── */
-      --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-      --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
     }
 
     /* ── 앱 쉘 ─────────────────────────────────────── */
@@ -151,8 +148,7 @@
     }
     .nav-item:hover:not(.disabled) { background: var(--surface-1); }
     .nav-item.active {
-      background: var(--primary-light);
-      box-shadow: inset 3px 0 0 var(--primary);
+      background: var(--surface-1);
     }
 
     .nav-icon {
@@ -183,8 +179,10 @@
       color: var(--text-muted); font-size: 13px;
       display: flex; align-items: center; justify-content: center;
       transition: background 0.12s ease, border-color 0.12s ease;
+      box-shadow:none;
     }
-    .toggle-btn:hover { background: var(--surface-1); border-color: var(--border-mid); }
+    .toggle-btn:hover { background: var(--surface-1); border-color: var(--border-mid);
+      box-shadow: none }
 
     /* ── 추이 분석 패널 공통 스타일 ─────────────────── */
     .trend-section-label {
@@ -241,6 +239,7 @@
       border-radius: 6px; background: var(--primary); color: var(--card-bg);
       font-size: 12px; font-family: inherit; font-weight: 600;
       cursor: pointer; margin-top: 6px;
+      box-shadow: none;
     }
     .trend-apply-btn:hover { background: var(--primary-dark); }
     /* 필터바 — 추이 뷰에서는 항목 선택만 표시 */
@@ -267,7 +266,7 @@
       font-size: 11.5px; color: var(--sidebar-text); font-weight: 500;
     }
     .trend-univ-tag button {
-      border: none; background: none; color: var(--primary);
+      border: none; background: none; color: var(--sidebar-text);
       cursor: pointer; font-size: 13px; line-height: 1; padding: 0 0 0 4px;
     }
 
@@ -290,7 +289,7 @@
       padding: 6px 12px; text-align: center; border-bottom: 1px solid var(--border-light);
     }
     .trend-summary-table td:first-child { text-align: left; font-weight: 500; }
-    .trend-summary-table tr.our-row td { background: var(--primary-light); font-weight: 600; color: var(--primary); }
+    .trend-summary-table tr.our-row td { background: var(--surface-1); font-weight: 600; color: var(--primary); }
     .trend-empty {
       text-align: center; padding: 60px 20px;
       font-size: 13px; color: var(--text-muted);
@@ -325,7 +324,6 @@
       padding: 10px 24px;
       display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
       flex-shrink: 0;
-      box-shadow: 0 1px 0 var(--border);
     }
     .filter-label {
       font-size: 11.5px; font-weight: 600; color: var(--text-muted);
@@ -347,7 +345,7 @@
       content: ''; position: absolute;
       top: 2px; left: 2px;
       width: 14px; height: 14px; border-radius: 50%;
-      background: var(--card-bg); box-shadow: 0 1px 3px var(--shadow-toggle);
+      background: var(--card-bg);
       transition: transform 0.18s;
     }
     .filter-check input:checked ~ .filter-toggle-track { background: var(--primary); }
@@ -376,13 +374,12 @@
       transition: border-color 0.12s, background 0.12s;
     }
     .multi-select-trigger:hover { border-color: var(--border-mid); background: var(--surface-2); }
-    .multi-select-trigger.open { border-color: var(--primary); background: var(--card-bg); box-shadow: 0 0 0 3px var(--focus-ring); }
+    .multi-select-trigger.open { border-color: var(--primary); background: var(--card-bg); }
     .multi-select-trigger .arrow { margin-left: auto; font-size: 9px; color: var(--text-muted); }
 
     .multi-select-dropdown {
       display: none; position: absolute; top: calc(100% + 4px); left: 0;
       background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px;
-      box-shadow: var(--shadow-md);
       z-index: 200; min-width: 160px; padding: 4px;
       max-height: 280px; overflow-y: auto;
     }
@@ -420,9 +417,10 @@
       height: 26px; padding: 0 10px;
       border: none; background: transparent; font-size: 12.5px; color: var(--text-secondary);
       cursor: pointer; font-family: inherit; white-space: nowrap;
-      border-radius: 4px; transition: background 0.12s, color 0.12s;
+      border-radius: 1px; transition: background 0.12s, color 0.12s;
+      box-shadow: none;
     }
-    .seg-btn.active { background: var(--card-bg); color: var(--primary); font-weight: 600; box-shadow: var(--shadow-sm); }
+    .seg-btn.active { background: var(--card-bg); color: var(--primary); font-weight: 600; }
     .seg-btn:hover:not(.active) { background: rgba(255,255,255,0.6); color: var(--text-primary); }
     .seg-label { font-size: 11px; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
 
@@ -434,7 +432,6 @@
     /* ── 카드 ────────────────────────────────────────── */
     .card {
       background: var(--card-bg); border-radius: 10px;
-      box-shadow: var(--shadow-sm);
       border: 1px solid var(--border);
       overflow: hidden;
     }
@@ -530,9 +527,6 @@
     #ranking-table tbody tr:hover { background: var(--surface-1); }
     #ranking-table tbody tr.our-university {
       background: var(--primary-light) !important;
-    }
-    #ranking-table tbody tr.our-university td:first-child {
-      box-shadow: inset 2px 0 0 var(--our-border);
     }
 
     #ranking-table td { padding: 10px 14px; vertical-align: middle; white-space: nowrap; }
