@@ -43,10 +43,22 @@
     "denominator_base": "모집인원_정원내",
     "multiply": 100
   },
-  "새 지표 1773997551517": {
-    "label": "",
-    "numerator": [],
-    "denominator_base": "",
-    "multiply": 100
+  "정원내 입학자": {
+    "label": "정원내 입학자",
+    "numerator": [
+      "입학자_정원내(D)_남",
+      "입학자_정원내(D)_여"
+    ],
+    "denominator_base": "1",
+    "multiply": 1
+  },
+  "정원외 입학자": {
+    "label": "정원외 입학자",
+    "numerator": [
+      "입학자_정원외_남",
+      "입학자_정원외_여"
+    ],
+    "denominator_base": "1",
+    "multiply": 1
   }
 }
