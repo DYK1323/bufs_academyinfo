@@ -1088,14 +1088,22 @@ const FilterManager = {
   },
 
   _reAggregate() {
-    const { 항목데이터, calcRules } = AppState.raw;
+    const { 항목데이터, calcRules, currentItem } = AppState.raw;
     const year = AppState.filters.연도;
     if (!year || !항목데이터.length) {
       Utils.showEmptyState('no-data');
       return;
     }
+    // 항목별 행 제외 필터 적용 (예: 의학계열 제외)
+    let rows = 항목데이터;
+    const excludeRows = currentItem?.exclude_rows;
+    if (excludeRows) {
+      rows = rows.filter(row =>
+        Object.entries(excludeRows).every(([field, vals]) => !vals.includes(row[field]))
+      );
+    }
     AppState.computed.aggregated = DataService.aggregateByUniversity(
-      항목데이터, year, calcRules, AppState._baseUnivMap, year - 1, AppState._univInfoMap
+      rows, year, calcRules, AppState._baseUnivMap, year - 1, AppState._univInfoMap
     );
     // 지역 필터 옵션을 집계 결과에서 갱신
     this.renderAllMultiSelects(AppState.computed.aggregated);
@@ -1134,6 +1142,21 @@ const FilterManager = {
 
   _sortAndRender() {
     const { filtered, sortKey, sortDir } = AppState.computed;
+    const primaryKey = AppState.computed.sortKey;
+
+    // 1단계: 기본 지표 기준 내림차순으로 _rank 부여 (정렬 변경과 무관하게 고정)
+    if (primaryKey) {
+      const forRank = [...filtered].sort((a, b) => {
+        const av = a[primaryKey] ?? -Infinity;
+        const bv = b[primaryKey] ?? -Infinity;
+        return typeof av === 'string' ? bv.localeCompare(av, 'ko') : bv - av;
+      });
+      forRank.forEach((row, i) => { row._rank = i + 1; });
+    } else {
+      filtered.forEach((row, i) => { row._rank = i + 1; });
+    }
+
+    // 2단계: 사용자 선택 기준으로 표시 정렬
     if (sortKey) {
       AppState.computed.sorted = [...filtered].sort((a, b) => {
         const av = a[sortKey] ?? -Infinity;
@@ -1288,7 +1311,7 @@ const RankingView = {
     const tbody = document.getElementById('ranking-tbody');
     tbody.innerHTML = '';
     pageRows.forEach((row, i) => {
-      const rank = start + i + 1;
+      const rank = row._rank ?? (start + i + 1);
       const tr = document.createElement('tr');
       if (row._isOurs) tr.classList.add('our-university');
 
