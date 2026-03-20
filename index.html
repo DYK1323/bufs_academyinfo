@@ -210,8 +210,9 @@
     /* ── 추이 분석 뷰 ────────────────────────────────── */
     #ranking-view.hidden-view { display: none; }
     #trend-view { display: none; padding: 20px; gap: 16px; }
-    #trend-view.visible { display: flex; align-items: flex-start; }
-    #trend-side-panel { width: 200px; flex-shrink: 0; padding: 16px 12px; overflow-y: auto; max-height: calc(100vh - 120px); }
+    #trend-view.visible { display: flex; align-items: stretch; }
+    #trend-side-panel { width: 200px; flex-shrink: 0; padding: 16px 12px; overflow-y: auto; }
+    #trend-year-checks { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
     #trend-main { flex: 1; min-width: 0; }
     #trend-chart { width: 100%; height: 380px; }
     .trend-summary-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 4px; }
@@ -1243,8 +1244,12 @@ const FilterManager = {
     AppState.raw.currentItem = AppState.raw.manifest.find(
       m => (m?.key ?? m) === itemKey
     ) || null;
-    AppState.trend.allYears = null;     // 항목 변경 시 추이 캐시 초기화
+    AppState.trend.allYears = null;       // 항목 변경 시 추이 캐시 초기화
     AppState.trend.selectedYears.clear(); // 연도 선택 초기화
+    AppState.trend.yMin = null;           // Y축 범위 초기화 → 자동 계산
+    AppState.trend.yMax = null;
+    document.getElementById('trend-ymin').value = '';
+    document.getElementById('trend-ymax').value = '';
     if (!itemKey) {
       Utils.showEmptyState('no-item');
       return;
@@ -1734,8 +1739,25 @@ const TrendView = {
     });
 
     this._lastSeries = series;
+    if (AppState.trend.yMin === null && AppState.trend.yMax === null) this._applyAutoRange(series);
     this._renderChart(years, series, label);
     this._renderTable(years, series);
+  },
+
+  _applyAutoRange(series) {
+    const vals = series.flatMap(s => s.data).filter(v => v != null && !isNaN(v));
+    if (!vals.length) return;
+    const dataMin = Math.min(...vals);
+    const dataMax = Math.max(...vals);
+    const span    = dataMax - dataMin || dataMax * 0.2 || 10;
+    const pad     = span * 0.5;
+    const mag     = Math.pow(10, Math.floor(Math.log10(span)) - 1);
+    const niceMin = Math.max(0, Math.floor((dataMin - pad) / mag) * mag);
+    const niceMax = Math.ceil((dataMax + pad) / mag) * mag;
+    AppState.trend.yMin = +niceMin.toFixed(2);
+    AppState.trend.yMax = +niceMax.toFixed(2);
+    document.getElementById('trend-ymin').value = AppState.trend.yMin;
+    document.getElementById('trend-ymax').value = AppState.trend.yMax;
   },
 
   _renderChart(years, series, label) {
@@ -1900,29 +1922,10 @@ const App = {
       if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
     });
     document.getElementById('trend-auto-axis').addEventListener('click', () => {
-      // 현재 시리즈의 모든 값에서 min/max 계산 후 10% 여유를 두어 반올림
-      const vals = TrendView._lastSeries.flatMap(s => s.data).filter(v => v != null && !isNaN(v));
-      if (vals.length) {
-        const dataMin = Math.min(...vals);
-        const dataMax = Math.max(...vals);
-        const span = dataMax - dataMin || dataMax * 0.2 || 10;
-        const pad  = span * 0.5;                           // 데이터 범위의 50% 여유
-        const rawMin = dataMin - pad;
-        const rawMax = dataMax + pad;
-        // 유효 자릿수에 맞게 반올림 (span 기준 한 자릿수 낮게)
-        const mag = Math.pow(10, Math.floor(Math.log10(span)) - 1);
-        const niceMin = Math.max(0, Math.floor(rawMin / mag) * mag);
-        const niceMax = Math.ceil(rawMax / mag) * mag;
-        AppState.trend.yMin = +niceMin.toFixed(2);
-        AppState.trend.yMax = +niceMax.toFixed(2);
-        document.getElementById('trend-ymin').value = AppState.trend.yMin;
-        document.getElementById('trend-ymax').value = AppState.trend.yMax;
-      } else {
-        AppState.trend.yMin = null;
-        AppState.trend.yMax = null;
-        document.getElementById('trend-ymin').value = '';
-        document.getElementById('trend-ymax').value = '';
-      }
+      AppState.trend.yMin = null;
+      AppState.trend.yMax = null;
+      document.getElementById('trend-ymin').value = '';
+      document.getElementById('trend-ymax').value = '';
       if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
     });
 
