@@ -1,0 +1,895 @@
+'use strict';
+
+/* ═══════════════════════════════════════════════════════
+   CSS 변수 읽기 헬퍼 — JS에서 토큰을 단일 소스로 참조
+═══════════════════════════════════════════════════════ */
+const cssVar = (token) => getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+
+/* ═══════════════════════════════════════════════════════
+   상수
+═══════════════════════════════════════════════════════ */
+const OUR_UNIV = '부산외국어대학교';
+const ROWS_PER_PAGE = 50;
+const DATA_PATH = './data/';
+
+/* ═══════════════════════════════════════════════════════
+   AppState
+═══════════════════════════════════════════════════════ */
+const AppState = {
+  filters: {
+    항목키: null,
+    연도: null,
+    지역: [],
+    설립Quick: '전체',
+    특별법제외: true,
+    지역그룹: '전국',
+    대학구분그룹: '일반대학',
+  },
+  raw: {
+    manifest: [],
+    기준대학: [],
+    항목데이터: [],
+    calcRules: {},
+    currentItem: null,
+  },
+  computed: {
+    aggregated: [],
+    filtered: [],
+    sorted: [],
+    currentPage: 1,
+    rankKey: null,
+    sortKey: '_rank',
+    sortDir: 'asc',
+    nameQuery: '',
+  },
+  trend: {
+    groups: new Set(['전국 평균', '전국 사립', '비수도권', '동남권']),
+    customUnivs: [],
+    allYears: null,
+    selectedYears: new Set(),
+    yMin: null,
+    yMax: null,
+  },
+  _baseUnivMap: new Map(),
+  _univInfoMap: new Map(),
+};
+
+/* ═══════════════════════════════════════════════════════
+   Utils
+═══════════════════════════════════════════════════════ */
+const Utils = {
+  formatNumber(n, decimals = 0) {
+    if (n == null || isNaN(n)) return '-';
+    return n.toLocaleString('ko-KR', { maximumFractionDigits: decimals, minimumFractionDigits: decimals });
+  },
+  formatPercent(n, decimals = 1) {
+    if (n == null || isNaN(n)) return '-';
+    return n.toLocaleString('ko-KR', { maximumFractionDigits: decimals, minimumFractionDigits: decimals }) + '%';
+  },
+  formatValue(n, unit, decimals) {
+    if (n == null || isNaN(n)) return '-';
+    if (unit === '%') {
+      const d = decimals ?? 1;
+      return n.toLocaleString('ko-KR', { maximumFractionDigits: d, minimumFractionDigits: d }) + '%';
+    }
+    if (unit === '만원' || unit === '원') return Math.round(n).toLocaleString('ko-KR') + unit;
+    if (unit === '명' || unit === '개') return Math.round(n).toLocaleString('ko-KR') + unit;
+    const d = decimals ?? 0;
+    return n.toLocaleString('ko-KR', { maximumFractionDigits: d, minimumFractionDigits: d });
+  },
+  formatDelta(cur, prev) {
+    if (cur == null || prev == null || isNaN(cur) || isNaN(prev)) return '<span class="delta-none">-</span>';
+    const diff = cur - prev;
+    if (diff === 0) return '<span class="delta-none">±0</span>';
+    const cls = diff > 0 ? 'delta-up' : 'delta-down';
+    const sign = diff > 0 ? '▲' : '▼';
+    return `<span class="${cls}">${sign} ${Math.abs(diff).toLocaleString('ko-KR', { maximumFractionDigits: 1 })}</span>`;
+  },
+  calcTopPercent(rank, total) {
+    if (!total) return '-';
+    return ((rank / total) * 100).toFixed(1);
+  },
+  buildFilterDescription(filters) {
+    const parts = [];
+    const 구분라벨 = { '전체': '전체대학', '일반대학': '4년제 일반대학', '교육대학포함': '교육대학 포함' };
+    parts.push(구분라벨[filters.대학구분그룹] || filters.대학구분그룹);
+    if (filters.설립Quick !== '전체') parts.push(filters.설립Quick);
+    if (filters.지역그룹 !== '전국') parts.push(filters.지역그룹);
+    return parts.join(' · ');
+  },
+  showLoading() {
+    const emptyEl = document.getElementById('empty-state');
+    const tableCard = document.getElementById('table-card');
+    const kpiBar = document.getElementById('kpi-bar');
+    if (emptyEl) {
+      emptyEl.style.display = '';
+      emptyEl.innerHTML = '<div class="loading-wrap"><div class="spinner"></div><span style="font-size:13px;color:var(--sidebar-text)">데이터 불러오는 중...</span></div>';
+    }
+    if (tableCard) tableCard.style.display = 'none';
+    if (kpiBar) kpiBar.innerHTML = '';
+  },
+  showEmptyState(reason) {
+    const messages = {
+      'no-item':    { icon: '📋', title: '공시 항목을 선택해 주세요', desc: '상단 필터에서 공시 항목을 선택하면<br>전국 대학 순위 데이터가 표시됩니다.' },
+      'no-data':    { icon: '📂', title: '데이터가 없습니다', desc: '<code>normalize_gui.py</code>로 데이터를 먼저 처리해 주세요.<br>처리 후 <code>data/</code> 폴더에 JSON 파일이 생성됩니다.' },
+      'fetch-error':{ icon: '⚠️', title: '데이터를 불러오지 못했습니다', desc: '로컬에서 실행 중이라면:<br><code>python -m http.server 8080</code> 실행 후<br><code>http://localhost:8080</code>으로 접속하세요.' },
+      'no-results': { icon: '🔍', title: '조건에 해당하는 대학이 없습니다', desc: '필터 조건을 조정해 보세요.' },
+    };
+    const m = messages[reason] || messages['no-item'];
+    const emptyEl = document.getElementById('empty-state');
+    const tableCard = document.getElementById('table-card');
+    const kpiBar = document.getElementById('kpi-bar');
+    if (emptyEl) {
+      emptyEl.style.display = '';
+      emptyEl.innerHTML = `<div class="empty-state"><div class="empty-icon">${m.icon}</div><div class="empty-title">${m.title}</div><div class="empty-desc">${m.desc}</div></div>`;
+    }
+    if (tableCard) tableCard.style.display = 'none';
+    if (kpiBar) kpiBar.innerHTML = '';
+  },
+  exportCSV(rows, columns, filename) {
+    const BOM = '\uFEFF';
+    const header = columns.map(c => c.label).join(',');
+    const body = rows.map(row =>
+      columns.map(c => {
+        const val = (row[c.key] != null ? row[c.key] : '');
+        return String(val).includes(',') ? `"${val}"` : val;
+      }).join(',')
+    ).join('\n');
+    const blob = new Blob([BOM + header + '\n' + body], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  },
+};
+
+function getPrimaryIndicator(item) {
+  if (!item) return null;
+  if (item.indicators?.length) return item.indicators.find(i => i.is_primary) || item.indicators[0];
+  if (item.sort_key) return { id: item.sort_key, unit: '%', decimal_places: 2, sort_asc: item.sort_asc || false };
+  return null;
+}
+
+function buildCalcRulesForItem(calcRules, item) {
+  const indicators = item?.indicators || [];
+  if (!indicators.some(i => i.exclude_rows)) return calcRules;
+  const merged = { ...calcRules };
+  for (const ind of indicators) {
+    if (!ind.exclude_rows) continue;
+    const rule = merged[ind.id];
+    if (!rule) continue;
+    if (rule.min_of) {
+      for (const childKey of rule.min_of) {
+        if (merged[childKey]) merged[childKey] = { ...merged[childKey], exclude_rows: ind.exclude_rows };
+      }
+    } else {
+      merged[ind.id] = { ...rule, exclude_rows: ind.exclude_rows };
+    }
+  }
+  return merged;
+}
+
+/* ═══════════════════════════════════════════════════════
+   DataService
+═══════════════════════════════════════════════════════ */
+const DataService = {
+  async fetchJSON(path, fallback) {
+    try {
+      const res = await fetch(path);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch { return fallback; }
+  },
+  async fetchManifest()    { return this.fetchJSON(`${DATA_PATH}manifest.json`, []); },
+  async fetchBaseUnivData(){ return this.fetchJSON(`${DATA_PATH}기준대학.json`, []); },
+  async fetchCalcRules()   { return this.fetchJSON('./calc_rules.json', {}); },
+  async fetchUnivInfo()    { return this.fetchJSON(`${DATA_PATH}대학기본정보.json`, []); },
+  buildUnivInfoMap(rows) {
+    const map = new Map();
+    for (const row of rows) { if (row['학교명']) map.set(row['학교명'], row); }
+    return map;
+  },
+  async fetchItemData(item) {
+    const itemKey = typeof item === 'string' ? item : (item?.key ?? '');
+    const indicators = typeof item === 'object' ? (item?.indicators || []) : [];
+    const sources = indicators.length
+      ? [...new Set(indicators.flatMap(ind => ind.sources?.length ? ind.sources : [itemKey]))]
+      : [itemKey];
+    if (sources.length === 1) return this.fetchJSON(`${DATA_PATH}${encodeURIComponent(sources[0])}.json`, null);
+    const results = await Promise.all(sources.map(src => this.fetchJSON(`${DATA_PATH}${encodeURIComponent(src)}.json`, null)));
+    if (results.some(r => r === null)) return null;
+    const getYear = r => parseInt(r['기준연도'] ?? r['기준년도'], 10);
+    const yearSets = results.map(rows => new Set(rows.map(getYear).filter(y => !isNaN(y))));
+    const commonYears = yearSets.reduce((a, b) => new Set([...a].filter(y => b.has(y))));
+    return results.flatMap(rows => rows.filter(r => commonYears.has(getYear(r))));
+  },
+  buildBaseUnivMap(rows) {
+    const map = new Map();
+    for (const row of rows) { const key = row['대학명']; if (key) map.set(key, row); }
+    return map;
+  },
+  extractYears(rows) {
+    const years = [...new Set(rows.map(r => {
+      const y = r['기준연도'] ?? r['기준년도'];
+      return y != null ? parseInt(y, 10) : null;
+    }).filter(y => y != null && !isNaN(y)))];
+    return years.sort((a, b) => b - a);
+  },
+  aggregateByUniversity(rows, targetYear, calcRules, baseUnivMap, prevYear = null, univInfoMap = new Map()) {
+    const ratioKeys = new Set(Object.keys(calcRules));
+    const getYear = r => parseInt(r['기준연도'] ?? r['기준년도'], 10);
+    const yearRows = rows.filter(r => getYear(r) === targetYear);
+    const prevRows = prevYear != null ? rows.filter(r => getYear(r) === prevYear) : [];
+    const METRO_REGIONS = new Set(['서울', '경기', '인천']);
+
+    const groupBy = (rowSet) => {
+      const groups = new Map();
+      for (const row of rowSet) {
+        const parsedName = row['대학명'] || row['학교'] || '(미확인)';
+        const key = baseUnivMap.get(parsedName)?.['기준대학명'] || parsedName;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(row);
+      }
+      return groups;
+    };
+
+    const sumGroup = (groupRows) => {
+      if (!groupRows.length) return {};
+      const result = {};
+      const firstRow = groupRows[0];
+      for (const field of Object.keys(firstRow)) {
+        if (ratioKeys.has(field)) continue;
+        const nums = groupRows.map(r => r[field]).filter(v => typeof v === 'number' && !isNaN(v));
+        result[field] = nums.length > 0 ? nums.reduce((a, b) => a + b, 0) : firstRow[field];
+      }
+      return result;
+    };
+
+    const sumFields = (filteredRows, fields) => {
+      const result = {};
+      for (const field of fields) {
+        const nums = filteredRows.map(r => r[field]).filter(v => typeof v === 'number' && !isNaN(v));
+        result[field] = nums.length ? nums.reduce((a, b) => a + b, 0) : 0;
+      }
+      return result;
+    };
+
+    const applyCalcRules = (summed, rawRows) => {
+      const result = { ...summed };
+      for (const [key, rule] of Object.entries(calcRules)) {
+        if (rule.min_of) continue;
+        let num, den;
+        if (rule.exclude_rows && rawRows) {
+          const filtered = rawRows.filter(r => Object.entries(rule.exclude_rows).every(([f, vs]) => !vs.includes(r[f])));
+          const needed = [...(rule.numerator || []), rule.denominator_base, ...(rule.denominator_exclude || [])];
+          const fs = sumFields(filtered, needed);
+          num = (rule.numerator || []).reduce((acc, f) => acc + (fs[f] ?? result[f] ?? 0), 0);
+          const denBase1 = rule.denominator_base;
+          den = !isNaN(Number(denBase1)) ? Number(denBase1) : (fs[denBase1] ?? result[denBase1] ?? 0);
+          for (const excl of (rule.denominator_exclude || [])) den -= (fs[excl] ?? result[excl] ?? 0);
+        } else {
+          num = (rule.numerator || []).reduce((acc, f) => acc + (result[f] ?? summed[f] ?? 0), 0);
+          const denBase2 = rule.denominator_base;
+          den = !isNaN(Number(denBase2)) ? Number(denBase2) : (result[denBase2] ?? summed[denBase2] ?? 0);
+          for (const excl of (rule.denominator_exclude || [])) den -= (result[excl] ?? summed[excl] ?? 0);
+        }
+        result[key] = den > 0 ? (num / den) * (rule.multiply ?? 1) : null;
+      }
+      for (const [key, rule] of Object.entries(calcRules)) {
+        if (!rule.min_of) continue;
+        const vals = rule.min_of.map(k => result[k]).filter(v => v != null && !isNaN(v));
+        result[key] = vals.length ? Math.min(...vals) : null;
+      }
+      return result;
+    };
+
+    const currentGroups = groupBy(yearRows);
+    const prevGroups = prevYear != null ? groupBy(prevRows) : new Map();
+    const result = [];
+    for (const [univName, univRows] of currentGroups) {
+      const summed = sumGroup(univRows);
+      const withRatios = applyCalcRules(summed, univRows);
+      const info = univInfoMap.get(univName) || {};
+      const 지역 = info['지역'] || univRows[0]['지역'] || '미확인';
+      const 설립구분 = info['설립구분'] || univRows[0]['설립구분'] || '미확인';
+      const 대학구분 = info['대학구분'] || univRows[0]['학교종류'] || '미확인';
+      const 수도권여부 = METRO_REGIONS.has(지역) ? 'Y' : 'N';
+      let prevSummed = null;
+      if (prevGroups.has(univName)) {
+        const ps = sumGroup(prevGroups.get(univName));
+        prevSummed = applyCalcRules(ps, prevGroups.get(univName));
+      }
+      result.push({ 기준대학명: univName, 지역, 설립구분, 대학구분, 수도권여부, ...withRatios, _prev: prevSummed, _isOurs: univName === OUR_UNIV });
+    }
+    return result;
+  },
+  detectPrimaryValueField(aggregated, calcRules) {
+    if (!aggregated.length) return null;
+    const calcKeys = Object.keys(calcRules);
+    if (calcKeys.length) return calcKeys[0];
+    const sample = aggregated[0];
+    for (const [k, v] of Object.entries(sample)) {
+      if (k.startsWith('_') || ['기준대학명','지역','설립구분','대학구분','수도권여부','기준연도'].includes(k)) continue;
+      if (typeof v === 'number') return k;
+    }
+    return null;
+  },
+};
+
+/* ═══════════════════════════════════════════════════════
+   FilterManager
+═══════════════════════════════════════════════════════ */
+const FilterManager = {
+  _msState: {},
+  init() {
+    document.getElementById('filter-item').addEventListener('change', e => this.onItemChange(e.target.value || null));
+    document.getElementById('filter-year').addEventListener('change', e => this.onYearChange(e.target.value ? parseInt(e.target.value) : null));
+    document.getElementById('univ-type-group').addEventListener('click', e => {
+      const btn = e.target.closest('.seg-btn'); if (!btn) return;
+      AppState.filters.대학구분그룹 = btn.dataset.val;
+      document.querySelectorAll('#univ-type-group .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.val === btn.dataset.val));
+      this._triggerRender();
+    });
+    document.getElementById('found-quick').addEventListener('click', e => { const btn = e.target.closest('.seg-btn'); if (btn) this.onFoundQuick(btn.dataset.val); });
+    document.getElementById('chk-special-excl').addEventListener('change', e => { AppState.filters.특별법제외 = e.target.checked; FilterManager.applyFilters(); });
+    document.getElementById('region-group').addEventListener('click', e => { const btn = e.target.closest('.seg-btn'); if (btn) this.onRegionGroup(btn.dataset.val); });
+    document.addEventListener('click', e => {
+      for (const msId of Object.keys(this._msState)) {
+        const el = document.getElementById(msId);
+        if (el && !el.contains(e.target)) {
+          el.querySelector('.multi-select-dropdown').classList.remove('open');
+          el.querySelector('.multi-select-trigger').classList.remove('open');
+        }
+      }
+    });
+  },
+  renderItemSelect(manifest) {
+    const sel = document.getElementById('filter-item');
+    sel.innerHTML = '<option value="">— 항목 선택 —</option>';
+    if (!manifest.length) { sel.innerHTML += '<option value="" disabled>등록된 항목이 없습니다</option>'; return; }
+    for (const item of manifest) {
+      const key = item?.key ?? item; const label = item?.label || key;
+      const opt = document.createElement('option'); opt.value = key; opt.textContent = label;
+      sel.appendChild(opt);
+    }
+  },
+  renderYearSelect(years) {
+    const sel = document.getElementById('filter-year');
+    sel.innerHTML = '';
+    for (const y of years) {
+      const opt = document.createElement('option'); opt.value = y; opt.textContent = y + '년'; sel.appendChild(opt);
+    }
+    if (years.length) { AppState.filters.연도 = years[0]; sel.value = years[0]; }
+  },
+  renderAllMultiSelects(aggregated = null) { /* 확장 시 추가 */ },
+  onFoundQuick(val) {
+    AppState.filters.설립Quick = val;
+    document.querySelectorAll('#found-quick .seg-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.val === val));
+    this._triggerRender();
+  },
+  onRegionGroup(val) {
+    AppState.filters.지역그룹 = val;
+    document.querySelectorAll('#region-group .seg-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.val === val));
+    this._triggerRender();
+  },
+  async onItemChange(itemKey) {
+    AppState.filters.항목키 = itemKey;
+    AppState.raw.currentItem = AppState.raw.manifest.find(m => (m?.key ?? m) === itemKey) || null;
+    AppState.trend.allYears = null;
+    AppState.trend.selectedYears.clear();
+    AppState.trend.yMin = null; AppState.trend.yMax = null;
+    document.getElementById('trend-ymin').value = '';
+    document.getElementById('trend-ymax').value = '';
+    if (!itemKey) { Utils.showEmptyState('no-item'); return; }
+    Utils.showLoading();
+    document.getElementById('table-card').style.display = 'none';
+    const rows = await DataService.fetchItemData(AppState.raw.currentItem || itemKey);
+    AppState.raw.항목데이터 = rows || [];
+    if (!rows) { Utils.showEmptyState('fetch-error'); return; }
+    if (!rows.length) { Utils.showEmptyState('no-data'); return; }
+    const years = DataService.extractYears(rows);
+    this.renderYearSelect(years);
+    this._reAggregate();
+  },
+  onYearChange(year) { AppState.filters.연도 = year; this._reAggregate(); },
+  _reAggregate() {
+    const { 항목데이터, calcRules, currentItem } = AppState.raw;
+    const year = AppState.filters.연도;
+    if (!year || !항목데이터.length) { Utils.showEmptyState('no-data'); return; }
+    const calcRulesForItem = buildCalcRulesForItem(calcRules, currentItem);
+    AppState.computed.aggregated = DataService.aggregateByUniversity(항목데이터, year, calcRulesForItem, AppState._baseUnivMap, year - 1, AppState._univInfoMap);
+    this.renderAllMultiSelects(AppState.computed.aggregated);
+    const primaryInd = getPrimaryIndicator(currentItem);
+    const resolvedKey = primaryInd?.id || DataService.detectPrimaryValueField(AppState.computed.aggregated, calcRules);
+    AppState.computed.rankKey = resolvedKey;
+    AppState.computed.sortKey = '_rank';
+    AppState.computed.sortDir = 'asc';
+    AppState.computed.currentPage = 1;
+    this.applyFilters();
+    if (document.getElementById('trend-view')?.classList.contains('visible')) TrendView.activate();
+  },
+  applyFilters() {
+    const { aggregated } = AppState.computed;
+    const f = AppState.filters;
+    const METRO = new Set(['서울', '경기', '인천']);
+    const DONGNAM = new Set(['부산', '울산', '경남']);
+    const 허용대학구분 = f.대학구분그룹 === '전체' ? null
+                      : f.대학구분그룹 === '교육대학포함' ? new Set(['대학교', '산업대학', '교육대학'])
+                      : new Set(['대학교', '산업대학']);
+    AppState.computed.filtered = aggregated.filter(row => {
+      if (허용대학구분 && row.대학구분 && row.대학구분 !== '미확인' && !허용대학구분.has(row.대학구분)) return false;
+      if (f.지역.length && !f.지역.includes(row.지역)) return false;
+      if (f.설립Quick === '사립' && row.설립구분 !== '사립') return false;
+      if (f.특별법제외 && ['특별법국립','특별법법인','기타'].includes(row.설립구분)) return false;
+      if (f.지역그룹 === '비수도권' && METRO.has(row.지역)) return false;
+      if (f.지역그룹 === '동남권' && !DONGNAM.has(row.지역)) return false;
+      if (f.지역그룹 === '부산' && row.지역 !== '부산') return false;
+      return true;
+    });
+    this._sortAndRender();
+  },
+  _sortAndRender() {
+    const { filtered, sortKey, sortDir, rankKey } = AppState.computed;
+    if (rankKey) {
+      const sortAsc = getPrimaryIndicator(AppState.raw.currentItem)?.sort_asc === true;
+      const forRank = [...filtered].sort((a, b) => {
+        const av = a[rankKey] ?? (sortAsc ? Infinity : -Infinity);
+        const bv = b[rankKey] ?? (sortAsc ? Infinity : -Infinity);
+        return typeof av === 'string'
+          ? (sortAsc ? av.localeCompare(bv, 'ko') : bv.localeCompare(av, 'ko'))
+          : (sortAsc ? av - bv : bv - av);
+      });
+      forRank.forEach((row, i) => { row._rank = i + 1; });
+    } else {
+      filtered.forEach((row, i) => { row._rank = i + 1; });
+    }
+    if (sortKey) {
+      AppState.computed.sorted = [...filtered].sort((a, b) => {
+        const av = a[sortKey] ?? -Infinity; const bv = b[sortKey] ?? -Infinity;
+        if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv, 'ko') : bv.localeCompare(av, 'ko');
+        return sortDir === 'asc' ? av - bv : bv - av;
+      });
+    } else {
+      AppState.computed.sorted = [...filtered];
+    }
+    RankingView.render();
+  },
+  _triggerRender() { this.applyFilters(); },
+};
+
+/* ═══════════════════════════════════════════════════════
+   RankingView
+═══════════════════════════════════════════════════════ */
+const RankingView = {
+  render() {
+    const { sorted, currentPage } = AppState.computed;
+    const emptyEl = document.getElementById('empty-state');
+    const tableCard = document.getElementById('table-card');
+    if (!sorted.length) { Utils.showEmptyState('no-results'); return; }
+    if (emptyEl) emptyEl.style.display = 'none';
+    if (tableCard) tableCard.style.display = '';
+    this.renderKpiBar(sorted);
+    this.renderTable(sorted, currentPage);
+    this.renderPagination(sorted.length, currentPage);
+  },
+  renderKpiBar(sorted) {
+    const kpiEl = document.getElementById('kpi-bar');
+    const ourIdx = sorted.findIndex(r => r._isOurs);
+    const total = sorted.length;
+    const filterDesc = Utils.buildFilterDescription(AppState.filters);
+    const itemKey = AppState.filters.항목키 || '';
+    const year = AppState.filters.연도 || '';
+    const calcRules = AppState.raw.calcRules;
+    const rankKey = AppState.computed.rankKey;
+    const rankLabel = rankKey && calcRules[rankKey] ? calcRules[rankKey].label : rankKey || '';
+    if (ourIdx === -1) {
+      kpiEl.innerHTML = `<div class="card kpi-card"><div class="kpi-badge">🏫</div><div class="kpi-info"><div class="kpi-univ">${OUR_UNIV}</div><div class="kpi-context">${filterDesc} · ${year}년 · ${itemKey}</div></div><div class="kpi-warn">현재 필터 조건에 ${OUR_UNIV}이(가) 포함되어 있지 않습니다.</div></div>`;
+      return;
+    }
+    const ourRow = sorted[ourIdx];
+    const rank = ourRow._rank ?? (ourIdx + 1);
+    const topPct = Utils.calcTopPercent(rank, total);
+    const rankVal = rankKey ? ourRow[rankKey] : null;
+    const primaryInd = getPrimaryIndicator(AppState.raw.currentItem);
+    const rankUnit = primaryInd?.unit || '%';
+    const rankDecimals = primaryInd?.decimal_places ?? 1;
+    const rankValFormatted = Utils.formatValue(rankVal, rankUnit, rankDecimals);
+    const rankValNum = rankValFormatted !== '-' ? rankValFormatted.replace(rankUnit, '') : '-';
+    kpiEl.innerHTML = `
+      <div class="card kpi-card">
+        <div class="kpi-badge">🏫</div>
+        <div class="kpi-info">
+          <div class="kpi-univ">${OUR_UNIV}</div>
+          <div class="kpi-context">${filterDesc} · ${year}년 · ${itemKey}</div>
+          <div class="kpi-rank-detail">${total}개교 중 순위 기준: ${rankLabel || itemKey}</div>
+        </div>
+        <div class="kpi-stats">
+          <div class="kpi-stat"><div class="kpi-stat-pre">&nbsp;</div><div class="kpi-stat-value">${topPct}<span class="kpi-stat-unit">%</span></div><div class="kpi-stat-label">상위 백분율</div></div>
+          <div class="kpi-stat"><div class="kpi-stat-pre">&nbsp;</div><div class="kpi-stat-value">${rank}<span class="kpi-stat-unit">위</span></div><div class="kpi-stat-label">순위 (${total}개교 중)</div></div>
+          ${rankVal != null ? `<div class="kpi-stat"><div class="kpi-stat-pre">&nbsp;</div><div class="kpi-stat-value">${rankValNum}<span class="kpi-stat-unit">${rankUnit}</span></div><div class="kpi-stat-label">${rankLabel}</div></div>` : ''}
+        </div>
+      </div>`;
+  },
+  renderTable(sorted, page) {
+    const calcRules = AppState.raw.calcRules;
+    const { sortKey, sortDir } = AppState.computed;
+    const itemConfig = AppState.raw.currentItem;
+    let columns;
+    if (itemConfig?.columns?.length) {
+      columns = itemConfig.columns;
+    } else {
+      const metaFields = new Set(['기준대학명', '지역', '설립구분', '대학구분', '수도권여부', '기준연도']);
+      const numericFields = Object.keys(sorted[0] || {}).filter(k => !k.startsWith('_') && !metaFields.has(k) && typeof sorted[0][k] === 'number');
+      const ratioKeys = Object.keys(calcRules);
+      const rawFields = numericFields.filter(k => !ratioKeys.includes(k));
+      columns = [
+        ...(rawFields.length ? [{ key: rawFields[0], label: rawFields[0] }] : []),
+        ...(ratioKeys.length ? [{ key: ratioKeys[0], label: calcRules[ratioKeys[0]]?.label || ratioKeys[0] }] : []),
+      ];
+    }
+    const ratioKeySet = new Set(Object.keys(calcRules));
+    const isRatioCol = (key) => ratioKeySet.has(key) && (calcRules[key]?.multiply ?? 1) > 1;
+    const colIndicatorMap = new Map();
+    for (const ind of (itemConfig?.indicators || [])) colIndicatorMap.set(ind.id, ind);
+    const formatCell = (key, val) => {
+      const ind = colIndicatorMap.get(key);
+      if (ind) return Utils.formatValue(val, ind.unit, ind.decimal_places);
+      return isRatioCol(key) ? Utils.formatPercent(val) : Utils.formatNumber(val);
+    };
+    const makeSortIcon = (key) => key !== sortKey ? '<span class="sort-icon none"></span>' : `<span class="sort-icon ${sortDir}"></span>`;
+    const thead = document.getElementById('ranking-thead');
+    thead.innerHTML = `<tr>
+      <th class="sortable td-num" data-key="_rank" style="width:50px;">순위 ${makeSortIcon('_rank')}</th>
+      <th class="sortable" data-key="기준대학명">대학명 ${makeSortIcon('기준대학명')}</th>
+      <th class="sortable" data-key="지역">지역 ${makeSortIcon('지역')}</th>
+      <th class="sortable" data-key="설립구분">설립 ${makeSortIcon('설립구분')}</th>
+      ${columns.map(c => `<th class="sortable td-num" data-key="${c.key}">${c.label} ${makeSortIcon(c.key)}</th>`).join('')}
+      <th class="td-num">전년대비</th><th class="td-num">상위%</th>
+    </tr>`;
+    thead.querySelectorAll('th.sortable').forEach(th => th.addEventListener('click', () => this.onHeaderClick(th.dataset.key)));
+    const nameQuery = AppState.computed.nameQuery;
+    const displayRows = nameQuery ? sorted.filter(r => (r.기준대학명 || '').toLowerCase().includes(nameQuery)) : sorted;
+    const start = (page - 1) * ROWS_PER_PAGE;
+    const pageRows = displayRows.slice(start, start + ROWS_PER_PAGE);
+    const total = displayRows.length;
+    const deltaKey = sortKey;
+    const tbody = document.getElementById('ranking-tbody');
+    tbody.innerHTML = '';
+    pageRows.forEach((row, i) => {
+      const rank = row._rank ?? (start + i + 1);
+      const tr = document.createElement('tr');
+      if (row._isOurs) tr.classList.add('our-university');
+      const topPct = Utils.calcTopPercent(rank, total);
+      const deltaVal = deltaKey ? Utils.formatDelta(row[deltaKey], row._prev?.[deltaKey] ?? null) : '-';
+      const rankClass = rank <= 3 ? ' top3' : '';
+      tr.innerHTML = `
+        <td class="td-rank${rankClass}">${rank}</td>
+        <td class="td-univ">${row.기준대학명}${row._isOurs ? '<span class="our-tag">우리</span>' : ''}</td>
+        <td>${row.지역 || '-'}</td>
+        <td>${row.설립구분 || '-'}</td>
+        ${columns.map(c => `<td class="td-num">${formatCell(c.key, row[c.key])}</td>`).join('')}
+        <td class="td-delta">${deltaVal}</td>
+        <td class="td-percent">${topPct}%</td>`;
+      tbody.appendChild(tr);
+    });
+    const infoEl = document.getElementById('table-info');
+    if (infoEl) {
+      infoEl.innerHTML = nameQuery
+        ? `검색 결과 <strong>${total.toLocaleString()}</strong>개교 / 전체 ${sorted.length.toLocaleString()}개교 · ${AppState.filters.연도}년`
+        : `총 <strong>${total.toLocaleString()}</strong>개교 · ${AppState.filters.연도}년 기준`;
+    }
+  },
+  renderPagination(total, currentPage) {
+    const totalPages = Math.ceil(total / ROWS_PER_PAGE);
+    const pagEl = document.getElementById('pagination');
+    if (totalPages <= 1) { pagEl.innerHTML = ''; return; }
+    const maxBtns = 7;
+    let start = Math.max(1, currentPage - Math.floor(maxBtns / 2));
+    let end = Math.min(totalPages, start + maxBtns - 1);
+    if (end - start < maxBtns - 1) start = Math.max(1, end - maxBtns + 1);
+    let html = `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} data-page="${currentPage - 1}">‹</button>`;
+    if (start > 1) html += `<button class="page-btn" data-page="1">1</button><span style="color:var(--text-muted);padding:0 4px;">…</span>`;
+    for (let p = start; p <= end; p++) html += `<button class="page-btn ${p === currentPage ? 'active' : ''}" data-page="${p}">${p}</button>`;
+    if (end < totalPages) html += `<span style="color:var(--text-muted);padding:0 4px;">…</span><button class="page-btn" data-page="${totalPages}">${totalPages}</button>`;
+    html += `<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} data-page="${currentPage + 1}">›</button>`;
+    pagEl.innerHTML = html;
+    pagEl.querySelectorAll('.page-btn:not(:disabled)').forEach(btn => btn.addEventListener('click', () => this.onPageChange(parseInt(btn.dataset.page))));
+  },
+  onHeaderClick(key) {
+    if (AppState.computed.sortKey === key) AppState.computed.sortDir = AppState.computed.sortDir === 'asc' ? 'desc' : 'asc';
+    else { AppState.computed.sortKey = key; AppState.computed.sortDir = key === '_rank' ? 'asc' : 'desc'; }
+    AppState.computed.currentPage = 1;
+    FilterManager._sortAndRender();
+  },
+  onPageChange(page) {
+    AppState.computed.currentPage = page;
+    this.renderTable(AppState.computed.sorted, page);
+    this.renderPagination(AppState.computed.sorted.length, page);
+    document.getElementById('view-container').scrollTop = 0;
+  },
+};
+
+/* ═══════════════════════════════════════════════════════
+   TrendView — 색상은 모두 CSS 변수에서 읽어옴
+═══════════════════════════════════════════════════════ */
+const TREND_GROUPS = {
+  '전국 평균': () => true,
+  '전국 사립': r => r.설립구분 === '사립',
+  '비수도권':  r => r.수도권여부 === 'N',
+  '동남권':    r => ['부산','울산','경남'].includes(r.지역),
+  '부산':      r => r.지역 === '부산',
+};
+
+const getTrendColors = () => ({
+  '전국 평균': cssVar('--trend-national'),
+  '전국 사립': cssVar('--trend-private'),
+  '비수도권':  cssVar('--trend-non-metro'),
+  '동남권':    cssVar('--trend-dongnam'),
+  '부산':      cssVar('--trend-busan'),
+});
+const getCustomColors = () => [
+  cssVar('--series-1'), cssVar('--series-2'), cssVar('--series-3'),
+  cssVar('--series-4'), cssVar('--series-5'),
+];
+
+const TrendView = {
+  _chart: null,
+  _lastSeries: [],
+  _baseFilter(r) {
+    const 국공립계열 = ['국공립','국립','공립','국립대법인'];
+    return (국공립계열.includes(r.설립구분) || r.설립구분 === '사립') && ['대학교','산업대학'].includes(r.대학구분);
+  },
+  _groupAvg(univRows, rankKey, extraFilter) {
+    const rows = univRows.filter(r => this._baseFilter(r) && extraFilter(r));
+    const vals = rows.map(r => r[rankKey]).filter(v => v != null && !isNaN(v));
+    if (!vals.length) return null;
+    const mean = vals.reduce((a,b)=>a+b,0)/vals.length;
+    const std  = Math.sqrt(vals.reduce((a,b)=>a+(b-mean)**2,0)/vals.length);
+    const clean = std > 0 ? vals.filter(v => Math.abs(v-mean) <= 3*std) : vals;
+    return clean.length ? clean.reduce((a,b)=>a+b,0)/clean.length : null;
+  },
+  buildAllYears() {
+    const rows = AppState.raw.항목데이터;
+    if (!rows.length) return;
+    const calcRulesForItem = buildCalcRulesForItem(AppState.raw.calcRules, AppState.raw.currentItem);
+    const years = DataService.extractYears(rows);
+    const allYears = new Map();
+    for (const year of years) {
+      allYears.set(year, DataService.aggregateByUniversity(rows, year, calcRulesForItem, AppState._baseUnivMap, null, AppState._univInfoMap));
+    }
+    AppState.trend.allYears = allYears;
+  },
+  updateYearChecks() {
+    const allYears = AppState.trend.allYears;
+    if (!allYears) return;
+    const years = [...allYears.keys()].sort((a,b)=>b-a);
+    const container = document.getElementById('trend-year-checks');
+    if (!container) return;
+    if (AppState.trend.selectedYears.size === 0) years.slice(0, 5).forEach(y => AppState.trend.selectedYears.add(y));
+    container.innerHTML = years.map(y => {
+      const checked = AppState.trend.selectedYears.has(y);
+      return `<label class="trend-check-item${checked ? ' is-checked' : ''}" style="--dot-color:var(--sidebar-text)"><input type="checkbox" data-year="${y}"${checked ? ' checked' : ''}><span class="chk-dot"></span>${y}년</label>`;
+    }).join('');
+  },
+  updateDatalist() {
+    const allYears = AppState.trend.allYears;
+    if (!allYears) return;
+    const names = new Set();
+    for (const univRows of allYears.values()) univRows.forEach(r => names.add(r.기준대학명));
+    const dl = document.getElementById('trend-univ-list');
+    if (dl) dl.innerHTML = [...names].sort().map(n => `<option value="${n}">`).join('');
+  },
+  render() {
+    const allYears = AppState.trend.allYears;
+    const chartEl = document.getElementById('trend-chart');
+    if (!allYears || !chartEl) { if (chartEl) chartEl.innerHTML = '<div class="trend-empty">공시 항목을 먼저 선택하세요.</div>'; return; }
+    const rankKey = AppState.computed.rankKey;
+    if (!rankKey) return;
+    let years = [...allYears.keys()].sort((a,b)=>a-b);
+    if (AppState.trend.selectedYears.size > 0) years = years.filter(y => AppState.trend.selectedYears.has(y));
+    const label = AppState.raw.calcRules[rankKey]?.label || rankKey;
+    const series = [];
+    const TREND_COLORS = getTrendColors();
+    const CUSTOM_COLORS = getCustomColors();
+    // 우리 대학
+    series.push({
+      name: OUR_UNIV, isOurs: true, color: cssVar('--our-color'),
+      data: years.map(y => { const row = (allYears.get(y)||[]).find(r=>r.기준대학명===OUR_UNIV); const v = row?.[rankKey]; return v != null && !isNaN(v) ? +v.toFixed(2) : null; }),
+    });
+    // 그룹 평균
+    for (const [gName, gFilter] of Object.entries(TREND_GROUPS)) {
+      if (!AppState.trend.groups.has(gName)) continue;
+      series.push({ name: gName, isGroup: true, color: TREND_COLORS[gName], data: years.map(y => { const avg = this._groupAvg(allYears.get(y)||[], rankKey, gFilter); return avg != null ? +avg.toFixed(2) : null; }) });
+    }
+    // 추가 대학
+    AppState.trend.customUnivs.forEach((univName, idx) => {
+      series.push({ name: univName, color: CUSTOM_COLORS[idx % CUSTOM_COLORS.length], data: years.map(y => { const row = (allYears.get(y)||[]).find(r=>r.기준대학명===univName); const v = row?.[rankKey]; return v != null && !isNaN(v) ? +v.toFixed(2) : null; }) });
+    });
+    const trendUnit = getPrimaryIndicator(AppState.raw.currentItem)?.unit || '%';
+    this._lastSeries = series;
+    if (AppState.trend.yMin === null && AppState.trend.yMax === null) this._applyAutoRange(series);
+    this._renderChart(years, series, label, trendUnit);
+    this._renderTable(years, series, trendUnit);
+  },
+  _applyAutoRange(series) {
+    const vals = series.flatMap(s => s.data).filter(v => v != null && !isNaN(v));
+    if (!vals.length) return;
+    const dataMin = Math.min(...vals); const dataMax = Math.max(...vals);
+    const span = dataMax - dataMin || dataMax * 0.2 || 10;
+    const pad  = span * 0.5;
+    const mag  = Math.pow(10, Math.floor(Math.log10(span)) - 1);
+    AppState.trend.yMin = Math.round(Math.max(0, Math.floor((dataMin - pad) / mag) * mag));
+    AppState.trend.yMax = Math.round(Math.ceil((dataMax + pad) / mag) * mag);
+    document.getElementById('trend-ymin').value = AppState.trend.yMin;
+    document.getElementById('trend-ymax').value = AppState.trend.yMax;
+  },
+  _renderChart(years, series, label, unit = '%') {
+    const el = document.getElementById('trend-chart');
+    if (!el) return;
+    if (!this._chart) this._chart = echarts.init(el);
+    const primaryInd = getPrimaryIndicator(AppState.raw.currentItem);
+    const dp = primaryInd?.decimal_places ?? 2;
+    const fmt = v => Utils.formatValue(+v, unit, dp);
+    const ourColor = cssVar('--our-color');
+    this._chart.setOption({
+      tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, formatter(params) { let html = `<b>${params[0].axisValue}년</b><br>`; params.forEach(p => { if (p.value != null) html += `${p.marker}${p.seriesName}: <b>${fmt(p.value)}</b><br>`; }); return html; } },
+      legend: { bottom: 0, type: 'scroll', textStyle: { fontSize: 11 } },
+      grid: { top: 40, right: 40, bottom: 55, left: 72 },
+      toolbox: { feature: { saveAsImage: { title: '이미지 저장' } }, right: 8, top: 0 },
+      xAxis: { type: 'category', data: years.map(String), axisLabel: { formatter: v => `${v}년`, fontsize: 14 } },
+      yAxis: { type: 'value', name: label, nameLocation: 'middle', nameGap: 50, nameTextStyle: { fontSize: 14 }, axisLabel: { formatter: v => Utils.formatValue(Math.round(v), unit, 0) }, min: AppState.trend.yMin ?? undefined, max: AppState.trend.yMax ?? undefined, fontsize: 14 },
+      series: series.map(s => ({
+        name: s.name, type: 'line', data: s.data, connectNulls: false,
+        lineStyle: { width: s.isOurs ? 3 : 1.5, type: s.isGroup ? 'dashed' : 'solid', color: s.color },
+        itemStyle: { color: s.color },
+        symbol: s.isOurs ? 'circle' : 'emptyCircle', symbolSize: s.isOurs ? 7 : 5,
+        label: s.isOurs ? { show: true, position: 'top', fontSize: 14, color: ourColor, formatter: p => p.value != null ? fmt(p.value) : '' } : { show: false },
+      })),
+    }, true);
+  },
+  _renderTable(years, series, unit = '%') {
+    const wrap = document.getElementById('trend-table-wrap');
+    if (!wrap) return;
+    const primaryInd = getPrimaryIndicator(AppState.raw.currentItem);
+    const dp = primaryInd?.decimal_places ?? 2;
+    const fmt = v => Utils.formatValue(+v, unit, dp);
+    const headers = ['<th></th>', ...years.map(y=>`<th>${y}년</th>`)].join('');
+    const rows = series.map(s => `<tr class="${s.isOurs?'our-row':''}"><td>${s.name}</td>${s.data.map(v=>`<td>${v!=null?fmt(v):'-'}</td>`).join('')}</tr>`).join('');
+    wrap.innerHTML = `<table class="trend-summary-table"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>`;
+  },
+  activate() {
+    if (!AppState.raw.항목데이터.length) {
+      const el = document.getElementById('trend-chart');
+      if (el) el.innerHTML = '<div class="trend-empty">공시 항목을 먼저 선택하세요.</div>';
+      document.getElementById('trend-table-wrap').innerHTML = '';
+      return;
+    }
+    if (!AppState.trend.allYears) this.buildAllYears();
+    this.updateYearChecks();
+    this.updateDatalist();
+    this.render();
+    if (this._chart) setTimeout(() => this._chart.resize(), 60);
+  },
+};
+
+/* ═══════════════════════════════════════════════════════
+   App
+═══════════════════════════════════════════════════════ */
+const App = {
+  async init() {
+    if (location.protocol === 'file:') document.getElementById('cors-warning').style.display = 'block';
+
+    const sidebarCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
+    if (sidebarCollapsed) document.getElementById('sidebar').classList.add('collapsed');
+    document.getElementById('sidebar-toggle').addEventListener('click', () => {
+      const isCollapsed = document.getElementById('sidebar').classList.toggle('collapsed');
+      localStorage.setItem('sidebar-collapsed', isCollapsed);
+      if (TrendView._chart) setTimeout(() => TrendView._chart.resize(), 60);
+    });
+
+    const switchView = (viewName) => {
+      document.querySelectorAll('.nav-item[data-view], .mobile-nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === viewName));
+      document.getElementById('ranking-view').classList.toggle('hidden-view', viewName !== 'ranking');
+      document.getElementById('trend-view').classList.toggle('visible', viewName === 'trend');
+      document.getElementById('filter-bar').classList.toggle('trend-mode', viewName === 'trend');
+      if (viewName === 'trend') TrendView.activate();
+    };
+    document.querySelectorAll('.nav-item[data-view], .mobile-nav-item[data-view]').forEach(el => el.addEventListener('click', () => switchView(el.dataset.view)));
+
+    document.getElementById('table-search').addEventListener('input', e => {
+      AppState.computed.nameQuery = e.target.value.trim().toLowerCase();
+      AppState.computed.currentPage = 1;
+      RankingView.renderTable(AppState.computed.sorted, 1);
+      RankingView.renderPagination(AppState.computed.sorted.length, 1);
+    });
+
+    document.getElementById('btn-csv').addEventListener('click', () => {
+      const { sorted } = AppState.computed;
+      const calcRules = AppState.raw.calcRules;
+      const metaFields = new Set(['기준대학명', '지역', '설립구분', '대학구분', '수도권여부', '기준연도']);
+      const numFields = Object.keys(sorted[0] || {}).filter(k => !k.startsWith('_') && !metaFields.has(k) && typeof sorted[0][k] === 'number');
+      const columns = [
+        { key: '_rank', label: '순위' }, { key: '기준대학명', label: '대학명' },
+        { key: '지역', label: '지역' }, { key: '설립구분', label: '설립구분' }, { key: '대학구분', label: '대학구분' },
+        ...numFields.map(k => ({ key: k, label: calcRules[k]?.label || k })),
+      ];
+      Utils.exportCSV(sorted, columns, `순위_${AppState.filters.항목키}_${AppState.filters.연도}_${new Date().toISOString().slice(0,10)}.csv`);
+    });
+
+    // 추이 패널 — 그룹 체크박스
+    document.querySelectorAll('#trend-side-panel input[type="checkbox"][data-group]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const g = cb.dataset.group; const item = cb.closest('.trend-check-item');
+        if (cb.checked) { AppState.trend.groups.add(g); item.classList.add('is-checked'); }
+        else { AppState.trend.groups.delete(g); item.classList.remove('is-checked'); }
+        if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
+      });
+    });
+
+    // 추이 패널 — 연도 체크박스 (위임)
+    document.getElementById('trend-year-checks').addEventListener('change', e => {
+      const cb = e.target;
+      if (cb.type !== 'checkbox' || !cb.dataset.year) return;
+      const y = +cb.dataset.year; const item = cb.closest('.trend-check-item');
+      if (cb.checked) { AppState.trend.selectedYears.add(y); item.classList.add('is-checked'); }
+      else { AppState.trend.selectedYears.delete(y); item.classList.remove('is-checked'); }
+      if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
+    });
+
+    // Y축
+    document.getElementById('trend-apply-axis').addEventListener('click', () => {
+      AppState.trend.yMin = parseFloat(document.getElementById('trend-ymin').value) || null;
+      AppState.trend.yMax = parseFloat(document.getElementById('trend-ymax').value) || null;
+      if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
+    });
+    document.getElementById('trend-auto-axis').addEventListener('click', () => {
+      AppState.trend.yMin = null; AppState.trend.yMax = null;
+      document.getElementById('trend-ymin').value = '';
+      document.getElementById('trend-ymax').value = '';
+      if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
+    });
+
+    // 대학 추가
+    const univInput = document.getElementById('trend-univ-input');
+    if (univInput) {
+      univInput.addEventListener('change', () => {
+        const name = univInput.value.trim();
+        if (!name || AppState.trend.customUnivs.includes(name)) { univInput.value = ''; return; }
+        AppState.trend.customUnivs.push(name);
+        univInput.value = '';
+        const tags = document.getElementById('trend-univ-tags');
+        const tag = document.createElement('div');
+        tag.className = 'trend-univ-tag'; tag.dataset.name = name;
+        tag.innerHTML = `<span>${name}</span><button onclick="removeTrendUniv('${name.replace(/'/g,"\\'")}')">×</button>`;
+        tags.appendChild(tag);
+        if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
+      });
+    }
+
+    // 초기 데이터 로드
+    const [manifest, 기준대학, calcRules, univInfo] = await Promise.all([
+      DataService.fetchManifest(), DataService.fetchBaseUnivData(),
+      DataService.fetchCalcRules(), DataService.fetchUnivInfo(),
+    ]);
+    AppState.raw.manifest = manifest;
+    AppState.raw.기준대학 = 기준대학;
+    AppState.raw.calcRules = calcRules;
+    AppState._baseUnivMap = DataService.buildBaseUnivMap(기준대학);
+    AppState._univInfoMap = DataService.buildUnivInfoMap(univInfo);
+
+    FilterManager.init();
+    FilterManager.renderItemSelect(manifest);
+    FilterManager.renderAllMultiSelects();
+    Utils.showEmptyState('no-item');
+  },
+};
+
+function removeTrendUniv(name) {
+  AppState.trend.customUnivs = AppState.trend.customUnivs.filter(n => n !== name);
+  const tag = document.querySelector(`#trend-univ-tags .trend-univ-tag[data-name="${name}"]`);
+  if (tag) tag.remove();
+  if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
+}
+
+document.addEventListener('DOMContentLoaded', () => App.init());
