@@ -153,16 +153,7 @@
     }
     .toggle-btn:hover { background: var(--sidebar-hover); border-color: #cbd5e1; }
 
-    /* ── 추이 분석 사이드 패널 ─────────────────────── */
-    #trend-panel {
-      display: none;
-      border-top: 1px solid var(--sidebar-border);
-      flex-shrink: 0;
-      overflow-y: auto;
-      padding: 12px 10px 8px;
-    }
-    #trend-panel.visible { display: block; }
-    #sidebar.collapsed #trend-panel { display: none; }
+    /* ── 추이 분석 패널 공통 스타일 ─────────────────── */
     .trend-section-label {
       font-size: 9.5px; font-weight: 700; color: var(--text-muted);
       text-transform: uppercase; letter-spacing: .08em;
@@ -196,8 +187,10 @@
 
     /* ── 추이 분석 뷰 ────────────────────────────────── */
     #ranking-view.hidden-view { display: none; }
-    #trend-view { display: none; padding: 20px; }
-    #trend-view.visible { display: block; }
+    #trend-view { display: none; padding: 20px; gap: 16px; }
+    #trend-view.visible { display: flex; align-items: flex-start; }
+    #trend-side-panel { width: 200px; flex-shrink: 0; padding: 16px 12px; }
+    #trend-main { flex: 1; min-width: 0; }
     #trend-chart { width: 100%; height: 380px; }
     .trend-summary-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 4px; }
     .trend-summary-table th {
@@ -550,21 +543,6 @@
       </div>
     </div>
 
-    <!-- 추이 분석 패널 (추이 뷰 활성화 시 표시) -->
-    <div id="trend-panel">
-      <div class="trend-section-label">비교 그룹</div>
-      <label class="trend-check-item"><input type="checkbox" data-group="전국 평균" checked> 전국 평균</label>
-      <label class="trend-check-item"><input type="checkbox" data-group="전국 사립" checked> 전국 사립 평균</label>
-      <label class="trend-check-item"><input type="checkbox" data-group="비수도권" checked> 비수도권 평균</label>
-      <label class="trend-check-item"><input type="checkbox" data-group="동남권" checked> 동남권 평균</label>
-      <label class="trend-check-item"><input type="checkbox" data-group="부산"> 부산 평균</label>
-
-      <div class="trend-section-label" style="margin-top:12px;">대학 추가</div>
-      <input class="trend-univ-input" id="trend-univ-input" list="trend-univ-list" placeholder="대학명 검색…" autocomplete="off">
-      <datalist id="trend-univ-list"></datalist>
-      <div id="trend-univ-tags"></div>
-    </div>
-
     <div style="padding: 8px 10px; border-top: 1px solid var(--sidebar-border);">
       <a href="admin.html" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;font-size:12px;color:var(--text-muted);text-decoration:none;transition:background 0.1s;" onmouseover="this.style.background='var(--sidebar-hover)'" onmouseout="this.style.background=''">
         <span>⚙️</span>
@@ -667,11 +645,27 @@
 
       <!-- 추이 분석 뷰 -->
       <div id="trend-view">
-        <div id="trend-chart-wrap" class="card" style="margin-bottom:16px;padding:20px 20px 12px;">
-          <div id="trend-chart"></div>
+        <!-- 좌측 패널 -->
+        <div id="trend-side-panel" class="card">
+          <div class="trend-section-label">비교 그룹</div>
+          <label class="trend-check-item"><input type="checkbox" data-group="전국 평균" checked> 전국 평균</label>
+          <label class="trend-check-item"><input type="checkbox" data-group="전국 사립" checked> 전국 사립 평균</label>
+          <label class="trend-check-item"><input type="checkbox" data-group="비수도권" checked> 비수도권 평균</label>
+          <label class="trend-check-item"><input type="checkbox" data-group="동남권" checked> 동남권 평균</label>
+          <label class="trend-check-item"><input type="checkbox" data-group="부산"> 부산 평균</label>
+          <div class="trend-section-label" style="margin-top:14px;">대학 추가 비교</div>
+          <input class="trend-univ-input" id="trend-univ-input" list="trend-univ-list" placeholder="대학명 검색…" autocomplete="off">
+          <datalist id="trend-univ-list"></datalist>
+          <div id="trend-univ-tags"></div>
         </div>
-        <div class="card" style="padding:0;overflow:hidden;">
-          <div id="trend-table-wrap" style="overflow-x:auto;"></div>
+        <!-- 우측 콘텐츠 -->
+        <div id="trend-main">
+          <div id="trend-chart-wrap" class="card" style="margin-bottom:14px;padding:20px 20px 12px;">
+            <div id="trend-chart"></div>
+          </div>
+          <div class="card" style="padding:0;overflow:hidden;">
+            <div id="trend-table-wrap" style="overflow-x:auto;"></div>
+          </div>
         </div>
       </div>
 
@@ -1234,6 +1228,10 @@ const FilterManager = {
     AppState.computed.sortDir = 'desc';
     AppState.computed.currentPage = 1;
     this.applyFilters();
+    // 추이 분석 뷰가 활성화된 경우 TrendView도 갱신
+    if (document.getElementById('trend-view')?.classList.contains('visible')) {
+      TrendView.activate();
+    }
   },
 
   applyFilters() {
@@ -1716,7 +1714,6 @@ const App = {
       });
       document.getElementById('ranking-view').classList.toggle('hidden-view', viewName !== 'ranking');
       document.getElementById('trend-view').classList.toggle('visible', viewName === 'trend');
-      document.getElementById('trend-panel').classList.toggle('visible', viewName === 'trend');
       if (viewName === 'trend') TrendView.activate();
     };
     document.querySelectorAll('.nav-item[data-view]').forEach(el => {
@@ -1758,7 +1755,7 @@ const App = {
 
     // ── 추이 패널 이벤트 ──
     // 그룹 체크박스
-    document.querySelectorAll('#trend-panel input[type="checkbox"]').forEach(cb => {
+    document.querySelectorAll('#trend-side-panel input[type="checkbox"]').forEach(cb => {
       cb.addEventListener('change', () => {
         const g = cb.dataset.group;
         if (cb.checked) AppState.trend.groups.add(g);
