@@ -549,6 +549,7 @@ const AppState = {
     기준대학: [],
     항목데이터: [],
     calcRules: {},
+    currentItem: null,   // 현재 선택된 manifest 항목 {key, label, columns?, sort_key?}
   },
   computed: {
     aggregated: [],
@@ -959,6 +960,10 @@ const FilterManager = {
 
   async onItemChange(itemKey) {
     AppState.filters.항목키 = itemKey;
+    // 현재 항목 메타 저장 (columns, sort_key 등 설정 포함)
+    AppState.raw.currentItem = AppState.raw.manifest.find(
+      m => (m?.key ?? m) === itemKey
+    ) || null;
     if (!itemKey) {
       Utils.showEmptyState('no-item');
       return;
@@ -1003,7 +1008,10 @@ const FilterManager = {
     );
     // 지역 필터 옵션을 집계 결과에서 갱신
     this.renderAllMultiSelects(AppState.computed.aggregated);
-    AppState.computed.sortKey = DataService.detectPrimaryValueField(AppState.computed.aggregated, calcRules);
+    // sort_key: manifest 설정 우선, 없으면 자동 감지
+    const itemSortKey = AppState.raw.currentItem?.sort_key || null;
+    AppState.computed.sortKey = itemSortKey ||
+      DataService.detectPrimaryValueField(AppState.computed.aggregated, calcRules);
     AppState.computed.sortDir = 'desc';
     AppState.computed.currentPage = 1;
     this.applyFilters();
@@ -1126,21 +1134,31 @@ const RankingView = {
 
   renderTable(sorted, page) {
     const calcRules = AppState.raw.calcRules;
-    const primaryKey = AppState.computed.sortKey;
+    const { sortKey, sortDir } = AppState.computed;
+    const itemConfig = AppState.raw.currentItem;
 
-    // 표시할 숫자 필드 목록 결정
-    const metaFields = new Set(['기준대학명', '지역', '설립구분', '대학구분', '수도권여부', '기준연도']);
-    const numericFields = Object.keys(sorted[0] || {})
-      .filter(k => !k.startsWith('_') && !metaFields.has(k) && typeof sorted[0][k] === 'number');
+    // 표시 컬럼 결정: manifest에 columns 설정이 있으면 사용, 없으면 자동 감지
+    let columns;
+    if (itemConfig?.columns?.length) {
+      columns = itemConfig.columns; // [{key, label}]
+    } else {
+      // 자동 감지 (하위 호환)
+      const metaFields = new Set(['기준대학명', '지역', '설립구분', '대학구분', '수도권여부', '기준연도']);
+      const numericFields = Object.keys(sorted[0] || {})
+        .filter(k => !k.startsWith('_') && !metaFields.has(k) && typeof sorted[0][k] === 'number');
+      const ratioKeys = Object.keys(calcRules);
+      const rawFields = numericFields.filter(k => !ratioKeys.includes(k));
+      columns = [
+        ...(rawFields.length ? [{ key: rawFields[0], label: rawFields[0] }] : []),
+        ...(ratioKeys.length ? [{ key: ratioKeys[0], label: calcRules[ratioKeys[0]]?.label || ratioKeys[0] }] : []),
+      ];
+    }
 
-    // 비율 키와 자수 키 분리
-    const ratioKeys = Object.keys(calcRules);
-    const rawFields = numericFields.filter(k => !ratioKeys.includes(k));
-    const displayRatioKey = ratioKeys.length ? ratioKeys[0] : null;
-    const displayRawKey = rawFields.length ? rawFields[0] : null;
+    // 숫자/비율 판단 (서식용)
+    const ratioKeySet = new Set(Object.keys(calcRules));
+    const isRatioCol = (key) => ratioKeySet.has(key);
 
     // 헤더
-    const { sortKey, sortDir } = AppState.computed;
     const makeSortIcon = (key) => {
       if (key !== sortKey) return '<span class="sort-icon none"></span>';
       return `<span class="sort-icon ${sortDir}"></span>`;
@@ -1151,8 +1169,7 @@ const RankingView = {
       <th class="sortable" data-key="기준대학명">대학명 ${makeSortIcon('기준대학명')}</th>
       <th class="sortable" data-key="지역">지역 ${makeSortIcon('지역')}</th>
       <th class="sortable" data-key="설립구분">설립 ${makeSortIcon('설립구분')}</th>
-      ${displayRawKey ? `<th class="sortable td-num" data-key="${displayRawKey}">${displayRawKey} ${makeSortIcon(displayRawKey)}</th>` : ''}
-      ${displayRatioKey ? `<th class="sortable td-num" data-key="${displayRatioKey}">${calcRules[displayRatioKey]?.label || displayRatioKey} ${makeSortIcon(displayRatioKey)}</th>` : ''}
+      ${columns.map(c => `<th class="sortable td-num" data-key="${c.key}">${c.label} ${makeSortIcon(c.key)}</th>`).join('')}
       <th class="td-num">전년대비</th>
       <th class="td-num">상위%</th>
     </tr>`;
@@ -1166,6 +1183,7 @@ const RankingView = {
     const start = (page - 1) * ROWS_PER_PAGE;
     const pageRows = sorted.slice(start, start + ROWS_PER_PAGE);
     const total = sorted.length;
+    const deltaKey = sortKey;
 
     const tbody = document.getElementById('ranking-tbody');
     tbody.innerHTML = '';
@@ -1176,9 +1194,7 @@ const RankingView = {
 
       const topPct = Utils.calcTopPercent(rank, total);
       const prevRow = row._prev;
-      const deltaKey = displayRatioKey || displayRawKey;
-      const deltaVal = deltaKey ? Utils.formatDelta(row[deltaKey], prevRow ? prevRow[deltaKey] : null) : '-';
-
+      const deltaVal = deltaKey ? Utils.formatDelta(row[deltaKey], prevRow?.[deltaKey] ?? null) : '-';
       const rankClass = rank <= 3 ? ' top3' : '';
 
       tr.innerHTML = `
@@ -1186,8 +1202,7 @@ const RankingView = {
         <td class="td-univ">${row.기준대학명}${row._isOurs ? '<span class="our-tag">우리</span>' : ''}</td>
         <td>${row.지역 || '-'}</td>
         <td>${row.설립구분 || '-'}</td>
-        ${displayRawKey ? `<td class="td-num">${Utils.formatNumber(row[displayRawKey])}</td>` : ''}
-        ${displayRatioKey ? `<td class="td-num">${Utils.formatPercent(row[displayRatioKey])}</td>` : ''}
+        ${columns.map(c => `<td class="td-num">${isRatioCol(c.key) ? Utils.formatPercent(row[c.key]) : Utils.formatNumber(row[c.key])}</td>`).join('')}
         <td class="td-delta">${deltaVal}</td>
         <td class="td-percent">${topPct}%</td>`;
       tbody.appendChild(tr);

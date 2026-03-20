@@ -209,17 +209,20 @@ td .cell-display:hover { text-decoration: underline; color: #2563eb; }
       <input type="search" id="search-input" placeholder="대학명 검색…" oninput="filterRows()">
       <span class="row-count" id="row-count"></span>
       <button class="btn btn-primary" onclick="addRow()">+ 행 추가</button>
-      <button class="btn btn-secondary" onclick="loadFile()">JSON 불러오기</button>
-      <input type="file" id="file-input" accept=".json" style="display:none" onchange="onFileLoad(event)">
+      <button class="btn btn-secondary" onclick="loadCsvFile()">CSV 업로드</button>
+      <button class="btn btn-secondary" onclick="loadJsonFile()">JSON 불러오기</button>
+      <input type="file" id="csv-input" accept=".csv" style="display:none" onchange="onCsvLoad(event)">
+      <input type="file" id="json-input" accept=".json" style="display:none" onchange="onJsonLoad(event)">
     </div>
 
     <div class="table-wrap">
       <table id="mapping-table">
         <thead>
           <tr>
-            <th style="width:40%">대학명 <span style="font-weight:400;color:#94a3b8">(학교 필드값)</span></th>
-            <th style="width:40%">기준대학명 <span style="font-weight:400;color:#94a3b8">(합산 대표명)</span></th>
-            <th style="width:20%"></th>
+            <th style="width:32%">대학명 <span style="font-weight:400;color:#94a3b8">(학교 필드값)</span></th>
+            <th style="width:32%">기준대학명 <span style="font-weight:400;color:#94a3b8">(합산 대표명)</span></th>
+            <th style="width:22%">비고 <span style="font-weight:400;color:#94a3b8">(교명변경, 통폐합 등)</span></th>
+            <th style="width:14%"></th>
           </tr>
         </thead>
         <tbody id="table-body">
@@ -279,20 +282,19 @@ function renderTable(rows) {
   const tbody = document.getElementById('table-body');
   tbody.innerHTML = '';
   for (const row of rows) {
-    appendRow(row['대학명'] || '', row['기준대학명'] || '');
+    appendRow(row['대학명'] || '', row['기준대학명'] || '', row['비고'] || '');
   }
   updateCount();
   showEmptyHint();
 }
 
-function appendRow(univName = '', baseName = '') {
+function appendRow(univName = '', baseName = '', note = '') {
   const tbody = document.getElementById('table-body');
   const tr = document.createElement('tr');
-  tr.dataset.univName = univName;
-  tr.dataset.baseName = baseName;
   tr.innerHTML = `
     <td><input class="cell-input" type="text" value="${escHtml(univName)}" placeholder="예: 연세대학교(미래캠퍼스)" oninput="markDirty()"></td>
     <td><input class="cell-input" type="text" value="${escHtml(baseName)}" placeholder="예: 연세대학교" oninput="markDirty()"></td>
+    <td><input class="cell-input" type="text" value="${escHtml(note)}" placeholder="교명변경(2023)" oninput="markDirty()"></td>
     <td class="td-actions">
       <button class="btn btn-danger btn-sm" onclick="deleteRow(this)">삭제</button>
     </td>
@@ -350,12 +352,95 @@ function markDirty() {
   document.getElementById('status-msg').style.color = '#dc2626';
 }
 
-/* ── JSON 파일 불러오기 ── */
-function loadFile() {
-  document.getElementById('file-input').click();
+/* ── CSV 불러오기 ── */
+function loadCsvFile() {
+  document.getElementById('csv-input').click();
 }
 
-function onFileLoad(e) {
+function onCsvLoad(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const data = parseCsv(ev.target.result);
+      if (!data.length) throw new Error('데이터가 없습니다.');
+      renderTable(data);
+      markDirty();
+    } catch (err) {
+      alert(`CSV 파싱 오류: ${err.message}`);
+    }
+  };
+  // Excel 저장 CSV는 보통 UTF-8 BOM 또는 CP949 — UTF-8로 시도 후 BOM 제거
+  reader.readAsText(file, 'utf-8');
+  e.target.value = '';
+}
+
+function parseCsv(text) {
+  // BOM 제거
+  text = text.replace(/^\uFEFF/, '');
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (!lines.length) return [];
+
+  // 헤더 파싱 (첫 행)
+  const headers = splitCsvLine(lines[0]).map(h => h.trim());
+
+  // 컬럼 인덱스 탐색 (한글 헤더 유연하게 매핑)
+  const findCol = (...names) => {
+    for (const n of names) {
+      const i = headers.findIndex(h => h === n || h.includes(n));
+      if (i >= 0) return i;
+    }
+    return -1;
+  };
+  const iUniv = findCol('대학명', '학교');
+  const iBase = findCol('기준대학명', '기준대학');
+  const iNote = findCol('비고', '메모', '비고(');
+
+  if (iUniv < 0 || iBase < 0) {
+    throw new Error(`'대학명'과 '기준대학명' 헤더가 필요합니다.\n현재 헤더: ${headers.join(', ')}`);
+  }
+
+  const result = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = splitCsvLine(lines[i]);
+    const univName = (cols[iUniv] || '').trim();
+    const baseName = (cols[iBase] || '').trim();
+    if (!univName && !baseName) continue; // 빈 행 스킵
+    result.push({
+      '대학명': univName,
+      '기준대학명': baseName,
+      '비고': iNote >= 0 ? (cols[iNote] || '').trim() : '',
+    });
+  }
+  return result;
+}
+
+function splitCsvLine(line) {
+  // 쌍따옴표 처리 포함 CSV 파싱
+  const cols = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (c === ',' && !inQ) {
+      cols.push(cur); cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  cols.push(cur);
+  return cols;
+}
+
+/* ── JSON 파일 불러오기 ── */
+function loadJsonFile() {
+  document.getElementById('json-input').click();
+}
+
+function onJsonLoad(e) {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
@@ -382,6 +467,7 @@ function downloadJSON() {
     const inputs = tr.querySelectorAll('input');
     const univName = inputs[0].value.trim();
     const baseName = inputs[1].value.trim();
+    const note     = inputs[2].value.trim();
     if (!univName || !baseName) {
       inputs[univName ? 1 : 0].style.borderColor = '#dc2626';
       hasError = true;
@@ -389,7 +475,9 @@ function downloadJSON() {
     }
     inputs[0].style.borderColor = '';
     inputs[1].style.borderColor = '';
-    data.push({ '대학명': univName, '기준대학명': baseName });
+    const entry = { '대학명': univName, '기준대학명': baseName };
+    if (note) entry['비고'] = note;
+    data.push(entry);
   }
   if (hasError) {
     alert('빈 칸이 있습니다. 모든 행을 채우거나 삭제 후 저장하세요.');
