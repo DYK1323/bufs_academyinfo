@@ -1309,12 +1309,16 @@ const FilterManager = {
   _sortAndRender() {
     const { filtered, sortKey, sortDir, rankKey } = AppState.computed;
 
-    // 1단계: rankKey 기준 내림차순으로 _rank 부여 — 표시 정렬과 무관하게 고정
+    // 1단계: rankKey 기준으로 _rank 부여 — 표시 정렬과 무관하게 고정
+    // sort_asc=true이면 오름차순(낮을수록 1위), 기본은 내림차순(높을수록 1위)
     if (rankKey) {
+      const sortAsc = AppState.raw.currentItem?.sort_asc === true;
       const forRank = [...filtered].sort((a, b) => {
-        const av = a[rankKey] ?? -Infinity;
-        const bv = b[rankKey] ?? -Infinity;
-        return typeof av === 'string' ? bv.localeCompare(av, 'ko') : bv - av;
+        const av = a[rankKey] ?? (sortAsc ? Infinity : -Infinity);
+        const bv = b[rankKey] ?? (sortAsc ? Infinity : -Infinity);
+        return typeof av === 'string'
+          ? (sortAsc ? av.localeCompare(bv, 'ko') : bv.localeCompare(av, 'ko'))
+          : (sortAsc ? av - bv : bv - av);
       });
       forRank.forEach((row, i) => { row._rank = i + 1; });
     } else {

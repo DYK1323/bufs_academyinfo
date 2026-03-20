@@ -1358,6 +1358,13 @@ function buildManifestCard(item, idx) {
           <label>정렬 기준 필드 (sort_key)</label>
           <input class="form-input mf-sortkey" type="text" value="${esc(item.sort_key||'')}" oninput="setDirty()">
         </div>
+        <div class="form-group" style="flex:1;">
+          <label>순위 방향</label>
+          <select class="form-input mf-sortasc" onchange="setDirty()">
+            <option value="desc" ${!item.sort_asc ? 'selected' : ''}>내림차순 (높을수록 1위)</option>
+            <option value="asc"  ${item.sort_asc  ? 'selected' : ''}>오름차순 (낮을수록 1위)</option>
+          </select>
+        </div>
       </div>
       <div class="form-group" style="margin-bottom:12px;">
         <label>행 제외 조건 (exclude_rows, JSON)</label>
@@ -1414,6 +1421,7 @@ function applyManifestCard(btn) {
 
   const label   = card.querySelector('.mf-label').value.trim();
   const sortKey = card.querySelector('.mf-sortkey').value.trim();
+  const sortAsc = card.querySelector('.mf-sortasc').value === 'asc';
   const exclStr = card.querySelector('.mf-excl').value.trim();
 
   let exclude_rows = undefined;
@@ -1430,6 +1438,8 @@ function applyManifestCard(btn) {
   });
 
   const result = { ...item, label, sort_key: sortKey, columns: cols };
+  if (sortAsc) result.sort_asc = true;
+  else delete result.sort_asc;
   if (exclude_rows) result.exclude_rows = exclude_rows;
   else delete result.exclude_rows;
 
