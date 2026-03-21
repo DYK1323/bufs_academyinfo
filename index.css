@@ -348,11 +348,11 @@ html, body {
 #sim-table { table-layout: fixed; width: 100%; }
 #sim-table thead th:nth-child(1) { width: 52px;  } /* 시뮬 */
 #sim-table thead th:nth-child(2) { width: 52px;  } /* 현재 */
-#sim-table thead th:nth-child(3) { width: auto;  } /* 대학명 — 남은 공간 다 차지 */
+#sim-table thead th:nth-child(3) { width: 280px; } /* 대학명 */
 #sim-table thead th:nth-child(4) { width: 54px;  } /* 지역 */
 #sim-table thead th:nth-child(5) { width: 46px;  } /* 설립 */
-#sim-table thead th:nth-child(6) { width: 120px; } /* 지표값 */
-#sim-table thead th:nth-child(7) { width: 56px;  } /* 변동 */
+#sim-table thead th:nth-child(6) { width: 120px;  } /* 지표값 */
+#sim-table thead th:nth-child(7) { width: auto;  } /* 변동 */
 #sim-table td:nth-child(3) {
   overflow: hidden;
   text-overflow: ellipsis;

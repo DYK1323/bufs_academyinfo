@@ -136,7 +136,7 @@ const SimulatorView = {
       <th>지역</th>
       <th>설립</th>
       <th class="num">${label}${unit ? ' (' + unit + ')' : ''}</th>
-      <th class="num">변동</th>
+      <th>변동</th>
     </tr>`;
     const tbody = document.getElementById('sim-tbody');
     tbody.innerHTML = '';
@@ -160,7 +160,7 @@ const SimulatorView = {
         <td>${row.지역 || '-'}</td>
         <td>${row.설립구분 || '-'}</td>
         <td class="num">${fmt(val)}</td>
-        <td class="num"><span class="${changeCls}">${changeTxt}</span></td>`;
+        <td><span class="${changeCls}">${changeTxt}</span></td>`;
       tbody.appendChild(tr);
     });
     if (ourTr) this._scrollToRow(ourTr);
