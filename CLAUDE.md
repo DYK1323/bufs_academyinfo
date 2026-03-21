@@ -27,11 +27,26 @@
 /
 ├── CLAUDE.md                      # 이 파일
 ├── index.html                     # 분석 페이지 (GitHub Pages)
+├── index.css                      # 분석 페이지 스타일 (레이아웃/컴포넌트)
+├── admin.html                     # 관리자 페이지
 ├── normalize_gui.py               # 정제 도구 (Python/tkinter)
 ├── download_academyinfo.py        # 다운로드 자동화 (Playwright)
 ├── field_mapping.json             # 필드 매핑 (자동 생성/갱신)
 ├── merge_rules.json               # 캠퍼스 합산 방식 (sum/skip/master)
 ├── calc_rules.json                # 비율 지표 산식 정의 (분석 페이지에서 사용)
+├── css/
+│   └── tokens.css                 # CSS 디자인 토큰 (:root 변수 — index.html·admin.html 공용)
+├── js/                            # 분석 페이지 JS (index.html에서 순서대로 로드)
+│   ├── state.js                   # AppState, 전역 상수 (OUR_UNIV, ROWS_PER_PAGE, DATA_PATH, cssVar)
+│   ├── utils.js                   # Utils, FilterUtils, BenchmarkUtils, 공통 헬퍼 함수
+│   ├── data.js                    # DataService (fetch, aggregateByUniversity 등)
+│   ├── filter.js                  # FilterManager (항목 변경, 필터 적용, 정렬)
+│   ├── app.js                     # App.init(), 이벤트 바인딩, 전역 remove* 함수
+│   └── views/
+│       ├── ranking.js             # RankingView (순위 표) + ThreatView (위협 레이더)
+│       ├── simulator.js           # SimulatorView (목표 시뮬레이터)
+│       ├── trend.js               # TrendView (추이 분석) + BumpView (순위 변동)
+│       └── benchmark.js           # RadarView + BenchmarkView + HeatmapView
 ├── data/
 │   ├── 기준대학.json              # 캠퍼스 합산 기준 + 대학 속성
 │   ├── 학과분류.json              # 학과 계열 대/중/소 분류 (관리자 직접 관리)
@@ -39,6 +54,31 @@
 └── docs/
     └── spec.md                    # 기능 명세서
 ```
+
+### JS 로드 순서 (의존성)
+
+```
+state.js → utils.js → data.js → views/ranking.js → views/simulator.js
+        → views/trend.js → views/benchmark.js → filter.js → app.js
+```
+
+모든 파일이 전역 스코프를 공유하므로 ES module import 없이 순서만 유지하면 된다.
+
+### 공유 유틸리티 (js/utils.js)
+
+| 객체/함수 | 설명 |
+|-----------|------|
+| `Utils` | 포맷팅, 빈 상태, CSV 내보내기 |
+| `FilterUtils.matchesFilters(r, f)` | FilterManager·ThreatView·BumpView 공용 필터 로직 |
+| `BenchmarkUtils.baseFilter(r)` | 국공립/사립 + 대학교/산업대학 기본 필터 |
+| `BenchmarkUtils.getIndicators(sample)` | benchmarkCache 레코드에서 지표 키 목록 추출 |
+| `BenchmarkUtils.sigmaFilter(vals)` | σ-trimming (±3σ 범위 내 값만) |
+| `BenchmarkUtils.groupAvg(rows, ind)` | baseFilter + σ-trimming 단일 지표 평균 |
+| `BenchmarkUtils.groupAvgMulti(rows, inds)` | 다중 지표 평균 (`{ind: avg}` 반환) |
+| `BenchmarkUtils.populateDatalist(dlId, names)` | datalist 요소 채우기 |
+| `METRO`, `DONGNAM` | 수도권/동남권 지역 Set (모듈 수준 상수) |
+| `getPrimaryIndicator(item)` | manifest 항목에서 주 지표 추출 |
+| `buildCalcRulesForItem(calcRules, item)` | exclude_rows 적용한 calcRules 생성 |
 
 ---
 
@@ -103,7 +143,7 @@
 
 ### index.html (분석 페이지)
 
-- 단일 HTML 파일로 모든 기능을 포함 (CSS/JS 인라인)
+- HTML 구조만 포함 — JS는 `js/` 디렉터리, CSS는 `css/tokens.css` + `index.css`로 분리
 - 항목 선택 시 해당 `data/{항목키}.json`만 동적 로드 (전체 로드 금지)
 - KRDS 디자인 시스템 준수 (CDN: `cdn.jsdelivr.net/npm/krds-uiux@1.0.1`)
 - 차트: ECharts 5.4.3 (CDN, defer 로드)

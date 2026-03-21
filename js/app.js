@@ -1,0 +1,281 @@
+'use strict';
+
+/* ═══════════════════════════════════════════════════════
+   App — 초기화 및 이벤트 바인딩
+═══════════════════════════════════════════════════════ */
+const App = {
+  async init() {
+    if (location.protocol === 'file:') document.getElementById('cors-warning').style.display = 'block';
+
+    const sidebarCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
+    if (sidebarCollapsed) document.getElementById('sidebar').classList.add('collapsed');
+    document.getElementById('sidebar-toggle').addEventListener('click', () => {
+      const isCollapsed = document.getElementById('sidebar').classList.toggle('collapsed');
+      localStorage.setItem('sidebar-collapsed', isCollapsed);
+      if (TrendView._chart) setTimeout(() => TrendView._chart.resize(), 60);
+    });
+
+    const switchView = (viewName) => {
+      document.querySelectorAll('.nav-item[data-view], .mobile-nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === viewName));
+      document.getElementById('ranking-view').classList.toggle('hidden-view', viewName !== 'ranking');
+      for (const v of ['trend', 'bump', 'simulator', 'radar', 'benchmark', 'heatmap']) {
+        document.getElementById(`${v}-view`)?.classList.toggle('visible', viewName === v);
+      }
+      document.getElementById('filter-bar').classList.toggle('trend-mode', viewName === 'trend');
+      document.getElementById('filter-bar').classList.toggle('simulator-mode', viewName === 'simulator');
+      document.getElementById('filter-bar').classList.toggle('bump-mode', viewName === 'bump');
+      document.getElementById('filter-bar').classList.toggle('benchmark-mode', ['radar','benchmark','heatmap'].includes(viewName));
+      // 공유 사이드바 표시/숨김 및 모드 전환
+      const sidePanel = document.getElementById('trend-side-panel');
+      if (sidePanel) {
+        sidePanel.classList.toggle('active', ['trend', 'bump'].includes(viewName));
+        sidePanel.classList.toggle('bump-active', viewName === 'bump');
+      }
+      if (viewName === 'trend') TrendView.activate();
+      if (viewName === 'bump') BumpView.activate();
+      if (viewName === 'simulator') SimulatorView.activate();
+      if (viewName === 'radar') RadarView.activate();
+      if (viewName === 'benchmark') BenchmarkView.activate();
+      if (viewName === 'heatmap') HeatmapView.activate();
+      if (TrendView._chart) setTimeout(() => TrendView._chart.resize(), 60);
+      setTimeout(() => {
+        if (document.getElementById('bump-view')?.classList.contains('visible')) BumpView._fitHeight();
+        if (RadarView._chart) RadarView._chart.resize();
+        if (HeatmapView._chart) HeatmapView._chart.resize();
+        if (BenchmarkView._gapChart) BenchmarkView._gapChart.resize();
+      }, 60);
+    };
+    document.querySelectorAll('.nav-item[data-view], .mobile-nav-item[data-view]').forEach(el => el.addEventListener('click', () => switchView(el.dataset.view)));
+
+    document.getElementById('table-search').addEventListener('input', e => {
+      AppState.computed.nameQuery = e.target.value.trim().toLowerCase();
+      AppState.computed.currentPage = 1;
+      RankingView.renderTable(AppState.computed.sorted, 1);
+      RankingView.renderPagination(AppState.computed.sorted.length, 1);
+    });
+
+    document.getElementById('btn-csv').addEventListener('click', () => {
+      const { sorted } = AppState.computed;
+      const calcRules = AppState.raw.calcRules;
+      const metaFields = new Set(['기준대학명', '지역', '설립구분', '대학구분', '수도권여부', '기준연도']);
+      const numFields = Object.keys(sorted[0] || {}).filter(k => !k.startsWith('_') && !metaFields.has(k) && typeof sorted[0][k] === 'number');
+      const columns = [
+        { key: '_rank', label: '순위' }, { key: '기준대학명', label: '대학명' },
+        { key: '지역', label: '지역' }, { key: '설립구분', label: '설립구분' }, { key: '대학구분', label: '대학구분' },
+        ...numFields.map(k => ({ key: k, label: calcRules[k]?.label || k })),
+      ];
+      Utils.exportCSV(sorted, columns, `순위_${AppState.filters.항목키}_${AppState.filters.연도}_${new Date().toISOString().slice(0,10)}.csv`);
+    });
+
+    // 추이 패널 — 그룹 체크박스
+    document.querySelectorAll('#trend-side-panel input[type="checkbox"][data-group]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const g = cb.dataset.group; const item = cb.closest('.trend-check-item');
+        if (cb.checked) { AppState.trend.groups.add(g); item.classList.add('is-checked'); }
+        else { AppState.trend.groups.delete(g); item.classList.remove('is-checked'); }
+        if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
+      });
+    });
+
+    // 공유 사이드바 — 연도 체크박스 (추이/순위변동 공용)
+    document.getElementById('trend-year-checks').addEventListener('change', e => {
+      const cb = e.target;
+      if (cb.type !== 'checkbox' || !cb.dataset.year) return;
+      const y = +cb.dataset.year;
+      const item = cb.closest('.trend-check-item');
+      const isBump = document.getElementById('bump-view')?.classList.contains('visible');
+      if (isBump) {
+        if (cb.checked) { AppState.bump.selectedYears.add(y); item?.classList.add('is-checked'); }
+        else { AppState.bump.selectedYears.delete(y); item?.classList.remove('is-checked'); }
+        BumpView.render();
+      } else {
+        if (cb.checked) { AppState.trend.selectedYears.add(y); item?.classList.add('is-checked'); }
+        else { AppState.trend.selectedYears.delete(y); item?.classList.remove('is-checked'); }
+        if (document.getElementById('trend-view')?.classList.contains('visible')) TrendView.render();
+      }
+    });
+
+    // Y축
+    document.getElementById('trend-apply-axis').addEventListener('click', () => {
+      AppState.trend.yMin = parseFloat(document.getElementById('trend-ymin').value) || null;
+      AppState.trend.yMax = parseFloat(document.getElementById('trend-ymax').value) || null;
+      if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
+    });
+    document.getElementById('trend-auto-axis').addEventListener('click', () => {
+      AppState.trend.yMin = null; AppState.trend.yMax = null;
+      document.getElementById('trend-ymin').value = '';
+      document.getElementById('trend-ymax').value = '';
+      if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
+    });
+
+    // 추이 대학 추가
+    const univInput = document.getElementById('trend-univ-input');
+    if (univInput) {
+      univInput.addEventListener('change', () => {
+        const name = univInput.value.trim();
+        if (!name || AppState.trend.customUnivs.includes(name)) { univInput.value = ''; return; }
+        AppState.trend.customUnivs.push(name);
+        univInput.value = '';
+        const tags = document.getElementById('trend-univ-tags');
+        const tag = document.createElement('div');
+        tag.className = 'trend-univ-tag'; tag.dataset.name = name;
+        tag.innerHTML = `<span>${name}</span><button onclick="removeTrendUniv('${name.replace(/'/g,"\\'")}')">×</button>`;
+        tags.appendChild(tag);
+        if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
+      });
+    }
+
+    // Bump Chart 대학 추가
+    document.getElementById('bump-univ-input')?.addEventListener('change', () => {
+      const input = document.getElementById('bump-univ-input');
+      const name = input.value.trim();
+      input.value = '';
+      if (!name) return;
+      AppState.bump.userRemoved = AppState.bump.userRemoved.filter(n => n !== name);
+      if (!AppState.bump.userAdded.includes(name)) AppState.bump.userAdded.push(name);
+      if (document.getElementById('bump-view')?.classList.contains('visible')) {
+        BumpView._renderTags();
+        BumpView.render();
+      }
+    });
+
+    // 레이더 차트 패널
+    document.getElementById('radar-univ-input')?.addEventListener('change', () => {
+      const input = document.getElementById('radar-univ-input');
+      const name = input.value.trim();
+      if (!name || AppState.radar.customUnivs.includes(name) || AppState.radar.customUnivs.length >= 5) { input.value = ''; return; }
+      AppState.radar.customUnivs.push(name);
+      input.value = '';
+      const tags = document.getElementById('radar-univ-tags');
+      const tag = document.createElement('div');
+      tag.className = 'trend-univ-tag'; tag.dataset.name = name;
+      tag.innerHTML = `<span>${name}</span><button onclick="removeRadarUniv('${name.replace(/'/g,"\\'")}')">×</button>`;
+      tags.appendChild(tag);
+      if (document.getElementById('radar-view')?.classList.contains('visible')) RadarView.render();
+    });
+    document.querySelectorAll('#radar-side-panel input[type="checkbox"][data-rgroup]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const g = cb.dataset.rgroup; const item = cb.closest('.trend-check-item');
+        if (cb.checked) { AppState.radar.groups.add(g); item.classList.add('is-checked'); }
+        else { AppState.radar.groups.delete(g); item.classList.remove('is-checked'); }
+        if (document.getElementById('radar-view')?.classList.contains('visible')) RadarView.render();
+      });
+    });
+    document.getElementById('radar-norm-group')?.addEventListener('click', e => {
+      const btn = e.target.closest('.seg-btn'); if (!btn) return;
+      AppState.radar.normMode = btn.dataset.val;
+      document.querySelectorAll('#radar-norm-group .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.val === btn.dataset.val));
+      if (document.getElementById('radar-view')?.classList.contains('visible')) RadarView.render();
+    });
+
+    // 벤치마킹 패널
+    const _benchAdd = () => {
+      const input = document.getElementById('bench-univ-select');
+      if (!input) return;
+      const name = input.value.trim();
+      if (!name || AppState.benchmark.customUnivs.includes(name)) { input.value = ''; return; }
+      AppState.benchmark.customUnivs.push(name);
+      if (!AppState.benchmark.activeTab) AppState.benchmark.activeTab = name;
+      input.value = '';
+      BenchmarkView._renderTabs();
+      if (document.getElementById('benchmark-view')?.classList.contains('visible')) BenchmarkView.render();
+    };
+    document.getElementById('bench-add-btn')?.addEventListener('click', _benchAdd);
+    document.getElementById('bench-univ-select')?.addEventListener('change', _benchAdd);
+
+    // 탭 클릭/삭제 (이벤트 위임)
+    document.getElementById('bench-univ-tabs')?.addEventListener('click', e => {
+      const delBtn = e.target.closest('.bench-tab-del');
+      const tab = e.target.closest('.bench-tab');
+      if (delBtn) {
+        const name = delBtn.dataset.name;
+        AppState.benchmark.customUnivs = AppState.benchmark.customUnivs.filter(n => n !== name);
+        if (AppState.benchmark.activeTab === name) {
+          AppState.benchmark.activeTab = AppState.benchmark.customUnivs[0] || null;
+        }
+        BenchmarkView._renderTabs();
+        if (document.getElementById('benchmark-view')?.classList.contains('visible')) BenchmarkView.render();
+      } else if (tab) {
+        AppState.benchmark.activeTab = tab.dataset.name;
+        BenchmarkView._renderTabs();
+        if (document.getElementById('benchmark-view')?.classList.contains('visible')) BenchmarkView.render();
+      }
+    });
+
+    // 갭 차트 필터 토글
+    document.getElementById('bench-gap-card')?.addEventListener('click', e => {
+      const btn = e.target.closest('.seg-btn[data-bgroup]');
+      if (!btn) return;
+      const group = btn.dataset.bgroup;
+      const val = btn.dataset.val;
+      if (group === 'found') AppState.benchmark.gapFound = val;
+      if (group === 'region') AppState.benchmark.gapRegion = val;
+      document.querySelectorAll(`#bench-gap-card .seg-btn[data-bgroup="${group}"]`).forEach(b => b.classList.toggle('active', b.dataset.val === val));
+      if (document.getElementById('benchmark-view')?.classList.contains('visible')) BenchmarkView.render();
+    });
+
+    // 히트맵 패널
+    const _hmSeg = (groupId, stateKey) => {
+      document.getElementById(groupId)?.addEventListener('click', e => {
+        const btn = e.target.closest('.seg-btn'); if (!btn) return;
+        AppState.heatmap[stateKey] = btn.dataset.val;
+        document.querySelectorAll(`#${groupId} .seg-btn`).forEach(b => b.classList.toggle('active', b.dataset.val === btn.dataset.val));
+        if (document.getElementById('heatmap-view')?.classList.contains('visible')) HeatmapView.render();
+      });
+    };
+    _hmSeg('heatmap-region-group', 'region');
+    _hmSeg('heatmap-found-group', '설립');
+
+    // 창 리사이즈
+    window.addEventListener('resize', () => {
+      if (document.getElementById('bump-view')?.classList.contains('visible')) BumpView._fitHeight();
+      [TrendView._chart, RadarView._chart, BenchmarkView._gapChart, HeatmapView._chart, HeatmapView._scatter].forEach(c => c?.resize());
+    });
+
+    // 초기 데이터 로드
+    const [manifest, 기준대학, calcRules, univInfo, benchmarkCache] = await Promise.all([
+      DataService.fetchManifest(), DataService.fetchBaseUnivData(),
+      DataService.fetchCalcRules(), DataService.fetchUnivInfo(),
+      DataService.fetchBenchmarkCache(),
+    ]);
+    AppState.raw.manifest = manifest;
+    AppState.raw.기준대학 = 기준대학;
+    AppState.raw.benchmarkCache = benchmarkCache;
+    AppState.raw.calcRules = calcRules;
+    AppState._baseUnivMap = DataService.buildBaseUnivMap(기준대학);
+    AppState._univInfoMap = DataService.buildUnivInfoMap(univInfo);
+
+    FilterManager.init();
+    FilterManager.renderItemSelect(manifest);
+    FilterManager.renderAllMultiSelects();
+    Utils.showEmptyState('no-item');
+  },
+};
+
+/* ═══════════════════════════════════════════════════════
+   전역 헬퍼 — innerHTML onclick 핸들러용 (글로벌 스코프 필요)
+═══════════════════════════════════════════════════════ */
+function removeTrendUniv(name) {
+  AppState.trend.customUnivs = AppState.trend.customUnivs.filter(n => n !== name);
+  const tag = document.querySelector(`#trend-univ-tags .trend-univ-tag[data-name="${name}"]`);
+  if (tag) tag.remove();
+  if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
+}
+
+function removeRadarUniv(name) {
+  AppState.radar.customUnivs = AppState.radar.customUnivs.filter(n => n !== name);
+  const tag = document.querySelector(`#radar-univ-tags .trend-univ-tag[data-name="${CSS.escape(name)}"]`);
+  if (tag) tag.remove();
+  if (document.getElementById('radar-view')?.classList.contains('visible')) RadarView.render();
+}
+
+function removeBumpUniv(name) {
+  AppState.bump.userAdded = AppState.bump.userAdded.filter(n => n !== name);
+  if (!AppState.bump.userRemoved.includes(name)) AppState.bump.userRemoved.push(name);
+  if (document.getElementById('bump-view')?.classList.contains('visible')) {
+    BumpView._renderTags();
+    BumpView.render();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => App.init());
