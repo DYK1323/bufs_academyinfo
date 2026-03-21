@@ -71,6 +71,8 @@ const Utils = {
     }
     if (tableCard) tableCard.style.display = 'none';
     if (kpiBar) kpiBar.innerHTML = '';
+    const threatCard = document.getElementById('threat-card');
+    if (threatCard) threatCard.style.display = 'none';
   },
   exportCSV(rows, columns, filename) {
     const BOM = '\uFEFF';
