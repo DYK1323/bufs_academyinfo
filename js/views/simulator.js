@@ -35,8 +35,7 @@ const SimulatorView = {
 
   _calcSimRanked() {
     const { filtered, rankKey } = AppState.computed;
-    const ind = (AppState.raw.currentItem?.indicators || []).find(i => i.id === rankKey);
-    const sortAsc = ind?.sort_asc === true;
+    const sortAsc = AppState.raw.calcRules[rankKey]?.sort_asc === true;
     const rows = filtered.map(r =>
       r._isOurs && this._simValue !== null ? { ...r, [rankKey]: this._simValue } : { ...r }
     );
@@ -84,9 +83,7 @@ const SimulatorView = {
 
   _renderSlider() {
     const { filtered, rankKey } = AppState.computed;
-    const ind  = (AppState.raw.currentItem?.indicators || []).find(i => i.id === rankKey);
-    const unit = ind?.unit || (AppState.raw.calcRules[rankKey]?.multiply > 1 ? '%' : '');
-    const dec  = ind?.decimal_places ?? (AppState.raw.calcRules[rankKey]?.multiply > 1 ? 1 : 0);
+    const { unit, decimal_places: dec } = getIndicatorMeta(rankKey);
     const step = dec === 0 ? 1 : Math.pow(10, -dec);
     const vals = filtered.map(r => r[rankKey]).filter(v => v != null && !isNaN(v));
     const minV = Math.floor(Math.min(...vals) * Math.pow(10, dec)) / Math.pow(10, dec);
@@ -128,9 +125,7 @@ const SimulatorView = {
 
   _renderTable(simRanked) {
     const { rankKey } = AppState.computed;
-    const ind   = (AppState.raw.currentItem?.indicators || []).find(i => i.id === rankKey);
-    const unit  = ind?.unit || (AppState.raw.calcRules[rankKey]?.multiply > 1 ? '%' : '');
-    const dec   = ind?.decimal_places ?? (AppState.raw.calcRules[rankKey]?.multiply > 1 ? 1 : 0);
+    const { unit, decimal_places: dec } = getIndicatorMeta(rankKey);
     const label = AppState.raw.calcRules[rankKey]?.label || rankKey;
     const fmt   = v => v == null ? '-' : (+v).toFixed(dec);
     document.getElementById('sim-thead').innerHTML = `<tr>

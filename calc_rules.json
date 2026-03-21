@@ -24,6 +24,9 @@
   "전임교원 확보율": {
     "label": "전임교원 확보율",
     "visible": true,
+    "sort_asc": false,
+    "unit": "%",
+    "decimal_places": 2,
     "min_of": [
       "전임교원 확보율_학생정원 기준(B/Cx100)",
       "전임교원 확보율_재학생 기준(B`/C`x100)"
@@ -57,6 +60,9 @@
   "정원내 신입생 충원율": {
     "label": "신입생 충원율",
     "visible": true,
+    "sort_asc": false,
+    "unit": "%",
+    "decimal_places": 1,
     "numerator": [
       "입학자_정원내(D)_남",
       "입학자_정원내(D)_여"
@@ -70,6 +76,10 @@
   "중도탈락률(재학생)": {
     "label": "재학생 중도탈락률",
     "visible": true,
+    "sort_asc": true,
+    "unit": "%",
+    "decimal_places": 2,
+    "year_offset": 1,
     "numerator": [
       "사유별 중도탈락 학생_계(B)"
     ],
@@ -82,6 +92,10 @@
   "중도탈락률(신입생)": {
     "label": "신입생 중도탈락률",
     "visible": true,
+    "sort_asc": true,
+    "unit": "%",
+    "decimal_places": 2,
+    "year_offset": 1,
     "numerator": [
       "사유별 중도탈락 학생(신입생)_계(B`)"
     ],

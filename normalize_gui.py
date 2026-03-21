@@ -256,11 +256,12 @@ def accumulate_json(item_key: str, df: pd.DataFrame):
         existing = json.loads(json_path.read_text(encoding="utf-8"))
 
     # 이번 파일의 연도 추출
-    year_col  = df.columns[0]   # 첫 번째 컬럼이 기준연도
+    year_col  = df.columns[0]   # 첫 번째 컬럼이 기준연도 (매핑 후 "기준연도")
     new_years = df[year_col].astype(str).unique().tolist()
 
     # 기존 데이터에서 같은 연도 제거 (덮어쓰기)
-    existing = [row for row in existing if str(row.get(year_col, "")) not in new_years]
+    # JSON 포맷은 항상 "기준연도" 키를 사용하므로 고정 조회
+    existing = [row for row in existing if str(row.get("기준연도", "")) not in new_years]
 
     # 새 데이터 append
     new_records = df.where(pd.notnull(df), None).to_dict(orient="records")

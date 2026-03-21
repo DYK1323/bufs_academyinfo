@@ -233,20 +233,19 @@ const App = {
     });
 
     // 초기 데이터 로드
-    const [manifest, 기준대학, calcRules, univInfo, benchmarkCache] = await Promise.all([
-      DataService.fetchManifest(), DataService.fetchBaseUnivData(),
-      DataService.fetchCalcRules(), DataService.fetchUnivInfo(),
+    const [calcRules, benchmarkCache, manifest, baseUnivData] = await Promise.all([
+      DataService.fetchCalcRules(),
       DataService.fetchBenchmarkCache(),
+      DataService.fetchManifest(),
+      DataService.fetchBaseUnivData(),
     ]);
-    AppState.raw.manifest = manifest;
-    AppState.raw.기준대학 = 기준대학;
-    AppState.raw.benchmarkCache = benchmarkCache;
     AppState.raw.calcRules = calcRules;
-    AppState._baseUnivMap = DataService.buildBaseUnivMap(기준대학);
-    AppState._univInfoMap = DataService.buildUnivInfoMap(univInfo);
+    AppState.raw.benchmarkCache = benchmarkCache || [];
+    AppState.raw.manifest = manifest || [];
+    AppState.raw._baseUnivMap = DataService.buildBaseUnivMap(baseUnivData || []);
 
     FilterManager.init();
-    FilterManager.renderItemSelect(manifest);
+    FilterManager.renderItemSelect(calcRules);
     FilterManager.renderAllMultiSelects();
     Utils.showEmptyState('no-item');
   },

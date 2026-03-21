@@ -222,11 +222,11 @@ html, body {
 
 /* ── 추이 분석 뷰 */
 #ranking-view.hidden-view { display: none; }
-#trend-view { display: none; padding: 20px; gap: 16px; }
+#trend-view { display: none; gap: 16px; }
 #trend-view.visible { display: flex; align-items: stretch; }
 
 /* ── 시뮬레이터 뷰 */
-#simulator-view { display: none; flex-direction: row; gap: 16px; padding: 20px; align-items: flex-start; }
+#simulator-view { display: none; flex-direction: row; gap: 16px; align-items: flex-start; }
 #simulator-view.visible { display: flex; }
 
 /* 필터바 simulator-mode: 연도 숨김 */
@@ -311,17 +311,17 @@ html, body {
 .sim-change-up   { color: var(--up-color);   font-weight: 700; }
 .sim-change-down { color: var(--down-color); font-weight: 700; }
 .sim-change-none { color: var(--text-muted); }
-#content-row { display: flex; flex: 1; overflow: hidden; }
+#content-row { display: flex; flex: 1; overflow: hidden; padding: 20px; gap: 16px; }
 #trend-side-panel {
-  display: none; width: 176px; flex-shrink: 0; padding: 16px 12px;
+  display: none; flex-shrink: 0; min-width: 180px; padding: 16px 14px;
   overflow-y: auto; overflow-x: hidden;
-  background: var(--card-bg); border-right: 1px solid var(--border);
+  background: var(--card-bg); border: 1px solid var(--border); border-radius: 2px;
 }
 #trend-side-panel.active { display: flex; flex-direction: column; }
 #trend-side-panel .bump-only { display: none; }
 #trend-side-panel.bump-active .bump-only { display: flex; flex-direction: column; }
 #trend-side-panel.bump-active .trend-only { display: none; }
-#trend-year-checks { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; }
+#trend-year-checks { display: grid; grid-template-columns: 1fr; gap: 1px; }
 #trend-main { flex: 1; min-width: 0; }
 #trend-chart { width: 100%; height: 380px; }
 .trend-summary-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
@@ -487,7 +487,7 @@ html, body {
    뷰 컨테이너
 ══════════════════════════════════════════════ */
 #view-container {
-  flex: 1; overflow-y: auto; padding: 20px 24px;
+  flex: 1; overflow-y: auto; padding: 0;
 }
 
 /* ── 카드 — 경계선 중심 */
@@ -703,7 +703,7 @@ html, body {
   #sidebar { display: none; }
   #mobile-nav { display: flex; }
   #filter-bar { padding: 0 14px; }
-  #view-container { padding: 14px; }
+  #content-row { padding: 14px; gap: 10px; }
 }
 
 /* ── 순위보기 2열 레이아웃 ─────────────────────────── */
@@ -748,7 +748,6 @@ html, body {
 /* ── Bump Chart 뷰 ──────────────────────────────────── */
 #view-container:has(#bump-view.visible) {
   overflow: hidden;
-  padding: 0;
 }
 #bump-view {
   display: none;
@@ -757,7 +756,7 @@ html, body {
 }
 #bump-view.visible { display: flex; }
 #bump-chart-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 20px 20px 12px; }
-#bump-univ-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+#bump-univ-tags { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
 #bump-univ-tags .trend-univ-tag.is-ours { border-color: var(--our-color); color: var(--our-color); }
 #bump-chart { flex: 1; min-height: 0; }
 

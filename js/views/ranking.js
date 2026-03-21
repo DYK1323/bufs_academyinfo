@@ -36,9 +36,7 @@ const RankingView = {
     const rank = ourRow._rank ?? (ourIdx + 1);
     const topPct = Utils.calcTopPercent(rank, total);
     const rankVal = rankKey ? ourRow[rankKey] : null;
-    const primaryInd = getPrimaryIndicator(AppState.raw.currentItem);
-    const rankUnit = primaryInd?.unit || '%';
-    const rankDecimals = primaryInd?.decimal_places ?? 1;
+    const { unit: rankUnit, decimal_places: rankDecimals } = getIndicatorMeta(rankKey);
     const rankValFormatted = Utils.formatValue(rankVal, rankUnit, rankDecimals);
     const rankValNum = rankValFormatted !== '-' ? rankValFormatted.replace(rankUnit, '') : '-';
     kpiEl.innerHTML = `
@@ -59,28 +57,16 @@ const RankingView = {
   renderTable(sorted, page) {
     const calcRules = AppState.raw.calcRules;
     const { sortKey, sortDir, rankKey } = AppState.computed;
-    const itemConfig = AppState.raw.currentItem;
-    let columns;
-    if (itemConfig?.columns?.length) {
-      columns = itemConfig.columns;
-    } else {
-      const metaFields = new Set(['기준대학명', '지역', '설립구분', '대학구분', '수도권여부', '기준연도']);
-      const numericFields = Object.keys(sorted[0] || {}).filter(k => !k.startsWith('_') && !metaFields.has(k) && typeof sorted[0][k] === 'number');
-      const ratioKeys = Object.keys(calcRules);
-      const rawFields = numericFields.filter(k => !ratioKeys.includes(k));
-      columns = [
-        ...(rawFields.length ? [{ key: rawFields[0], label: rawFields[0] }] : []),
-        ...(ratioKeys.length ? [{ key: ratioKeys[0], label: calcRules[ratioKeys[0]]?.label || ratioKeys[0] }] : []),
-      ];
-    }
-    const ratioKeySet = new Set(Object.keys(calcRules));
-    const isRatioCol = (key) => ratioKeySet.has(key) && (calcRules[key]?.multiply ?? 1) > 1;
-    const colIndicatorMap = new Map();
-    for (const ind of (itemConfig?.indicators || [])) colIndicatorMap.set(ind.id, ind);
+    const manifestItem = AppState.raw.currentManifestItem;
+    const columns = manifestItem?.columns
+      ? manifestItem.columns.map(c => ({ key: c.key, label: c.label }))
+      : (rankKey ? [{ key: rankKey, label: calcRules[rankKey]?.label || rankKey }] : []);
     const formatCell = (key, val) => {
-      const ind = colIndicatorMap.get(key);
-      if (ind) return Utils.formatValue(val, ind.unit, ind.decimal_places);
-      return isRatioCol(key) ? Utils.formatPercent(val) : Utils.formatNumber(val);
+      const rule = calcRules[key];
+      // calc_rules에 있는 지표는 정의된 단위·소수점, 없으면 raw 정수 컬럼으로 처리
+      const unit = rule?.unit ?? '';
+      const decimal_places = rule?.decimal_places ?? 0;
+      return Utils.formatValue(val, unit, decimal_places);
     };
     const makeSortIcon = (key) => key !== sortKey ? '<span class="sort-icon none"></span>' : `<span class="sort-icon ${sortDir}"></span>`;
     const thead = document.getElementById('ranking-thead');
@@ -162,25 +148,26 @@ const ThreatView = {
   _rankMaps: null,
 
   compute() {
-    const rows = AppState.raw.항목데이터;
+    const cache = AppState.raw.benchmarkCache;
     const rankKey = AppState.computed.rankKey;
-    if (!rows.length || !rankKey) return [];
+    if (!cache?.length || !rankKey) return [];
 
-    const calcRulesForItem = buildCalcRulesForItem(AppState.raw.calcRules, AppState.raw.currentItem);
-    const sortAsc = getPrimaryIndicator(AppState.raw.currentItem)?.sort_asc === true;
+    const sortAsc = AppState.raw.calcRules[rankKey]?.sort_asc === true;
     const currentYear = AppState.filters.연도;
     if (!currentYear) return [];
 
     // 최근 4개년 연도 목록 (내림차순)
-    const allYears = DataService.extractYears(rows).filter(y => y <= currentYear).slice(0, 4);
+    const allYears = [...new Set(cache.filter(r => r[rankKey] != null && r.기준연도 <= currentYear).map(r => r.기준연도))]
+      .sort((a, b) => b - a).slice(0, 4);
     if (allYears.length < 2) return [];
 
     // 연도별 → 필터 조건 적용 → rank 부여
     const rankMaps = new Map();
     const f = AppState.filters;
     for (const year of allYears) {
-      const agg = DataService.aggregateByUniversity(rows, year, calcRulesForItem, AppState._baseUnivMap, null, AppState._univInfoMap);
-      const filteredAgg = agg.filter(r => FilterUtils.matchesFilters(r, f));
+      const yearRows = cache.filter(r => r.기준연도 === year)
+        .map(r => ({ ...r, _isOurs: r.기준대학명 === OUR_UNIV }));
+      const filteredAgg = yearRows.filter(r => FilterUtils.matchesFilters(r, f));
       const sorted = [...filteredAgg].sort((a, b) => {
         const av = a[rankKey] ?? (sortAsc ? Infinity : -Infinity);
         const bv = b[rankKey] ?? (sortAsc ? Infinity : -Infinity);

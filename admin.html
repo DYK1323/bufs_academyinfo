@@ -540,9 +540,8 @@ body { padding-bottom: 60px; }
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
     <div>
       <div style="font-size:15px;font-weight:700;color:#0f172a;">공시항목 관리</div>
-      <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px;">data/manifest.json — 항목별 지표·컬럼·메타데이터 관리</div>
+      <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px;">data/manifest.json — visible 지표별 소스 파일 및 순위 표시 컬럼 설정</div>
     </div>
-    <button class="btn btn-primary" onclick="addManifestItem()">+ 공시항목 추가</button>
   </div>
 
   <div id="manifest-list"></div>
@@ -606,14 +605,13 @@ body { padding-bottom: 60px; }
   <div class="card">
     <div class="card-header">
       <div>
-        <div class="card-title">집계 지표 설정</div>
-        <div class="card-desc">캐시에 포함할 지표를 설정합니다. 각 공시항목 JSON에서 지정된 지표값만 추출합니다.</div>
+        <div class="card-title">집계 지표 목록</div>
+        <div class="card-desc">산식 관리(visible) + 공시항목(소스 파일)에서 자동 구성됩니다. 변경은 해당 탭에서 하세요.</div>
       </div>
-      <button class="btn btn-secondary" onclick="CacheManager.addRow()">+ 지표 추가</button>
     </div>
     <div class="card-body">
       <div id="cache-indicator-list">
-        <div class="cache-empty">지표가 없습니다. [+ 지표 추가] 버튼을 눌러 추가하세요.</div>
+        <div class="cache-empty">산식 관리 탭에서 visible 지표를 먼저 설정하세요.</div>
       </div>
     </div>
   </div>
@@ -1051,6 +1049,41 @@ function buildRuleCard(key, rule) {
   `;
   body.appendChild(nameRow);
 
+  // 표시 설정 행 (visible, unit, decimal_places, sort_asc)
+  const displayRow = document.createElement('div');
+  displayRow.className = 'rule-name-row';
+  displayRow.style.cssText = 'border-top:1px solid #f1f5f9;padding-top:10px;';
+  displayRow.innerHTML = `
+    <div class="form-group" style="flex:0 0 auto;min-width:100px;">
+      <label>드롭다운 표시</label>
+      <label style="display:flex;align-items:center;gap:6px;height:34px;cursor:pointer;">
+        <input type="checkbox" class="rule-field-visible"${rule.visible ? ' checked' : ''} onchange="setDirty()">
+        <span style="font-size:12.5px;">항목 선택에 표시</span>
+      </label>
+    </div>
+    <div class="form-group" style="flex:1;min-width:80px;">
+      <label>단위</label>
+      <input class="form-input rule-field-unit" type="text" value="${esc(rule.unit ?? '%')}" placeholder="예: %, 명, 원">
+    </div>
+    <div class="form-group" style="flex:1;min-width:80px;">
+      <label>소수점 자리</label>
+      <input class="form-input rule-field-decimal" type="number" min="0" max="4" value="${rule.decimal_places ?? 2}" oninput="setDirty()" style="text-align:center;">
+    </div>
+    <div class="form-group" style="flex:2;min-width:140px;">
+      <label>순위 정렬</label>
+      <select class="form-input rule-field-sortasc" onchange="setDirty()">
+        <option value="desc"${rule.sort_asc !== true ? ' selected' : ''}>내림차순 (높을수록 1위)</option>
+        <option value="asc"${rule.sort_asc === true ? ' selected' : ''}>오름차순 (낮을수록 1위)</option>
+      </select>
+    </div>
+    <div class="form-group" style="flex:0 0 90px;">
+      <label>연도 오프셋</label>
+      <input class="form-input rule-field-yearoffset" type="number" min="-3" max="3" value="${rule.year_offset ?? 0}"
+        oninput="setDirty()" title="공시연도→분석연도 변환. 예: 중도탈락(전년도 기준)이면 +1">
+    </div>
+  `;
+  body.appendChild(displayRow);
+
   // 산식 빌더 (좌: 팔레트 / 우: 빌더)
   const split = document.createElement('div');
   split.className = 'formula-split';
@@ -1374,9 +1407,10 @@ function toggleCard(header) {
 
 function applyRule(btn) {
   const card = btn.closest('.rule-card');
-  const oldKey = card.querySelector('.rule-field-key').value.trim();
-  const newKey = oldKey;
-  const label  = card.querySelector('.rule-field-label').value.trim();
+  const prevKey = card.dataset.key;                                  // 원래 키
+  const newKey  = card.querySelector('.rule-field-key').value.trim(); // 새 키
+  const oldKey  = newKey;  // 하위 로직 호환용
+  const label   = card.querySelector('.rule-field-label').value.trim();
 
   if (!newKey) { alert('지표 필드명을 입력하세요.'); return; }
 
@@ -1416,14 +1450,34 @@ function applyRule(btn) {
     if (denExcl.length) rule.denominator_exclude = denExcl;
   }
 
-  const prevKey = card.dataset.key;
+  // 표시 설정 수집
+  const visible = card.querySelector('.rule-field-visible')?.checked ?? false;
+  const unit = card.querySelector('.rule-field-unit')?.value.trim() ?? '%';
+  const decimalPlaces = parseInt(card.querySelector('.rule-field-decimal')?.value, 10);
+  const sortAsc = card.querySelector('.rule-field-sortasc')?.value === 'asc';
+  const yearOffset = parseInt(card.querySelector('.rule-field-yearoffset')?.value, 10) || 0;
+  if (visible) rule.visible = true; else delete rule.visible;
+  rule.unit = unit;
+  rule.decimal_places = isNaN(decimalPlaces) ? 2 : decimalPlaces;
+  rule.sort_asc = sortAsc;
+  if (yearOffset !== 0) rule.year_offset = yearOffset; else delete rule.year_offset;
+
+  // used_in 보존
+  const existingUsedIn = calcData[prevKey]?.used_in;
+  if (existingUsedIn) rule.used_in = existingUsedIn;
+
   if (prevKey !== newKey) {
+    // calcData 키 변경
     const entries = Object.entries(calcData);
     const idx = entries.findIndex(([k]) => k === prevKey);
     entries[idx] = [newKey, rule];
     calcData = Object.fromEntries(entries);
     card.dataset.key = newKey;
     card.querySelector('.rule-key').textContent = newKey;
+    // manifest indicator 전파
+    for (const m of manifestData) {
+      if (m.indicator === prevKey) m.indicator = newKey;
+    }
   } else {
     calcData[newKey] = rule;
   }
@@ -1554,128 +1608,60 @@ function buildFieldSelect(currentVal) {
   return `<select class="cell-input col-key" onchange="setDirty()">${emptyOpt}${unknownOpt}${rawOptgroups}${calcOptgroup}</select>`;
 }
 
+/* ──────────────────────────────────────────
+   공시항목 탭 — indicator-keyed manifest
+   manifest 구조: [{ indicator, source, columns }]
+   indicator: calc_rules key (visible 지표만)
+   source: per-item JSON 파일명 (data/*.json)
+   columns: [{ key, label }] 순위 표시 컬럼
+────────────────────────────────────────── */
+
 function renderManifest(items) {
   manifestData = JSON.parse(JSON.stringify(items));
   const container = document.getElementById('manifest-list');
   container.innerHTML = '';
-  for (let i = 0; i < items.length; i++) {
-    container.appendChild(buildManifestCard(items[i], i));
+  // calc_rules의 visible 지표 목록 기준으로 카드 생성
+  const visibleIndicators = Object.entries(calcData).filter(([, r]) => r.visible);
+  if (!visibleIndicators.length) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:16px;">산식 관리 탭에서 visible 지표를 먼저 추가하세요.</div>';
+    return;
   }
+  visibleIndicators.forEach(([indicatorKey, rule], i) => {
+    const existing = manifestData.find(m => m.indicator === indicatorKey) || { indicator: indicatorKey, source: '', columns: [] };
+    // manifestData에 없으면 추가
+    if (!manifestData.find(m => m.indicator === indicatorKey)) manifestData.push(existing);
+    container.appendChild(buildManifestCard(existing, indicatorKey, rule.label || indicatorKey));
+  });
 }
 
-/* 지표 ID 선택 드롭다운 (calc_rules 키 목록) */
-function buildCalcKeySelect(currentVal) {
-  const calcKeys = Object.keys(calcData);
-  const opts = calcKeys.map(k => {
-    const lbl = calcData[k]?.label ? ` — ${calcData[k].label}` : '';
-    return `<option value="${esc(k)}"${k === currentVal ? ' selected' : ''}>${esc(k)}${esc(lbl)}</option>`;
-  }).join('');
-  return `<select class="form-input ind-id" onchange="setDirty()">
-    <option value=""${!currentVal ? ' selected' : ''}>— 지표 ID 선택 —</option>
-    ${opts}
-  </select>`;
-}
-
-/* 단일 지표 편집기 행 HTML 생성 */
-function buildIndicatorRowHTML(ind, idx) {
-  const units = ['%', '명', '원', '만원', '개'];
-  const unitOpts = units.map(u => `<option value="${u}"${(ind.unit||'%')===u?' selected':''}>${u}</option>`).join('');
-  const exclStr = ind.exclude_rows ? JSON.stringify(ind.exclude_rows) : '';
-  const srcStr = (ind.sources || []).join(', ');
-  return `
-  <div class="indicator-row" style="border:1px solid #e2e8f0;border-radius:6px;padding:10px;margin-bottom:8px;background:#f8fafc;">
-    <div style="display:flex;gap:8px;margin-bottom:6px;align-items:flex-end;flex-wrap:wrap;">
-      <div style="flex:3;min-width:160px;">
-        <div style="font-size:10px;font-weight:600;color:#64748b;margin-bottom:3px;">지표 ID (calc_rules 키)</div>
-        ${buildCalcKeySelect(ind.id||'')}
-      </div>
-      <div style="flex:2;min-width:120px;">
-        <div style="font-size:10px;font-weight:600;color:#64748b;margin-bottom:3px;">표시명</div>
-        <input class="form-input ind-label" type="text" value="${esc(ind.label||'')}" oninput="setDirty()">
-      </div>
-      <div style="flex:1;min-width:70px;">
-        <div style="font-size:10px;font-weight:600;color:#64748b;margin-bottom:3px;">단위</div>
-        <select class="form-input ind-unit" onchange="setDirty()">${unitOpts}</select>
-      </div>
-      <div style="flex:1;min-width:60px;">
-        <div style="font-size:10px;font-weight:600;color:#64748b;margin-bottom:3px;">소수점</div>
-        <input class="form-input ind-decimal" type="number" min="0" max="4" value="${ind.decimal_places??1}" oninput="setDirty()" style="text-align:center;">
-      </div>
-      <div style="flex:2;min-width:120px;">
-        <div style="font-size:10px;font-weight:600;color:#64748b;margin-bottom:3px;">정렬</div>
-        <select class="form-input ind-sortasc" onchange="setDirty()">
-          <option value="desc"${!ind.sort_asc?' selected':''}>내림차순 (높을수록 1위)</option>
-          <option value="asc"${ind.sort_asc?' selected':''}>오름차순 (낮을수록 1위)</option>
-        </select>
-      </div>
-      <div style="min-width:60px;text-align:center;">
-        <div style="font-size:10px;font-weight:600;color:#64748b;margin-bottom:3px;">대표</div>
-        <input type="radio" class="ind-primary" name="primary-${idx}" ${ind.is_primary?'checked':''} onchange="setDirty()" style="width:18px;height:18px;cursor:pointer;" title="대표 지표 (순위 기준)">
-      </div>
-      <div style="align-self:flex-end;">
-        <button class="btn btn-danger btn-sm" onclick="deleteIndicatorRow(this)" title="지표 삭제">−</button>
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <div style="flex:3;min-width:200px;">
-        <div style="font-size:10px;font-weight:600;color:#64748b;margin-bottom:3px;">소스 파일 (콤마로 구분, 복수 가능)</div>
-        <input class="form-input ind-sources" type="text" value="${esc(srcStr)}" placeholder="공시항목 JSON 파일명" oninput="setDirty()">
-      </div>
-      <div style="flex:2;min-width:160px;">
-        <div style="font-size:10px;font-weight:600;color:#64748b;margin-bottom:3px;">행 제외 (exclude_rows, JSON)</div>
-        <input class="form-input ind-excl" type="text" value="${esc(exclStr)}" placeholder='예: {"계열":["의학계열"]}' oninput="setDirty()">
-      </div>
-    </div>
-  </div>`;
-}
-
-function buildManifestCard(item, idx) {
+function buildManifestCard(item, indicatorKey, indicatorLabel) {
   const card = document.createElement('div');
   card.className = 'manifest-card';
-  card.dataset.idx = idx;
+  card.dataset.indicator = indicatorKey;
 
   const cols = item.columns || [];
-  const indicators = item.indicators || [];
-  const indCount = indicators.length;
+  const isConfigured = !!item.source;
 
   card.innerHTML = `
     <div class="manifest-card-header" onclick="toggleCard(this)">
       <div style="flex:1;min-width:0;">
-        <div class="manifest-label">${esc(item.label||item.key||'')}</div>
-        <div class="manifest-key">${esc(item.key||'')}</div>
+        <div class="manifest-label">${esc(indicatorLabel)}</div>
+        <div class="manifest-key">${esc(indicatorKey)}</div>
       </div>
-      <span style="font-size:12px;color:var(--text-muted);">지표 ${indCount}개 · 컬럼 ${cols.length}개</span>
-      <button class="btn btn-danger btn-sm" onclick="deleteManifestCard(this)" style="margin-left:8px;" title="항목 삭제">삭제</button>
+      <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${isConfigured?'#dcfce7':'#f1f5f9'};color:${isConfigured?'#15803d':'#94a3b8'};">
+        ${isConfigured ? '설정됨 · 컬럼 '+cols.length+'개' : '미설정'}
+      </span>
       <span style="font-size:12px;color:var(--text-muted);margin-left:8px;">▾</span>
     </div>
     <div class="manifest-card-body">
-
-      <!-- Section A: 기본 정보 -->
-      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">기본 정보</div>
-      <div class="form-row" style="margin-bottom:12px;">
-        <div class="form-group" style="flex:2;">
-          <label>표시명 (label)</label>
-          <input class="form-input mf-label" type="text" value="${esc(item.label||'')}" oninput="setDirty()">
-        </div>
-        <div class="form-group" style="flex:2;">
-          <label>공시시기</label>
-          <input class="form-input mf-disclosure-period" type="text" value="${esc(item.disclosure_period||'')}" placeholder="예: 매년 4월" oninput="setDirty()">
-        </div>
-        <div class="form-group" style="flex:3;">
-          <label>자료기준일</label>
-          <input class="form-input mf-reference-period" type="text" value="${esc(item.reference_period||'')}" placeholder="예: 당해연도 4월 1일 기준" oninput="setDirty()">
-        </div>
+      <!-- 소스 파일 -->
+      <div class="form-group" style="margin-bottom:12px;">
+        <label>소스 파일 (data/*.json 파일명)</label>
+        <input class="form-input mf-source" type="text" value="${esc(item.source||'')}"
+          placeholder="예: 대학_4-다. 신입생 충원 현황_학과별자료" oninput="setDirty()">
       </div>
-
-      <!-- Section B: 지표 목록 -->
-      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">지표 목록 <span style="font-weight:400;font-size:10px;">(대표 지표가 순위 기준)</span></div>
-      <div class="ind-list">
-        ${indicators.map(ind => buildIndicatorRowHTML(ind, idx)).join('')}
-      </div>
-      <button class="btn btn-secondary btn-sm" onclick="addIndicatorRow(this)" style="margin-bottom:16px;">+ 지표 추가</button>
-
-      <!-- Section C: 표시 컬럼 -->
-      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">표시 컬럼</div>
+      <!-- 표시 컬럼 -->
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">순위 표시 컬럼</div>
       <div class="table-wrap">
         <table class="col-table">
           <thead><tr><th>필드명 (key)</th><th>표시명 (label)</th><th></th></tr></thead>
@@ -1699,21 +1685,6 @@ function buildManifestCard(item, idx) {
   return card;
 }
 
-function addIndicatorRow(btn) {
-  const card = btn.closest('.manifest-card');
-  const idx = +card.dataset.idx;
-  const indList = card.querySelector('.ind-list');
-  const div = document.createElement('div');
-  div.innerHTML = buildIndicatorRowHTML({ id:'', label:'', unit:'%', decimal_places:1, sort_asc:false, is_primary:false, sources:[], exclude_rows:null }, idx);
-  indList.appendChild(div.firstElementChild);
-  setDirty();
-}
-
-function deleteIndicatorRow(btn) {
-  btn.closest('.indicator-row').remove();
-  setDirty();
-}
-
 function addColRow(btn) {
   const tbody = btn.closest('.manifest-card-body').querySelector('.col-tbody');
   const tr = document.createElement('tr');
@@ -1731,70 +1702,12 @@ function deleteColRow(btn) {
   btn.closest('tr').remove(); setDirty();
 }
 
-function deleteManifestCard(btn) {
-  const card = btn.closest('.manifest-card');
-  const idx = +card.dataset.idx;
-  const label = manifestData[idx]?.label || manifestData[idx]?.key || `항목 ${idx}`;
-  if (!confirm(`"${label}" 공시항목을 삭제할까요?`)) return;
-  manifestData.splice(idx, 1);
-  // 인덱스 재할당
-  card.parentElement.removeChild(card);
-  document.querySelectorAll('.manifest-card').forEach((c, i) => { c.dataset.idx = i; });
-  setDirty();
-}
-
-function addManifestItem() {
-  const newItem = { key: '', label: '', disclosure_period: '', reference_period: '', description: '', indicators: [], columns: [] };
-  manifestData.push(newItem);
-  const container = document.getElementById('manifest-list');
-  const newCard = buildManifestCard(newItem, manifestData.length - 1);
-  container.appendChild(newCard);
-  // 카드 열기
-  newCard.querySelector('.manifest-card-body').style.display = '';
-  newCard.querySelector('input.mf-label').focus();
-  setDirty();
-}
-
 function applyManifestCard(btn) {
   const card = btn.closest('.manifest-card');
-  const idx  = +card.dataset.idx;
-  const item = manifestData[idx];
+  const indicatorKey = card.dataset.indicator;
   const msgEl = card.querySelector('.mf-apply-msg');
 
-  const label = card.querySelector('.mf-label').value.trim();
-  const disclosurePeriod = card.querySelector('.mf-disclosure-period').value.trim();
-  const referencePeriod = card.querySelector('.mf-reference-period').value.trim();
-
-  // 지표 목록 수집
-  const indicators = [];
-  const radioName = `primary-${idx}`;
-  card.querySelectorAll('.indicator-row').forEach(row => {
-    const id = row.querySelector('.ind-id').value.trim();
-    if (!id) return;
-    const exclStr = row.querySelector('.ind-excl').value.trim();
-    let exclude_rows = undefined;
-    if (exclStr) {
-      try { exclude_rows = JSON.parse(exclStr); }
-      catch { alert(`지표 "${id}"의 exclude_rows JSON 오류:\n${exclStr}`); return; }
-    }
-    const sourcesRaw = row.querySelector('.ind-sources').value.trim();
-    const sources = sourcesRaw ? sourcesRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
-    const ind = {
-      id,
-      label: row.querySelector('.ind-label').value.trim(),
-      unit: row.querySelector('.ind-unit').value,
-      decimal_places: parseInt(row.querySelector('.ind-decimal').value, 10) || 1,
-      sort_asc: row.querySelector('.ind-sortasc').value === 'asc',
-      is_primary: row.querySelector('.ind-primary').checked,
-      sources: sources.length ? sources : [item.key || ''],
-    };
-    if (exclude_rows) ind.exclude_rows = exclude_rows;
-    indicators.push(ind);
-  });
-  // 대표 지표가 없으면 첫 번째를 대표로
-  if (indicators.length && !indicators.some(i => i.is_primary)) indicators[0].is_primary = true;
-
-  // 표시 컬럼 수집
+  const source = card.querySelector('.mf-source').value.trim();
   const cols = [];
   card.querySelectorAll('.col-tbody tr').forEach(tr => {
     const k = tr.querySelector('.col-key').value.trim();
@@ -1802,31 +1715,25 @@ function applyManifestCard(btn) {
     if (k) cols.push({ key: k, label: l });
   });
 
-  const result = { ...item, label, disclosure_period: disclosurePeriod, reference_period: referencePeriod, indicators, columns: cols };
-  // 구버전 필드 제거
-  delete result.sort_key;
-  delete result.sort_asc;
-  delete result.exclude_rows;
+  const idx = manifestData.findIndex(m => m.indicator === indicatorKey);
+  const updated = { indicator: indicatorKey, source, columns: cols };
+  if (idx >= 0) manifestData[idx] = updated;
+  else manifestData.push(updated);
 
-  manifestData[idx] = result;
+  // 헤더 배지 업데이트
+  const badge = card.querySelector('.manifest-card-header span:nth-child(2)');
+  if (badge) {
+    badge.style.background = source ? '#dcfce7' : '#f1f5f9';
+    badge.style.color = source ? '#15803d' : '#94a3b8';
+    badge.textContent = source ? `설정됨 · 컬럼 ${cols.length}개` : '미설정';
+  }
+
   msgEl.textContent = '적용됨 ✓';
   setTimeout(() => { msgEl.textContent = ''; }, 2000);
   setDirty();
 }
 
 function collectManifest() {
-  // used_in 자동 재계산: 각 지표 ID가 어느 manifest 항목에 쓰이는지 calcData에 반영
-  const usedIn = {};
-  for (const item of manifestData) {
-    for (const ind of (item.indicators || [])) {
-      if (!ind.id) continue;
-      if (!usedIn[ind.id]) usedIn[ind.id] = [];
-      if (!usedIn[ind.id].includes(item.key)) usedIn[ind.id].push(item.key);
-    }
-  }
-  for (const key of Object.keys(calcData)) {
-    calcData[key] = { ...calcData[key], used_in: usedIn[key] || [] };
-  }
   return manifestData;
 }
 
@@ -1850,7 +1757,9 @@ const DataViewer = {
       document.getElementById('dv-body').innerHTML = '<div class="dv-empty">먼저 GitHub에 연결하세요.</div>';
       return;
     }
-    this._items = manifest.map(m => ({ key: m.key, label: m.label }));
+    this._items = manifest
+      .filter(m => m.source)
+      .map(m => ({ key: m.source, label: State.original.calcRules?.[m.indicator]?.label || m.indicator }));
     this._buildDropdown('');
   },
 
@@ -1989,25 +1898,29 @@ const DataViewer = {
    캐시 관리
 ══════════════════════════════════════════ */
 const CacheManager = {
-  _config: { indicators: [] },
+  /** calc_rules(visible) + manifest(source, year_offset)로 집계 대상 자동 구성 */
+  _getConfig() {
+    const calcRules = State.original.calc || {};
+    const manifest  = State.original.manifest || [];
+    return Object.entries(calcRules)
+      .filter(([, r]) => r.visible)
+      .map(([key, rule]) => {
+        const mItem = manifest.find(m => m.indicator === key) || {};
+        return {
+          indicator:   key,
+          label:       rule.label || key,
+          source:      mItem.source || '',
+          year_offset: rule.year_offset ?? 0,
+        };
+      });
+  },
 
   async init() {
-    this._manifest = State.original.manifest || [];
-
-    try {
-      const res = await GH.getFile('data/benchmark_config.json');
-      this._config = res.content;
-    } catch {
-      this._config = { indicators: [] };
-    }
-
     // 현재 캐시 메타 로드
     try {
       const res = await GH.getFile('data/benchmark_cache.json');
-      const cache = res.content;
-      if (Array.isArray(cache) && cache.length) this._updateStatusCard(cache);
+      if (Array.isArray(res.content) && res.content.length) this._updateStatusCard(res.content);
     } catch {}
-
     this._renderList();
   },
 
@@ -2021,149 +1934,36 @@ const CacheManager = {
     document.getElementById('cache-status-card').style.display = '';
   },
 
-  get _calcKeys() {
-    return Object.keys(State.original.calc || {}).filter(k => !State.original.calc[k].rolling_avg).sort();
-  },
-
-  _indicatorKeysForManifest(manifestKey) {
-    if (!manifestKey) return this._calcKeys;
-    const item = (this._manifest || []).find(m => m.key === manifestKey);
-    if (!item?.indicators?.length) return this._calcKeys;
-    return item.indicators.map(i => i.id).filter(id => id && (State.original.calc || {})[id] && !State.original.calc[id].rolling_avg);
-  },
-
   _renderList() {
+    const config = this._getConfig();
     const container = document.getElementById('cache-indicator-list');
-    if (!this._config.indicators.length) {
-      container.innerHTML = '<div class="cache-empty">지표가 없습니다. [+ 지표 추가] 버튼을 눌러 추가하세요.</div>';
+    if (!config.length) {
+      container.innerHTML = '<div class="cache-empty">산식 관리 탭에서 visible 지표를 먼저 설정하세요.</div>';
       return;
     }
-
-    const manifestOptions = (this._manifest || []).map(m =>
-      `<option value="${esc(m.key)}">${esc(m.key)}</option>`
-    ).join('');
-
-    container.innerHTML = this._config.indicators.map((ind, i) => {
-      const selectedIds = ind.indicator_ids || [];
-      const calcKeys = this._indicatorKeysForManifest(ind.manifest_key);
-      const chipsHtml = selectedIds.length
-        ? selectedIds.map(id => `<span class="cm-ms-chip">${esc(id)}</span>`).join('')
-        : `<span class="cm-ms-placeholder">지표 선택…</span>`;
-      const checkboxes = calcKeys.map(key => `
-        <label class="cm-ms-item">
-          <input type="checkbox" value="${esc(key)}" ${selectedIds.includes(key) ? 'checked' : ''}
-            onchange="CacheManager._toggleId(${i}, '${esc(key)}', this.checked)">
-          ${esc(key)}
-        </label>`).join('');
-      return `
-      <div class="cache-row" data-idx="${i}">
-        <div style="flex:1.2;min-width:0;">
-          <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">공시항목 (JSON 파일키)</div>
-          <select class="form-input" style="width:100%;font-size:12.5px;" onchange="CacheManager._onKeyChange(${i}, this.value)">
-            <option value="">항목 선택…</option>
-            ${manifestOptions}
-          </select>
-        </div>
-        <div style="flex:1.8;min-width:0;">
-          <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">지표 선택 (calc_rules 기준)</div>
-          <div class="cm-ms" id="cm-ms-${i}">
-            <div class="cm-ms-trigger" onclick="CacheManager._toggleDropdown(${i})">
-              <div class="cm-ms-chips" id="cm-ms-chips-${i}">${chipsHtml}</div>
-              <span class="cm-ms-arrow">▾</span>
-            </div>
-            <div class="cm-ms-dropdown" id="cm-ms-dd-${i}">${checkboxes || '<div style="padding:8px 12px;color:var(--text-muted);font-size:12px;">calc_rules에 지표가 없습니다</div>'}</div>
-          </div>
-        </div>
-        <div style="flex:0 0 80px;">
-          <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">연도 오프셋</div>
-          <input type="number" class="form-input cm-year-offset" style="width:100%;font-size:12.5px;" value="${ind.year_offset || 0}" min="-3" max="3" step="1"
-            title="기준연도와 공시연도 차이. 예: 중도탈락률은 전년도 기준이므로 +1"
-            onchange="CacheManager._onOffsetChange(${i}, this.value)">
-        </div>
-        <button class="btn btn-danger btn-sm" style="margin-top:18px;flex-shrink:0;" onclick="CacheManager.removeRow(${i})">삭제</button>
-      </div>`;
-    }).join('');
-
-    // select 값 복원
-    this._config.indicators.forEach((ind, i) => {
-      const row = container.querySelector(`[data-idx="${i}"]`);
-      if (row) { const sel = row.querySelector('select'); if (sel) sel.value = ind.manifest_key || ''; }
-    });
-  },
-
-  _onOffsetChange(idx, val) {
-    const n = parseInt(val, 10);
-    this._config.indicators[idx].year_offset = isNaN(n) ? 0 : n;
-  },
-
-  _onKeyChange(idx, val) {
-    this._config.indicators[idx].manifest_key = val;
-    this._config.indicators[idx].indicator_ids = [];  // 항목 바뀌면 지표 초기화
-    // 드롭다운 체크박스 재렌더링
-    const dd = document.getElementById(`cm-ms-dd-${idx}`);
-    if (dd) {
-      const calcKeys = this._indicatorKeysForManifest(val);
-      dd.innerHTML = calcKeys.length
-        ? calcKeys.map(key => `
-          <label class="cm-ms-item">
-            <input type="checkbox" value="${esc(key)}"
-              onchange="CacheManager._toggleId(${idx}, '${esc(key)}', this.checked)">
-            ${esc(key)}
-          </label>`).join('')
-        : '<div style="padding:8px 12px;color:var(--text-muted);font-size:12px;">해당 항목에 지표가 없습니다</div>';
-    }
-    this._updateChips(idx);
-  },
-
-  _toggleDropdown(idx) {
-    const dd = document.getElementById(`cm-ms-dd-${idx}`);
-    if (!dd) return;
-    const isOpen = dd.classList.contains('open');
-    this._closeAllDropdowns();
-    if (isOpen) return;
-    const trigger = document.querySelector(`#cm-ms-${idx} .cm-ms-trigger`);
-    if (trigger) {
-      const r = trigger.getBoundingClientRect();
-      dd.style.top  = (r.bottom + 3) + 'px';
-      dd.style.left = r.left + 'px';
-      dd.style.width = r.width + 'px';
-    }
-    dd.classList.add('open');
-  },
-
-  _closeAllDropdowns(exceptIdx = -1) {
-    document.querySelectorAll('.cm-ms-dropdown.open').forEach(dd => {
-      const i = parseInt(dd.id.replace('cm-ms-dd-', ''), 10);
-      if (i !== exceptIdx) dd.classList.remove('open');
-    });
-  },
-
-  _toggleId(idx, id, checked) {
-    const ind = this._config.indicators[idx];
-    if (!ind) return;
-    const ids = ind.indicator_ids || [];
-    if (checked) { if (!ids.includes(id)) ids.push(id); }
-    else { ind.indicator_ids = ids.filter(v => v !== id); this._updateChips(idx); return; }
-    ind.indicator_ids = ids;
-    this._updateChips(idx);
-  },
-
-  _updateChips(idx) {
-    const el = document.getElementById(`cm-ms-chips-${idx}`);
-    if (!el) return;
-    const ids = this._config.indicators[idx]?.indicator_ids || [];
-    el.innerHTML = ids.length
-      ? ids.map(id => `<span class="cm-ms-chip">${esc(id)}</span>`).join('')
-      : `<span class="cm-ms-placeholder">지표 선택…</span>`;
-  },
-
-  addRow() {
-    this._config.indicators.push({ manifest_key: '', indicator_ids: [] });
-    this._renderList();
-  },
-  removeRow(idx) {
-    this._config.indicators.splice(idx, 1);
-    this._renderList();
+    container.innerHTML = `
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead><tr style="border-bottom:2px solid var(--border);">
+          <th style="padding:6px 8px;text-align:left;color:var(--text-muted);font-weight:600;width:30%;">지표</th>
+          <th style="padding:6px 8px;text-align:left;color:var(--text-muted);font-weight:600;">소스 파일</th>
+          <th style="padding:6px 8px;text-align:center;color:var(--text-muted);font-weight:600;width:90px;">연도 오프셋</th>
+        </tr></thead>
+        <tbody>${config.map(item => `
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:8px;">
+              <div style="font-weight:600;">${esc(item.label)}</div>
+              <div style="font-size:11px;color:var(--text-muted);">${esc(item.indicator)}</div>
+            </td>
+            <td style="padding:8px;${item.source ? '' : 'color:#ef4444;'}">
+              ${item.source ? esc(item.source) : '⚠️ 미설정 — 공시항목 탭에서 설정'}
+            </td>
+            <td style="padding:8px;text-align:center;">
+              <span style="color:var(--text-muted);">${item.year_offset > 0 ? '+' : ''}${item.year_offset}</span>
+              <div style="font-size:10px;color:var(--text-muted);">(산식 관리에서 변경)</div>
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
   },
 
   _log(msg) {
@@ -2174,15 +1974,9 @@ const CacheManager = {
   async generate() {
     if (!State.connected) { alert('먼저 GitHub에 연결하세요.'); return; }
 
-    // UI에서 manifest_key 수집 (indicator_ids는 _toggleId로 이미 동기화됨)
-    const container = document.getElementById('cache-indicator-list');
-    container.querySelectorAll('.cache-row').forEach((row, i) => {
-      const sel = row.querySelector('select');
-      if (sel && this._config.indicators[i]) this._config.indicators[i].manifest_key = sel.value;
-    });
-
-    const valid = this._config.indicators.filter(i => i.manifest_key && i.indicator_ids.length);
-    if (!valid.length) { alert('집계할 지표를 1개 이상 설정하세요. (항목 선택 + 지표 ID 입력 필요)'); return; }
+    const config = this._getConfig();
+    const valid = config.filter(c => c.source);
+    if (!valid.length) { alert('공시항목 탭에서 소스 파일을 먼저 설정하세요.'); return; }
 
     const btn = document.getElementById('btn-cache-generate');
     btn.disabled = true;
@@ -2194,30 +1988,30 @@ const CacheManager = {
     hideBanner('banner-cache');
 
     try {
-      // 1. benchmark_config.json 저장
-      this._log('📝 benchmark_config.json 저장 중…');
-      let configSha = null;
-      try { configSha = (await GH.getFile('data/benchmark_config.json')).sha; } catch {}
-      await GH.putFile('data/benchmark_config.json', this._config, configSha, '캐시 설정 업데이트');
-      this._log('✅ benchmark_config.json 저장 완료');
-
-      // 2. 기준대학 맵 구성
+      // 1. 기준대학 맵
       const baseUnivMap = new Map();
       for (const row of (State.original.기준대학 || [])) {
         if (row['대학명']) baseUnivMap.set(row['대학명'], row);
       }
 
-      // 3. calc_rules
+      // 2. calc_rules
       const calcRules = State.original.calc || {};
 
-      // 4. 각 항목 fetch → 집계 → 머지
+      // 3. 소스 파일별로 그룹화 (같은 파일은 한 번만 fetch)
+      const bySource = new Map();
+      for (const item of valid) {
+        if (!bySource.has(item.source)) bySource.set(item.source, []);
+        bySource.get(item.source).push(item);
+      }
+
+      // 4. 각 소스 파일 fetch → 집계 → 지표별 머지
       const mergedMap = new Map(); // `${기준대학명}__${기준연도}` → object
 
-      for (const ind of valid) {
-        this._log(`\n📥 ${ind.manifest_key} 로드 중…`);
+      for (const [source, items] of bySource) {
+        this._log(`\n📥 ${source} 로드 중…`);
         let rows;
         try {
-          rows = await DataViewer._fetchLarge(`data/${ind.manifest_key}.json`);
+          rows = await DataViewer._fetchLarge(`data/${encodeURIComponent(source)}.json`);
           if (!Array.isArray(rows)) throw new Error('배열 형식이 아닙니다');
         } catch (e) {
           this._log(`  ⚠️ 로드 실패: ${e.message}`);
@@ -2229,25 +2023,26 @@ const CacheManager = {
         const years = [...new Set(rows.map(getYear).filter(y => !isNaN(y)))].sort();
         this._log(`  → 연도: ${years.join(', ')}`);
 
-        const offset = ind.year_offset || 0;
-        for (const year of years) {
-          const mappedYear = year + offset;  // 오프셋 적용: 예) 중도탈락 2024년 → 2025년 버킷
-          const agg = this._aggregate(rows, year, calcRules, baseUnivMap);
-          for (const row of agg) {
-            const mapKey = `${row.기준대학명}__${mappedYear}`;
-            if (!mergedMap.has(mapKey)) {
-              mergedMap.set(mapKey, {
-                기준대학명: row.기준대학명, 기준연도: mappedYear,
-                지역: row.지역, 설립구분: row.설립구분,
-                대학구분: row.대학구분, 수도권여부: row.수도권여부,
-              });
+        const agg = this._aggregateAllYears(rows, years, calcRules, baseUnivMap);
+
+        for (const item of items) {
+          const offset = item.year_offset || 0;
+          for (const [year, aggRows] of agg) {
+            const mappedYear = year + offset;
+            for (const row of aggRows) {
+              const mapKey = `${row.기준대학명}__${mappedYear}`;
+              if (!mergedMap.has(mapKey)) {
+                mergedMap.set(mapKey, {
+                  기준대학명: row.기준대학명, 기준연도: mappedYear,
+                  지역: row.지역, 설립구분: row.설립구분,
+                  대학구분: row.대학구분, 수도권여부: row.수도권여부,
+                });
+              }
+              const target = mergedMap.get(mapKey);
+              if (row[item.indicator] !== undefined) target[item.indicator] = row[item.indicator];
             }
-            const target = mergedMap.get(mapKey);
-            for (const id of ind.indicator_ids) {
-              if (row[id] !== undefined) target[id] = row[id];
-            }
+            this._log(`  [${item.indicator}] ${year}년 → ${mappedYear}년 버킷`);
           }
-          this._log(`  → ${year}년 (→ ${mappedYear}년 버킷): ${agg.length}개교 집계`);
         }
       }
 
@@ -2379,6 +2174,15 @@ const CacheManager = {
     }
     return result;
   },
+
+  /** 전체 연도별 집계 — Map<year, aggRows[]> 반환 */
+  _aggregateAllYears(rows, years, calcRules, baseUnivMap) {
+    const result = new Map();
+    for (const year of years) {
+      result.set(year, this._aggregate(rows, year, calcRules, baseUnivMap));
+    }
+    return result;
+  },
 };
 
 /* ══════════════════════════════════════════
@@ -2394,11 +2198,6 @@ function esc(s) {
   if (savedRepo) document.getElementById('gh-repo-input').value = savedRepo;
 })();
 
-// 캐시 멀티셀렉트 외부 클릭 / 스크롤 시 드롭다운 닫기
-document.addEventListener('click', e => {
-  if (!e.target.closest('.cm-ms') && !e.target.closest('.cm-ms-dropdown')) CacheManager._closeAllDropdowns();
-});
-window.addEventListener('scroll', () => CacheManager._closeAllDropdowns(), true);
 </script>
 </body>
 </html>

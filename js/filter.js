@@ -28,13 +28,13 @@ const FilterManager = {
       }
     });
   },
-  renderItemSelect(manifest) {
+  renderItemSelect(calcRules) {
     const sel = document.getElementById('filter-item');
     sel.innerHTML = '<option value="">지표 선택</option>';
-    if (!manifest.length) { sel.innerHTML += '<option value="" disabled>등록된 항목이 없습니다</option>'; return; }
-    for (const item of manifest) {
-      const key = item?.key ?? item; const label = item?.label || key;
-      const opt = document.createElement('option'); opt.value = key; opt.textContent = label;
+    const visible = Object.entries(calcRules).filter(([, r]) => r.visible);
+    if (!visible.length) { sel.innerHTML += '<option value="" disabled>등록된 항목이 없습니다</option>'; return; }
+    for (const [key, rule] of visible) {
+      const opt = document.createElement('option'); opt.value = key; opt.textContent = rule.label || key;
       sel.appendChild(opt);
     }
   },
@@ -59,9 +59,8 @@ const FilterManager = {
     document.querySelectorAll('#region-group .seg-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.val === val));
     this._triggerRender();
   },
-  async onItemChange(itemKey) {
-    AppState.filters.항목키 = itemKey;
-    AppState.raw.currentItem = AppState.raw.manifest.find(m => (m?.key ?? m) === itemKey) || null;
+  async onItemChange(indicatorKey) {
+    AppState.filters.항목키 = indicatorKey;
     AppState.trend.allYears = null;
     AppState.trend.selectedYears.clear();
     AppState.bump.userAdded = [];
@@ -70,28 +69,45 @@ const FilterManager = {
     AppState.trend.yMin = null; AppState.trend.yMax = null;
     document.getElementById('trend-ymin').value = '';
     document.getElementById('trend-ymax').value = '';
-    if (!itemKey) { Utils.showEmptyState('no-item'); return; }
-    Utils.showLoading();
-    document.getElementById('table-card').style.display = 'none';
-    const rows = await DataService.fetchItemData(AppState.raw.currentItem || itemKey);
-    AppState.raw.항목데이터 = rows || [];
-    if (!rows) { Utils.showEmptyState('fetch-error'); return; }
-    if (!rows.length) { Utils.showEmptyState('no-data'); return; }
-    const years = DataService.extractYears(rows);
+    if (!indicatorKey) { Utils.showEmptyState('no-item'); return; }
+    const cache = AppState.raw.benchmarkCache;
+    if (!cache?.length) { Utils.showEmptyState('fetch-error'); return; }
+    const years = [...new Set(cache.filter(r => r[indicatorKey] != null).map(r => r.기준연도))]
+      .sort((a, b) => b - a);
+    if (!years.length) { Utils.showEmptyState('no-data'); return; }
     this.renderYearSelect(years);
+    // manifest에서 이 지표에 해당하는 항목 찾아 per-item JSON 로드
+    const manifestItem = AppState.raw.manifest.find(m => m.indicator === indicatorKey) || null;
+    AppState.raw.currentManifestItem = manifestItem;
+    AppState.raw.항목데이터 = manifestItem?.source ? await DataService.fetchItemData(manifestItem.source) : [];
     this._reAggregate();
   },
   onYearChange(year) { AppState.filters.연도 = year; this._reAggregate(); },
   _reAggregate() {
-    const { 항목데이터, calcRules, currentItem } = AppState.raw;
+    const indicatorKey = AppState.filters.항목키;
     const year = AppState.filters.연도;
-    if (!year || !항목데이터.length) { Utils.showEmptyState('no-data'); return; }
-    const calcRulesForItem = buildCalcRulesForItem(calcRules, currentItem);
-    AppState.computed.aggregated = DataService.aggregateByUniversity(항목데이터, year, calcRulesForItem, AppState._baseUnivMap, year - 1, AppState._univInfoMap);
-    this.renderAllMultiSelects(AppState.computed.aggregated);
-    const primaryInd = getPrimaryIndicator(currentItem);
-    const resolvedKey = primaryInd?.id || DataService.detectPrimaryValueField(AppState.computed.aggregated, calcRules);
-    AppState.computed.rankKey = resolvedKey;
+    if (!year || !indicatorKey) { Utils.showEmptyState('no-data'); return; }
+    const cache = AppState.raw.benchmarkCache;
+    const prevYear = year - 1;
+    const prevMap = new Map(
+      cache.filter(r => r.기준연도 === prevYear).map(r => [r.기준대학명, r])
+    );
+    // per-item JSON을 대학 단위로 합산 (raw 컬럼 표시용)
+    const rawAggMap = new Map();
+    if (AppState.raw.항목데이터?.length) {
+      DataService.aggregateByUniv(AppState.raw.항목데이터, year)
+        .forEach(r => rawAggMap.set(r.기준대학명, r));
+    }
+    // benchmark_cache(지표값·메타)와 per-item raw 컬럼 머지
+    AppState.computed.aggregated = cache
+      .filter(r => r.기준연도 === year)
+      .map(r => ({
+        ...rawAggMap.get(r.기준대학명) || {},  // raw 컬럼 (낮은 우선순위)
+        ...r,                                   // benchmark 데이터 (높은 우선순위)
+        _isOurs: r.기준대학명 === OUR_UNIV,
+        _prev: prevMap.get(r.기준대학명) || null,
+      }));
+    AppState.computed.rankKey = indicatorKey;
     AppState.computed.sortKey = '_rank';
     AppState.computed.sortDir = 'asc';
     AppState.computed.currentPage = 1;
@@ -108,7 +124,7 @@ const FilterManager = {
   _sortAndRender() {
     const { filtered, sortKey, sortDir, rankKey } = AppState.computed;
     if (rankKey) {
-      const sortAsc = getPrimaryIndicator(AppState.raw.currentItem)?.sort_asc === true;
+      const sortAsc = AppState.raw.calcRules[rankKey]?.sort_asc === true;
       const forRank = [...filtered].sort((a, b) => {
         const av = a[rankKey] ?? (sortAsc ? Infinity : -Infinity);
         const bv = b[rankKey] ?? (sortAsc ? Infinity : -Infinity);

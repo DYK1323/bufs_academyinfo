@@ -38,13 +38,13 @@ const TrendView = {
     return clean.length ? clean.reduce((a, b) => a + b, 0) / clean.length : null;
   },
   buildAllYears() {
-    const rows = AppState.raw.항목데이터;
-    if (!rows.length) return;
-    const calcRulesForItem = buildCalcRulesForItem(AppState.raw.calcRules, AppState.raw.currentItem);
-    const years = DataService.extractYears(rows);
+    const cache = AppState.raw.benchmarkCache;
+    const rankKey = AppState.computed.rankKey;
+    if (!cache?.length || !rankKey) return;
+    const years = [...new Set(cache.filter(r => r[rankKey] != null).map(r => r.기준연도))].sort((a, b) => a - b);
     const allYears = new Map();
     for (const year of years) {
-      allYears.set(year, DataService.aggregateByUniversity(rows, year, calcRulesForItem, AppState._baseUnivMap, null, AppState._univInfoMap));
+      allYears.set(year, cache.filter(r => r.기준연도 === year).map(r => ({ ...r, _isOurs: r.기준대학명 === OUR_UNIV })));
     }
     AppState.trend.allYears = allYears;
   },
@@ -94,7 +94,7 @@ const TrendView = {
     AppState.trend.customUnivs.forEach((univName, idx) => {
       series.push({ name: univName, color: CUSTOM_COLORS[idx % CUSTOM_COLORS.length], data: years.map(y => { const row = (allYears.get(y)||[]).find(r=>r.기준대학명===univName); const v = row?.[rankKey]; return v != null && !isNaN(v) ? +v.toFixed(2) : null; }) });
     });
-    const trendUnit = getPrimaryIndicator(AppState.raw.currentItem)?.unit || '%';
+    const trendUnit = getIndicatorMeta(rankKey).unit;
     this._lastSeries = series;
     if (AppState.trend.yMin === null && AppState.trend.yMax === null) this._applyAutoRange(series);
     this._renderChart(years, series, label, trendUnit);
@@ -116,8 +116,7 @@ const TrendView = {
     const el = document.getElementById('trend-chart');
     if (!el) return;
     if (!this._chart) this._chart = echarts.init(el);
-    const primaryInd = getPrimaryIndicator(AppState.raw.currentItem);
-    const dp = primaryInd?.decimal_places ?? 2;
+    const dp = getIndicatorMeta(AppState.computed.rankKey).decimal_places;
     const fmt = v => Utils.formatValue(+v, unit, dp);
     const ourColor = cssVar('--our-color');
     this._chart.setOption({
@@ -139,15 +138,14 @@ const TrendView = {
   _renderTable(years, series, unit = '%') {
     const wrap = document.getElementById('trend-table-wrap');
     if (!wrap) return;
-    const primaryInd = getPrimaryIndicator(AppState.raw.currentItem);
-    const dp = primaryInd?.decimal_places ?? 2;
+    const dp = getIndicatorMeta(AppState.computed.rankKey).decimal_places;
     const fmt = v => Utils.formatValue(+v, unit, dp);
     const headers = ['<th></th>', ...years.map(y=>`<th>${y}년</th>`)].join('');
     const rows = series.map(s => `<tr class="${s.isOurs?'our-row':''}"><td>${s.name}</td>${s.data.map(v=>`<td>${v!=null?fmt(v):'-'}</td>`).join('')}</tr>`).join('');
     wrap.innerHTML = `<table class="trend-summary-table"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>`;
   },
   activate() {
-    if (!AppState.raw.항목데이터.length) {
+    if (!AppState.filters.항목키) {
       const el = document.getElementById('trend-chart');
       if (el) el.innerHTML = '<div class="trend-empty">공시 항목을 먼저 선택하세요.</div>';
       document.getElementById('trend-table-wrap').innerHTML = '';
@@ -209,7 +207,7 @@ const BumpView = {
 
   activate() {
     const chartEl = document.getElementById('bump-chart');
-    if (!AppState.raw.항목데이터.length) {
+    if (!AppState.filters.항목키) {
       if (chartEl) chartEl.innerHTML = '<div class="trend-empty">공시 항목을 먼저 선택하세요.</div>';
       return;
     }
@@ -271,7 +269,7 @@ const BumpView = {
   _buildRankSeries() {
     const allYears = AppState.trend.allYears;
     const rankKey = AppState.computed.rankKey;
-    const sortAsc = getPrimaryIndicator(AppState.raw.currentItem)?.sort_asc === true;
+    const sortAsc = AppState.raw.calcRules[rankKey]?.sort_asc === true;
     if (!allYears || !rankKey) return { years: [], series: [] };
 
     const selYears = AppState.bump.selectedYears;

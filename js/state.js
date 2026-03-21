@@ -26,12 +26,12 @@ const AppState = {
     대학구분그룹: '일반대학',
   },
   raw: {
-    manifest: [],
-    기준대학: [],
-    항목데이터: [],
     calcRules: {},
-    currentItem: null,
-    benchmarkCache: null,  // benchmark_cache.json (대학×연도×지표 집계)
+    benchmarkCache: null,   // benchmark_cache.json (대학×연도×지표 집계)
+    manifest: [],           // manifest.json (공시항목 목록 + columns 정의)
+    currentManifestItem: null, // 현재 선택된 manifest 항목
+    항목데이터: [],          // 현재 선택된 항목의 per-item JSON (학과 단위 원시 데이터)
+    _baseUnivMap: new Map(), // 대학명 → 기준대학명 역방향 맵 (기준대학.json 기반)
   },
   computed: {
     aggregated: [],
@@ -71,6 +71,4 @@ const AppState = {
     region: '전국',
     설립: '전체',
   },
-  _baseUnivMap: new Map(),
-  _univInfoMap: new Map(),
 };

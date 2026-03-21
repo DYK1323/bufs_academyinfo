@@ -93,30 +93,13 @@ const Utils = {
 /* ═══════════════════════════════════════════════════════
    공통 헬퍼 함수
 ═══════════════════════════════════════════════════════ */
-function getPrimaryIndicator(item) {
-  if (!item) return null;
-  if (item.indicators?.length) return item.indicators.find(i => i.is_primary) || item.indicators[0];
-  if (item.sort_key) return { id: item.sort_key, unit: '%', decimal_places: 2, sort_asc: item.sort_asc || false };
-  return null;
-}
-
-function buildCalcRulesForItem(calcRules, item) {
-  const indicators = item?.indicators || [];
-  if (!indicators.some(i => i.exclude_rows)) return calcRules;
-  const merged = { ...calcRules };
-  for (const ind of indicators) {
-    if (!ind.exclude_rows) continue;
-    const rule = merged[ind.id];
-    if (!rule) continue;
-    if (rule.min_of) {
-      for (const childKey of rule.min_of) {
-        if (merged[childKey]) merged[childKey] = { ...merged[childKey], exclude_rows: ind.exclude_rows };
-      }
-    } else {
-      merged[ind.id] = { ...rule, exclude_rows: ind.exclude_rows };
-    }
-  }
-  return merged;
+// calcRules에서 지표 메타(unit, decimal_places)를 읽는 헬퍼
+function getIndicatorMeta(rankKey) {
+  const rule = AppState.raw.calcRules[rankKey] || {};
+  return {
+    unit: rule.unit ?? '%',
+    decimal_places: rule.decimal_places ?? 2,
+  };
 }
 
 /* ═══════════════════════════════════════════════════════

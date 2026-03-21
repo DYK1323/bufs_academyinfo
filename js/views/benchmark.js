@@ -155,9 +155,9 @@ const BenchmarkView = {
     const ourRow = cache.find(r => r.기준대학명 === OUR_UNIV);
     if (!ourRow) return;
 
-    // manifest에서 indicator_id → sort_asc 맵
+    // calc_rules에서 indicator_id → sort_asc 맵
     const sortAscMap = new Map(
-      AppState.raw.manifest.flatMap(m => m.indicators || []).map(i => [i.id, i.sort_asc === true])
+      Object.entries(AppState.raw.calcRules).map(([id, r]) => [id, r.sort_asc === true])
     );
 
     this._renderCompTable(indicators, ourRow, cache, sortAscMap);
