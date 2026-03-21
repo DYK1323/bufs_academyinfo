@@ -291,6 +291,24 @@ html, body {
   font-size: 11px; color: var(--text-muted); line-height: 1.5; word-break: keep-all;
 }
 
+/* 백분율 기준 카드 */
+#sim-percentile-card { padding: 16px 18px; }
+.sim-pct-title {
+  font-size: 10px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px;
+}
+.sim-pct-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.sim-pct-table th {
+  text-align: left; font-size: 10px; font-weight: 700; color: var(--text-muted);
+  padding: 4px 6px; border-bottom: 1px solid var(--border-mid);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.sim-pct-table th.num, .sim-pct-table td.num { text-align: right; }
+.sim-pct-table td { padding: 6px 6px; border-bottom: 1px solid var(--border-light); color: var(--text-primary); }
+.sim-pct-table tr:last-child td { border-bottom: none; }
+.sim-pct-table tr.pct-in-range td { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+.sim-pct-table td.pct-check { text-align: center; color: var(--primary); font-size: 13px; }
+
 /* 시뮬 테이블 */
 #sim-table-wrap { overflow: auto; }
 #sim-table { width: 100%; border-collapse: collapse; font-size: 13px; }

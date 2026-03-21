@@ -29,6 +29,7 @@ const SimulatorView = {
     const simRanked = this._calcSimRanked();
     this._renderKpi(simRanked);
     this._renderSlider();
+    this._renderPercentile();
     this._renderTable(simRanked);
     this._fitTableHeight();
   },
@@ -163,6 +164,43 @@ const SimulatorView = {
       tbody.appendChild(tr);
     });
     if (ourTr) this._scrollToRow(ourTr);
+  },
+
+  _renderPercentile() {
+    const { filtered, rankKey } = AppState.computed;
+    const calcRule = AppState.raw.calcRules[rankKey];
+    const sortAsc  = calcRule?.sort_asc === true;
+    const unit     = calcRule?.unit ?? '';
+    const dec      = calcRule?.decimal_places ?? 0;
+    const fmt      = v => v == null ? '-' : (+v).toFixed(dec);
+
+    // 필터된 대학의 지표값만 추출 후 "좋은 순" 정렬
+    const vals = filtered
+      .map(r => r[rankKey])
+      .filter(v => v != null && !isNaN(v))
+      .sort((a, b) => sortAsc ? a - b : b - a);
+    const total = vals.length;
+
+    const pcts = [10, 20, 30, 40, 50, 60];
+
+    const hdr = unit ? ` (${unit})` : '';
+    let html = `<div class="sim-pct-title">필터 기준 상위 백분율</div>
+<table class="sim-pct-table">
+  <thead><tr><th>구간</th><th class="num">기준값${hdr}</th></tr></thead>
+  <tbody>`;
+
+    for (const pct of pcts) {
+      const idx = Math.ceil(total * pct / 100) - 1;
+      const threshold = (idx >= 0 && idx < total) ? vals[idx] : null;
+      html += `<tr>
+        <td>상위 ${pct}%</td>
+        <td class="num">${fmt(threshold)}</td>
+      </tr>`;
+    }
+
+    html += `</tbody></table>
+<div style="margin-top:8px;font-size:11px;color:var(--text-muted);">총 ${total}개교 · 현재 필터 기준</div>`;
+    document.getElementById('sim-percentile-card').innerHTML = html;
   },
 
   _scrollToRow(tr) {
