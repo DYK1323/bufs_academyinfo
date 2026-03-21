@@ -291,6 +291,93 @@ html, body {
 #ranking-view.hidden-view { display: none; }
 #trend-view { display: none; padding: 20px; gap: 16px; }
 #trend-view.visible { display: flex; align-items: stretch; }
+
+/* ── 시뮬레이터 뷰 */
+#simulator-view { display: none; flex-direction: row; gap: 16px; padding: 20px; align-items: flex-start; }
+#simulator-view.visible { display: flex; }
+
+/* 필터바 simulator-mode: 연도 숨김 */
+#filter-bar.simulator-mode > #filter-year,
+#filter-bar.simulator-mode > .filter-label:nth-child(3) { display: none; }
+
+/* 좌측 패널 */
+#sim-left-panel { width: 260px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
+
+/* 우측 패널 */
+#sim-right-panel { flex: 1; min-width: 0; }
+
+/* KPI 카드 — 세로 스택 */
+.sim-kpi-wrap { display: flex; flex-direction: column; gap: 10px; }
+.sim-kpi-card {
+  padding: 16px 18px; border-radius: 2px;
+  border: 1px solid var(--border); border-left: 3px solid var(--border-mid);
+  background: var(--card-bg);
+}
+.sim-kpi-card.highlight { border-left-color: var(--primary); background: var(--primary-light); }
+.sim-kpi-label {
+  font-size: 10px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px;
+}
+.sim-kpi-num {
+  font-size: 32px; font-weight: 700; color: var(--text-primary);
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.sim-kpi-num span { font-size: 12px; font-weight: 500; color: var(--text-muted); margin-left: 3px; }
+.sim-kpi-sub { margin-top: 4px; font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.sim-kpi-change { margin-top: 8px; font-size: 13px; font-weight: 700; letter-spacing: -0.01em; }
+.sim-kpi-change.up { color: var(--up-color); }
+.sim-kpi-change.down { color: var(--down-color); }
+.sim-kpi-change.none { color: var(--text-muted); font-weight: 500; }
+.sim-kpi-divider { height: 1px; background: var(--border-light); margin: 4px 0; }
+
+/* 슬라이더 카드 */
+#sim-slider-card { padding: 18px 18px 20px; }
+.sim-slider-label {
+  font-size: 10px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 12px;
+}
+.sim-slider-value {
+  display: flex; align-items: baseline; gap: 3px; margin-bottom: 14px;
+}
+.sim-slider-value span { font-size: 13px; font-weight: 500; color: var(--text-muted); }
+.sim-value-input {
+  font-size: 34px; font-weight: 700; color: var(--primary);
+  font-variant-numeric: tabular-nums; line-height: 1;
+  border: none; border-bottom: 2px solid var(--primary);
+  background: transparent; width: 120px; padding: 0;
+  font-family: inherit; outline: none !important;
+}
+.sim-value-input:focus { border-bottom-color: var(--primary-dark); }
+.sim-slider { width: 100%; accent-color: var(--primary); cursor: pointer; display: block; }
+.sim-slider-range {
+  display: flex; justify-content: space-between; margin-top: 6px;
+  font-size: 10.5px; color: var(--text-muted); font-variant-numeric: tabular-nums;
+}
+.sim-slider-hint {
+  margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border-light);
+  font-size: 11px; color: var(--text-muted); line-height: 1.5; word-break: keep-all;
+}
+
+/* 시뮬 테이블 */
+#sim-table-wrap { overflow: auto; }
+#sim-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+#sim-table thead th {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--card-bg); border-bottom: 2px solid var(--border-mid);
+  padding: 10px 14px; text-align: left;
+  font-size: 10px; font-weight: 700; color: var(--text-muted);
+  white-space: nowrap; text-transform: uppercase; letter-spacing: 0.08em;
+}
+#sim-table thead th.num { text-align: right; }
+#sim-table tbody tr { border-bottom: 1px solid var(--border-light); transition: background 0.08s; }
+#sim-table tbody tr:last-child { border-bottom: none; }
+#sim-table tbody tr:hover { background: var(--surface-1); }
+#sim-table tbody tr.our-university { border-left: 2px solid var(--primary); background: var(--primary-light) !important; }
+#sim-table td { padding: 10px 14px; vertical-align: middle; white-space: nowrap; }
+#sim-table td.num { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+.sim-change-up   { color: var(--up-color);   font-weight: 700; }
+.sim-change-down { color: var(--down-color); font-weight: 700; }
+.sim-change-none { color: var(--text-muted); }
 #trend-side-panel { width: fit-content; min-width: 158px; flex-shrink: 0; padding: 16px 12px; overflow-y: auto; }
 #trend-year-checks { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; }
 #trend-main { flex: 1; min-width: 0; }
@@ -580,8 +667,8 @@ html, body {
 }
 
 #ranking-table td { padding: 10px 14px; vertical-align: middle; white-space: nowrap; }
-.td-univ { white-space: nowrap; }
-.td-univ-inner { display: block; white-space: nowrap; }
+.td-univ { white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+.td-univ-inner { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .td-rank {
   font-size: 12px; font-weight: 700; color: var(--text-muted);
   text-align: center; min-width: 42px;
@@ -589,7 +676,7 @@ html, body {
 }
 .td-rank.top3 { color: var(--primary); }
 .td-univ { font-weight: 500; color: var(--text-primary); }
-.td-univ .our-tag {
+.our-tag {
   display: inline-block;
   font-size: 9px; background: var(--primary); color: var(--card-bg);
   padding: 1px 5px; border-radius: 2px; margin-left: 6px;

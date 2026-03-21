@@ -389,6 +389,49 @@ body { padding-bottom: 60px; }
 .dv-page-btn:hover { background:var(--primary-light); border-color:var(--primary); color:var(--primary); }
 .dv-page-btn.cur { background:var(--primary); color:#fff; border-color:var(--primary); font-weight:700; }
 .dv-empty { padding:40px; text-align:center; color:var(--text-muted); font-size:13px; }
+
+/* ── 캐시 관리 탭 ── */
+.cache-row {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+}
+.cache-row:last-child { border-bottom: none; }
+.cache-empty { padding: 24px 0; text-align: center; color: var(--text-muted); font-size: 13px; }
+#cache-progress {
+  white-space: pre-wrap; max-height: 240px; overflow-y: auto;
+  background: #f8fafc; border-radius: 6px; padding: 10px 12px;
+  font-size: 12px; font-family: 'Menlo', 'Consolas', monospace;
+  line-height: 1.8; color: var(--text-secondary); border: 1px solid var(--border);
+}
+/* 캐시 지표 멀티셀렉트 */
+.cm-ms { position: relative; }
+.cm-ms-trigger {
+  display: flex; align-items: center; justify-content: space-between;
+  min-height: 34px; padding: 4px 10px; gap: 6px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: #fff; cursor: pointer; font-size: 12.5px; user-select: none;
+}
+.cm-ms-trigger:hover { border-color: #94a3b8; }
+.cm-ms-arrow { font-size: 10px; color: var(--text-muted); flex-shrink: 0; margin-left: 2px; }
+.cm-ms-chips { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; min-width: 0; }
+.cm-ms-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--primary-light); color: var(--primary);
+  border-radius: 4px; padding: 2px 7px; font-size: 11px; font-weight: 600;
+}
+.cm-ms-placeholder { color: var(--text-muted); font-size: 12.5px; }
+.cm-ms-dropdown {
+  display: none; position: fixed; z-index: 9999;
+  background: #fff; border: 1px solid var(--border); border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12); max-height: 220px; overflow-y: auto; padding: 4px 0;
+}
+.cm-ms-dropdown.open { display: block; }
+.cm-ms-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px; cursor: pointer; font-size: 12.5px;
+}
+.cm-ms-item:hover { background: var(--primary-light); color: var(--primary); }
+.cm-ms-item input[type=checkbox] { flex-shrink: 0; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -419,6 +462,7 @@ body { padding-bottom: 60px; }
   <button class="tab-btn" onclick="switchTab('calc', this)">산식 관리</button>
   <button class="tab-btn" onclick="switchTab('manifest', this)">공시항목</button>
   <button class="tab-btn" onclick="switchTab('data', this); DataViewer.init()">데이터 조회</button>
+  <button class="tab-btn" onclick="switchTab('cache', this); CacheManager.init()">캐시 관리</button>
 </div>
 
 <!-- ══════════════════════════════════════════
@@ -533,6 +577,54 @@ body { padding-bottom: 60px; }
   </div>
 </div>
 
+<!-- ══════════════════════════════════════════
+     탭 5: 캐시 관리
+══════════════════════════════════════════ -->
+<div class="tab-content" id="tab-cache">
+  <div class="banner" id="banner-cache"></div>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+    <div>
+      <div style="font-size:15px;font-weight:700;color:#0f172a;">캐시 관리</div>
+      <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px;">분석 페이지 cross-item 분석용 지표를 대학×연도 단위로 사전 집계합니다.</div>
+    </div>
+    <button class="btn btn-primary" id="btn-cache-generate" onclick="CacheManager.generate()">⚡ 캐시 생성 및 저장</button>
+  </div>
+
+  <!-- 현재 캐시 상태 -->
+  <div id="cache-status-card" class="card" style="margin-bottom:14px;padding:14px 18px;display:none;">
+    <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:10px;">현재 캐시 정보</div>
+    <div style="display:flex;gap:28px;flex-wrap:wrap;">
+      <div><div style="font-size:11px;color:var(--text-muted);">마지막 생성</div><div id="cache-last-updated" style="font-size:13px;font-weight:600;margin-top:2px;">-</div></div>
+      <div><div style="font-size:11px;color:var(--text-muted);">포함 대학 수</div><div id="cache-univ-count" style="font-size:13px;font-weight:600;margin-top:2px;">-</div></div>
+      <div><div style="font-size:11px;color:var(--text-muted);">연도 범위</div><div id="cache-year-range" style="font-size:13px;font-weight:600;margin-top:2px;">-</div></div>
+      <div><div style="font-size:11px;color:var(--text-muted);">총 행수</div><div id="cache-row-count" style="font-size:13px;font-weight:600;margin-top:2px;">-</div></div>
+    </div>
+  </div>
+
+  <!-- 지표 설정 -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">집계 지표 설정</div>
+        <div class="card-desc">캐시에 포함할 지표를 설정합니다. 각 공시항목 JSON에서 지정된 지표값만 추출합니다.</div>
+      </div>
+      <button class="btn btn-secondary" onclick="CacheManager.addRow()">+ 지표 추가</button>
+    </div>
+    <div class="card-body">
+      <div id="cache-indicator-list">
+        <div class="cache-empty">지표가 없습니다. [+ 지표 추가] 버튼을 눌러 추가하세요.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 진행 상태 -->
+  <div id="cache-progress-wrap" class="card" style="display:none;margin-top:14px;padding:14px 18px;">
+    <div style="font-size:13px;font-weight:600;margin-bottom:8px;">생성 진행 상태</div>
+    <div id="cache-progress"></div>
+  </div>
+</div>
+
 <!-- ── 저장 바 ── -->
 <div class="save-bar">
   <span class="status-msg" id="status-msg">GitHub에 연결하면 저장할 수 있습니다.</span>
@@ -632,9 +724,10 @@ function switchTab(name, btn) {
   document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
   document.getElementById(`tab-${name}`).classList.add('active');
   btn.classList.add('active');
+  const noSaveBar = name === 'data' || name === 'cache';
   const saveBar = document.querySelector('.save-bar');
-  if (saveBar) saveBar.style.display = name === 'data' ? 'none' : '';
-  document.body.style.paddingBottom = name === 'data' ? '0' : '';
+  if (saveBar) saveBar.style.display = noSaveBar ? 'none' : '';
+  document.body.style.paddingBottom = noSaveBar ? '0' : '';
 }
 
 /* ══════════════════════════════════════════
@@ -1893,6 +1986,389 @@ const DataViewer = {
 };
 
 /* ══════════════════════════════════════════
+   캐시 관리
+══════════════════════════════════════════ */
+const CacheManager = {
+  _config: { indicators: [] },
+
+  async init() {
+    this._manifest = State.original.manifest || [];
+
+    try {
+      const res = await GH.getFile('data/benchmark_config.json');
+      this._config = res.content;
+    } catch {
+      this._config = { indicators: [] };
+    }
+
+    // 현재 캐시 메타 로드
+    try {
+      const res = await GH.getFile('data/benchmark_cache.json');
+      const cache = res.content;
+      if (Array.isArray(cache) && cache.length) this._updateStatusCard(cache);
+    } catch {}
+
+    this._renderList();
+  },
+
+  _updateStatusCard(cache) {
+    const univs = new Set(cache.map(r => r.기준대학명)).size;
+    const years = [...new Set(cache.map(r => r.기준연도))].filter(Boolean).sort();
+    document.getElementById('cache-last-updated').textContent = '저장됨';
+    document.getElementById('cache-univ-count').textContent = univs + '개교';
+    document.getElementById('cache-year-range').textContent = years.length ? `${years[0]}~${years[years.length-1]}년` : '-';
+    document.getElementById('cache-row-count').textContent = cache.length.toLocaleString() + '행';
+    document.getElementById('cache-status-card').style.display = '';
+  },
+
+  get _calcKeys() {
+    return Object.keys(State.original.calc || {}).filter(k => !State.original.calc[k].rolling_avg).sort();
+  },
+
+  _indicatorKeysForManifest(manifestKey) {
+    if (!manifestKey) return this._calcKeys;
+    const item = (this._manifest || []).find(m => m.key === manifestKey);
+    if (!item?.indicators?.length) return this._calcKeys;
+    return item.indicators.map(i => i.id).filter(id => id && (State.original.calc || {})[id] && !State.original.calc[id].rolling_avg);
+  },
+
+  _renderList() {
+    const container = document.getElementById('cache-indicator-list');
+    if (!this._config.indicators.length) {
+      container.innerHTML = '<div class="cache-empty">지표가 없습니다. [+ 지표 추가] 버튼을 눌러 추가하세요.</div>';
+      return;
+    }
+
+    const manifestOptions = (this._manifest || []).map(m =>
+      `<option value="${esc(m.key)}">${esc(m.key)}</option>`
+    ).join('');
+
+    container.innerHTML = this._config.indicators.map((ind, i) => {
+      const selectedIds = ind.indicator_ids || [];
+      const calcKeys = this._indicatorKeysForManifest(ind.manifest_key);
+      const chipsHtml = selectedIds.length
+        ? selectedIds.map(id => `<span class="cm-ms-chip">${esc(id)}</span>`).join('')
+        : `<span class="cm-ms-placeholder">지표 선택…</span>`;
+      const checkboxes = calcKeys.map(key => `
+        <label class="cm-ms-item">
+          <input type="checkbox" value="${esc(key)}" ${selectedIds.includes(key) ? 'checked' : ''}
+            onchange="CacheManager._toggleId(${i}, '${esc(key)}', this.checked)">
+          ${esc(key)}
+        </label>`).join('');
+      return `
+      <div class="cache-row" data-idx="${i}">
+        <div style="flex:1.2;min-width:0;">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">공시항목 (JSON 파일키)</div>
+          <select class="form-input" style="width:100%;font-size:12.5px;" onchange="CacheManager._onKeyChange(${i}, this.value)">
+            <option value="">항목 선택…</option>
+            ${manifestOptions}
+          </select>
+        </div>
+        <div style="flex:1.8;min-width:0;">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">지표 선택 (calc_rules 기준)</div>
+          <div class="cm-ms" id="cm-ms-${i}">
+            <div class="cm-ms-trigger" onclick="CacheManager._toggleDropdown(${i})">
+              <div class="cm-ms-chips" id="cm-ms-chips-${i}">${chipsHtml}</div>
+              <span class="cm-ms-arrow">▾</span>
+            </div>
+            <div class="cm-ms-dropdown" id="cm-ms-dd-${i}">${checkboxes || '<div style="padding:8px 12px;color:var(--text-muted);font-size:12px;">calc_rules에 지표가 없습니다</div>'}</div>
+          </div>
+        </div>
+        <button class="btn btn-danger btn-sm" style="margin-top:18px;flex-shrink:0;" onclick="CacheManager.removeRow(${i})">삭제</button>
+      </div>`;
+    }).join('');
+
+    // select 값 복원
+    this._config.indicators.forEach((ind, i) => {
+      const row = container.querySelector(`[data-idx="${i}"]`);
+      if (row) { const sel = row.querySelector('select'); if (sel) sel.value = ind.manifest_key || ''; }
+    });
+  },
+
+  _onKeyChange(idx, val) {
+    this._config.indicators[idx].manifest_key = val;
+    this._config.indicators[idx].indicator_ids = [];  // 항목 바뀌면 지표 초기화
+    // 드롭다운 체크박스 재렌더링
+    const dd = document.getElementById(`cm-ms-dd-${idx}`);
+    if (dd) {
+      const calcKeys = this._indicatorKeysForManifest(val);
+      dd.innerHTML = calcKeys.length
+        ? calcKeys.map(key => `
+          <label class="cm-ms-item">
+            <input type="checkbox" value="${esc(key)}"
+              onchange="CacheManager._toggleId(${idx}, '${esc(key)}', this.checked)">
+            ${esc(key)}
+          </label>`).join('')
+        : '<div style="padding:8px 12px;color:var(--text-muted);font-size:12px;">해당 항목에 지표가 없습니다</div>';
+    }
+    this._updateChips(idx);
+  },
+
+  _toggleDropdown(idx) {
+    const dd = document.getElementById(`cm-ms-dd-${idx}`);
+    if (!dd) return;
+    const isOpen = dd.classList.contains('open');
+    this._closeAllDropdowns();
+    if (isOpen) return;
+    const trigger = document.querySelector(`#cm-ms-${idx} .cm-ms-trigger`);
+    if (trigger) {
+      const r = trigger.getBoundingClientRect();
+      dd.style.top  = (r.bottom + 3) + 'px';
+      dd.style.left = r.left + 'px';
+      dd.style.width = r.width + 'px';
+    }
+    dd.classList.add('open');
+  },
+
+  _closeAllDropdowns(exceptIdx = -1) {
+    document.querySelectorAll('.cm-ms-dropdown.open').forEach(dd => {
+      const i = parseInt(dd.id.replace('cm-ms-dd-', ''), 10);
+      if (i !== exceptIdx) dd.classList.remove('open');
+    });
+  },
+
+  _toggleId(idx, id, checked) {
+    const ind = this._config.indicators[idx];
+    if (!ind) return;
+    const ids = ind.indicator_ids || [];
+    if (checked) { if (!ids.includes(id)) ids.push(id); }
+    else { ind.indicator_ids = ids.filter(v => v !== id); this._updateChips(idx); return; }
+    ind.indicator_ids = ids;
+    this._updateChips(idx);
+  },
+
+  _updateChips(idx) {
+    const el = document.getElementById(`cm-ms-chips-${idx}`);
+    if (!el) return;
+    const ids = this._config.indicators[idx]?.indicator_ids || [];
+    el.innerHTML = ids.length
+      ? ids.map(id => `<span class="cm-ms-chip">${esc(id)}</span>`).join('')
+      : `<span class="cm-ms-placeholder">지표 선택…</span>`;
+  },
+
+  addRow() {
+    this._config.indicators.push({ manifest_key: '', indicator_ids: [] });
+    this._renderList();
+  },
+  removeRow(idx) {
+    this._config.indicators.splice(idx, 1);
+    this._renderList();
+  },
+
+  _log(msg) {
+    const el = document.getElementById('cache-progress');
+    if (el) { el.innerHTML += esc(msg) + '\n'; el.scrollTop = el.scrollHeight; }
+  },
+
+  async generate() {
+    if (!State.connected) { alert('먼저 GitHub에 연결하세요.'); return; }
+
+    // UI에서 manifest_key 수집 (indicator_ids는 _toggleId로 이미 동기화됨)
+    const container = document.getElementById('cache-indicator-list');
+    container.querySelectorAll('.cache-row').forEach((row, i) => {
+      const sel = row.querySelector('select');
+      if (sel && this._config.indicators[i]) this._config.indicators[i].manifest_key = sel.value;
+    });
+
+    const valid = this._config.indicators.filter(i => i.manifest_key && i.indicator_ids.length);
+    if (!valid.length) { alert('집계할 지표를 1개 이상 설정하세요. (항목 선택 + 지표 ID 입력 필요)'); return; }
+
+    const btn = document.getElementById('btn-cache-generate');
+    btn.disabled = true;
+    btn.textContent = '⏳ 생성 중…';
+
+    const progressWrap = document.getElementById('cache-progress-wrap');
+    progressWrap.style.display = '';
+    document.getElementById('cache-progress').innerHTML = '';
+    hideBanner('banner-cache');
+
+    try {
+      // 1. benchmark_config.json 저장
+      this._log('📝 benchmark_config.json 저장 중…');
+      let configSha = null;
+      try { configSha = (await GH.getFile('data/benchmark_config.json')).sha; } catch {}
+      await GH.putFile('data/benchmark_config.json', this._config, configSha, '캐시 설정 업데이트');
+      this._log('✅ benchmark_config.json 저장 완료');
+
+      // 2. 기준대학 맵 구성
+      const baseUnivMap = new Map();
+      for (const row of (State.original.기준대학 || [])) {
+        if (row['대학명']) baseUnivMap.set(row['대학명'], row);
+      }
+
+      // 3. calc_rules
+      const calcRules = State.original.calc || {};
+
+      // 4. 각 항목 fetch → 집계 → 머지
+      const mergedMap = new Map(); // `${기준대학명}__${기준연도}` → object
+
+      for (const ind of valid) {
+        this._log(`\n📥 ${ind.manifest_key} 로드 중…`);
+        let rows;
+        try {
+          rows = await DataViewer._fetchLarge(`data/${ind.manifest_key}.json`);
+          if (!Array.isArray(rows)) throw new Error('배열 형식이 아닙니다');
+        } catch (e) {
+          this._log(`  ⚠️ 로드 실패: ${e.message}`);
+          continue;
+        }
+        this._log(`  → ${rows.length.toLocaleString()}행 로드됨`);
+
+        const getYear = r => parseInt(r['기준연도'] ?? r['기준년도'], 10);
+        const years = [...new Set(rows.map(getYear).filter(y => !isNaN(y)))].sort();
+        this._log(`  → 연도: ${years.join(', ')}`);
+
+        for (const year of years) {
+          const agg = this._aggregate(rows, year, calcRules, baseUnivMap);
+          for (const row of agg) {
+            const mapKey = `${row.기준대학명}__${year}`;
+            if (!mergedMap.has(mapKey)) {
+              mergedMap.set(mapKey, {
+                기준대학명: row.기준대학명, 기준연도: year,
+                지역: row.지역, 설립구분: row.설립구분,
+                대학구분: row.대학구분, 수도권여부: row.수도권여부,
+              });
+            }
+            const target = mergedMap.get(mapKey);
+            for (const id of ind.indicator_ids) {
+              if (row[id] !== undefined) target[id] = row[id];
+            }
+          }
+          this._log(`  → ${year}년: ${agg.length}개교 집계`);
+        }
+      }
+
+      const cacheData = [...mergedMap.values()].sort((a, b) => {
+        if (a.기준연도 !== b.기준연도) return b.기준연도 - a.기준연도;
+        return a.기준대학명.localeCompare(b.기준대학명, 'ko');
+      });
+
+      this._log(`\n📊 총 ${cacheData.length}행. 저장 중…`);
+
+      let cacheSha = null;
+      try { cacheSha = (await GH.getFile('data/benchmark_cache.json')).sha; } catch {}
+      await GH.putFile('data/benchmark_cache.json', cacheData, cacheSha, '벤치마크 캐시 업데이트');
+
+      this._log('✅ benchmark_cache.json 저장 완료!');
+      this._updateStatusCard(cacheData);
+      document.getElementById('cache-last-updated').textContent = new Date().toLocaleString('ko-KR');
+      showBanner('banner-cache', 'success', `캐시 생성 완료 — ${cacheData.length}행 저장됨`);
+
+    } catch (e) {
+      this._log(`❌ 오류: ${e.message}`);
+      showBanner('banner-cache', 'error', `생성 실패: ${e.message}`);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '⚡ 캐시 생성 및 저장';
+    }
+  },
+
+  // aggregateByUniversity 인라인 (index.js와 동일한 핵심 로직)
+  _aggregate(rows, targetYear, calcRules, baseUnivMap) {
+    const ratioKeys = new Set(Object.keys(calcRules));
+    const getYear = r => parseInt(r['기준연도'] ?? r['기준년도'], 10);
+    const yearRows = rows.filter(r => getYear(r) === targetYear);
+    const METRO = new Set(['서울', '경기', '인천']);
+
+    const groupBy = rowSet => {
+      const g = new Map();
+      for (const row of rowSet) {
+        const raw = row['대학명'] || row['학교'] || '(미확인)';
+        const key = baseUnivMap.get(raw)?.['기준대학명'] || raw;
+        if (!g.has(key)) g.set(key, []); g.get(key).push(row);
+      }
+      return g;
+    };
+
+    const sumGroup = groupRows => {
+      if (!groupRows.length) return {};
+      const res = {}; const first = groupRows[0];
+      for (const field of Object.keys(first)) {
+        if (ratioKeys.has(field)) continue;
+        const nums = groupRows.map(r => r[field]).filter(v => typeof v === 'number' && !isNaN(v));
+        res[field] = nums.length ? nums.reduce((a, b) => a + b, 0) : first[field];
+      }
+      return res;
+    };
+
+    const sumFields = (filteredRows, fields) => {
+      const res = {};
+      for (const field of fields) {
+        const nums = filteredRows.map(r => r[field]).filter(v => typeof v === 'number' && !isNaN(v));
+        res[field] = nums.length ? nums.reduce((a, b) => a + b, 0) : 0;
+      }
+      return res;
+    };
+
+    const computeRolling = (univName, srcField, numYears, forYear) => {
+      const vals = [];
+      for (let y = forYear - numYears + 1; y <= forYear; y++) {
+        const yRows = rows.filter(r => {
+          if (getYear(r) !== y) return false;
+          const raw = r['대학명'] || r['학교'] || '(미확인)';
+          return (baseUnivMap.get(raw)?.['기준대학명'] || raw) === univName;
+        });
+        if (!yRows.length) continue;
+        const nums = yRows.map(r => r[srcField]).filter(v => typeof v === 'number' && !isNaN(v));
+        if (nums.length) vals.push(nums.reduce((a, b) => a + b, 0));
+      }
+      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    };
+
+    const rollingRules = Object.entries(calcRules).filter(([, r]) => r.rolling_avg);
+
+    const injectRolling = (summed, univName, year) => {
+      for (const [key, rule] of rollingRules) {
+        summed[key] = computeRolling(univName, rule.rolling_avg, rule.rolling_years ?? 5, year);
+      }
+    };
+
+    const applyCalc = (summed, rawRows) => {
+      const res = { ...summed };
+      for (const [key, rule] of Object.entries(calcRules)) {
+        if (rule.min_of || rule.rolling_avg) continue;
+        let num, den;
+        if (rule.exclude_rows && rawRows) {
+          const filt = rawRows.filter(r => Object.entries(rule.exclude_rows).every(([f, vs]) => !vs.includes(r[f])));
+          const needed = [...(rule.numerator || []), rule.denominator_base, ...(rule.denominator_exclude || [])];
+          const fs = sumFields(filt, needed);
+          num = (rule.numerator || []).reduce((acc, f) => acc + (fs[f] ?? res[f] ?? 0), 0);
+          const db = rule.denominator_base;
+          den = !isNaN(Number(db)) ? Number(db) : (fs[db] ?? res[db] ?? 0);
+          for (const ex of (rule.denominator_exclude || [])) den -= (fs[ex] ?? res[ex] ?? 0);
+        } else {
+          num = (rule.numerator || []).reduce((acc, f) => acc + (res[f] ?? summed[f] ?? 0), 0);
+          const db = rule.denominator_base;
+          den = !isNaN(Number(db)) ? Number(db) : (res[db] ?? summed[db] ?? 0);
+          for (const ex of (rule.denominator_exclude || [])) den -= (res[ex] ?? summed[ex] ?? 0);
+        }
+        res[key] = den > 0 ? (num / den) * (rule.multiply ?? 1) : null;
+      }
+      for (const [key, rule] of Object.entries(calcRules)) {
+        if (!rule.min_of) continue;
+        const vals = rule.min_of.map(k => res[k]).filter(v => v != null && !isNaN(v));
+        res[key] = vals.length ? Math.min(...vals) : null;
+      }
+      return res;
+    };
+
+    const groups = groupBy(yearRows);
+    const result = [];
+    for (const [univName, univRows] of groups) {
+      const summed = sumGroup(univRows);
+      injectRolling(summed, univName, targetYear);
+      const withRatios = applyCalc(summed, univRows);
+      const 지역 = univRows[0]['지역'] || '미확인';
+      const 설립구분 = univRows[0]['설립구분'] || '미확인';
+      const 대학구분 = univRows[0]['학교종류'] || '미확인';
+      const 수도권여부 = METRO.has(지역) ? 'Y' : 'N';
+      result.push({ 기준대학명: univName, 지역, 설립구분, 대학구분, 수도권여부, ...withRatios });
+    }
+    return result;
+  },
+};
+
+/* ══════════════════════════════════════════
    유틸
 ══════════════════════════════════════════ */
 function esc(s) {
@@ -1904,6 +2380,12 @@ function esc(s) {
   const savedRepo = localStorage.getItem('gh_repo');
   if (savedRepo) document.getElementById('gh-repo-input').value = savedRepo;
 })();
+
+// 캐시 멀티셀렉트 외부 클릭 / 스크롤 시 드롭다운 닫기
+document.addEventListener('click', e => {
+  if (!e.target.closest('.cm-ms') && !e.target.closest('.cm-ms-dropdown')) CacheManager._closeAllDropdowns();
+});
+window.addEventListener('scroll', () => CacheManager._closeAllDropdowns(), true);
 </script>
 </body>
 </html>
