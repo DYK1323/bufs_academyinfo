@@ -308,6 +308,20 @@ html, body {
 #sim-table tbody tr.our-university { border-left: 2px solid var(--primary); background: var(--primary-light) !important; }
 #sim-table td { padding: 10px 14px; vertical-align: middle; white-space: nowrap; }
 #sim-table td.num { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+#sim-table { table-layout: fixed; width: 100%; }
+#sim-table thead th:nth-child(1) { width: 52px;  } /* 시뮬 */
+#sim-table thead th:nth-child(2) { width: 52px;  } /* 현재 */
+#sim-table thead th:nth-child(3) { width: auto;  } /* 대학명 — 남은 공간 다 차지 */
+#sim-table thead th:nth-child(4) { width: 54px;  } /* 지역 */
+#sim-table thead th:nth-child(5) { width: 46px;  } /* 설립 */
+#sim-table thead th:nth-child(6) { width: 120px; } /* 지표값 */
+#sim-table thead th:nth-child(7) { width: 56px;  } /* 변동 */
+#sim-table td:nth-child(3) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 0; /* table-layout:fixed 환경에서 ellipsis 작동에 필요 */
+}
 .sim-change-up   { color: var(--up-color);   font-weight: 700; }
 .sim-change-down { color: var(--down-color); font-weight: 700; }
 .sim-change-none { color: var(--text-muted); }
