@@ -136,9 +136,53 @@
           <span>특별법법인·특별법국립 제외</span>
         </label>
       </div>
+
     </div>
 
-    <!-- 뷰 컨테이너 -->
+    <!-- 추이/순위변동 공유 사이드바 + 뷰 컨테이너 -->
+    <div id="content-row">
+    <div id="trend-side-panel">
+      <!-- 추이 전용: 비교 그룹 -->
+      <div class="trend-only">
+        <div class="trend-section-label">비교 그룹</div>
+        <label class="trend-check-item is-checked" style="--dot-color:var(--trend-national)"><input type="checkbox" data-group="전국 평균" checked><span class="chk-dot"></span>전국 평균</label>
+        <label class="trend-check-item is-checked" style="--dot-color:var(--trend-private)"><input type="checkbox" data-group="전국 사립" checked><span class="chk-dot"></span>전국 사립 평균</label>
+        <label class="trend-check-item is-checked" style="--dot-color:var(--trend-non-metro)"><input type="checkbox" data-group="비수도권" checked><span class="chk-dot"></span>비수도권 평균</label>
+        <label class="trend-check-item is-checked" style="--dot-color:var(--trend-dongnam)"><input type="checkbox" data-group="동남권" checked><span class="chk-dot"></span>동남권 평균</label>
+        <label class="trend-check-item" style="--dot-color:var(--trend-busan)"><input type="checkbox" data-group="부산"><span class="chk-dot"></span>부산 평균</label>
+      </div>
+      <!-- 추이 전용: 대학 추가 비교 -->
+      <div class="trend-only">
+        <div class="trend-section-label" style="margin-top:14px;">대학 추가 비교</div>
+        <input class="trend-univ-input" id="trend-univ-input" list="trend-univ-list" placeholder="대학명 검색…" autocomplete="off">
+        <datalist id="trend-univ-list"></datalist>
+        <div id="trend-univ-tags"></div>
+      </div>
+      <!-- 추이 전용: Y축 범위 -->
+      <div class="trend-only">
+        <div class="trend-section-label" style="margin-top:14px;">Y축 범위</div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input class="trend-axis-input" id="trend-ymin" type="number" placeholder="최소">
+          <span style="font-size:11px;color:var(--text-muted);flex-shrink:0;">~</span>
+          <input class="trend-axis-input" id="trend-ymax" type="number" placeholder="최대">
+        </div>
+        <div style="display:flex;gap:6px;margin-top:6px;">
+          <button class="trend-apply-btn" id="trend-apply-axis" style="flex:1;">적용</button>
+          <button class="trend-apply-btn" id="trend-auto-axis" style="flex:1;">Auto</button>
+        </div>
+      </div>
+      <!-- 공유: 연도 선택 -->
+      <div class="trend-section-label" style="margin-top:14px;">연도 선택</div>
+      <div id="trend-year-checks" style="max-height:168px;overflow-y:auto;"></div>
+      <!-- 순위변동 전용: 대학 추가 -->
+      <div class="bump-only">
+        <div class="trend-section-label" style="margin-top:14px;">대학 추가</div>
+        <input class="trend-univ-input" id="bump-univ-input" list="bump-univ-list" placeholder="대학명 검색…" autocomplete="off">
+        <datalist id="bump-univ-list"></datalist>
+        <div id="bump-univ-tags"></div>
+      </div>
+    </div>
+
     <div id="view-container">
 
       <!-- 순위보기 뷰 -->
@@ -165,7 +209,7 @@
           <div class="card" id="threat-card" style="display:none;">
             <div class="threat-header">
               <div>
-                <div class="threat-title">위협 순위 상세</div>
+                <div class="threat-title">모멘텀 스코어</div>
                 <div class="threat-subtitle">모멘텀 스코어 기준 내림차순 — 높을수록 빠르게 치고 올라오는 대학</div>
               </div>
             </div>
@@ -184,31 +228,6 @@
 
       <!-- 추이 분석 뷰 -->
       <div id="trend-view">
-        <div id="trend-side-panel" class="card">
-          <div class="trend-section-label">비교 그룹</div>
-          <label class="trend-check-item is-checked" style="--dot-color:var(--trend-national)"><input type="checkbox" data-group="전국 평균" checked><span class="chk-dot"></span>전국 평균</label>
-          <label class="trend-check-item is-checked" style="--dot-color:var(--trend-private)"><input type="checkbox" data-group="전국 사립" checked><span class="chk-dot"></span>전국 사립 평균</label>
-          <label class="trend-check-item is-checked" style="--dot-color:var(--trend-non-metro)"><input type="checkbox" data-group="비수도권" checked><span class="chk-dot"></span>비수도권 평균</label>
-          <label class="trend-check-item is-checked" style="--dot-color:var(--trend-dongnam)"><input type="checkbox" data-group="동남권" checked><span class="chk-dot"></span>동남권 평균</label>
-          <label class="trend-check-item" style="--dot-color:var(--trend-busan)"><input type="checkbox" data-group="부산"><span class="chk-dot"></span>부산 평균</label>
-          <div class="trend-section-label" style="margin-top:14px;">대학 추가 비교</div>
-          <input class="trend-univ-input" id="trend-univ-input" list="trend-univ-list" placeholder="대학명 검색…" autocomplete="off">
-          <datalist id="trend-univ-list"></datalist>
-          <div id="trend-univ-tags"></div>
-          <div class="trend-section-label" style="margin-top:14px;">Y축 범위</div>
-          <div style="display:flex;gap:6px;align-items:center;">
-            <input class="trend-axis-input" id="trend-ymin" type="number" placeholder="최소">
-            <span style="font-size:11px;color:var(--text-muted);flex-shrink:0;">~</span>
-            <input class="trend-axis-input" id="trend-ymax" type="number" placeholder="최대">
-          </div>
-          <div style="display:flex;gap:6px;margin-top:6px;">
-            <button class="trend-apply-btn" id="trend-apply-axis" style="flex:1;">적용</button>
-            <button class="trend-apply-btn" id="trend-auto-axis" style="flex:1;">Auto</button>
-          </div>
-          <div class="trend-section-label" style="margin-top:14px;">연도 선택</div>
-          <div id="trend-year-checks" style="max-height:168px;overflow-y:auto;"></div>
-        </div>
-        <!-- 우측 콘텐츠 -->
         <div id="trend-main">
           <div id="trend-chart-wrap" class="card" style="margin-bottom:14px;padding:20px 20px 12px;">
             <div id="trend-chart"></div>
@@ -249,34 +268,8 @@
 
       <!-- 순위 변동 뷰 (Bump Chart) -->
       <div id="bump-view">
-        <div id="bump-side-panel" class="card">
-          <div class="trend-section-label">지역 그룹</div>
-          <div class="bump-seg-group" id="bump-region-group">
-            <button class="seg-btn active" data-val="동남권">동남권</button>
-            <button class="seg-btn" data-val="비수도권">비수도권</button>
-            <button class="seg-btn" data-val="전국">전국</button>
-          </div>
-          <div class="trend-section-label" style="margin-top:14px;">설립구분</div>
-          <div class="bump-seg-group" id="bump-found-group">
-            <button class="seg-btn active" data-val="전체">전체</button>
-            <button class="seg-btn" data-val="사립">사립</button>
-          </div>
-          <div class="trend-section-label" style="margin-top:14px;">대학구분</div>
-          <div class="bump-seg-group" id="bump-type-group">
-            <button class="seg-btn active" data-val="일반대학">일반대학</button>
-            <button class="seg-btn" data-val="전체">전체</button>
-          </div>
-          <div class="trend-section-label" style="margin-top:14px;">표시 대학 수</div>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <input type="range" id="bump-topn" min="5" max="50" value="20" style="flex:1;">
-            <span id="bump-topn-label" style="font-size:12px;font-weight:600;color:var(--text-primary);min-width:28px;">20</span>
-          </div>
-          <label class="trend-check-item is-checked" style="--dot-color:var(--our-color);margin-top:12px;"><input type="checkbox" id="bump-show-ours" checked><span class="chk-dot"></span>우리 대학 항상 포함</label>
-        </div>
-        <div id="bump-main">
-          <div id="bump-chart-wrap" class="card" style="padding:20px 20px 12px;">
-            <div id="bump-chart"></div>
-          </div>
+        <div id="bump-chart-wrap" class="card">
+          <div id="bump-chart"></div>
         </div>
       </div>
 
@@ -305,22 +298,60 @@
 
       <!-- 벤치마킹 뷰 -->
       <div id="benchmark-view">
-        <div id="benchmark-top-bar" class="card" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:14px 20px;margin-bottom:14px;">
-          <span style="font-size:13px;font-weight:600;color:var(--text-secondary);">비교 대학</span>
-          <input class="trend-univ-input" id="bench-univ-input" list="bench-univ-list" placeholder="대학명 검색…" style="flex:1;min-width:160px;" autocomplete="off">
-          <datalist id="bench-univ-list"></datalist>
-          <div id="bench-univ-tags" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
-        </div>
-        <div id="benchmark-cards"></div>
-        <div class="card" id="gap-chart-card" style="padding:20px;margin-top:14px;">
-          <div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:12px;">갭 분석 — 우리 대학 vs 그룹 평균</div>
-          <div id="gap-chart"></div>
-        </div>
         <div id="bench-empty-state" class="card" style="display:none;">
           <div class="empty-state">
             <div class="empty-icon">⚔️</div>
             <div class="empty-title">벤치마크 데이터가 없습니다</div>
             <div class="empty-desc">관리자 페이지에서 벤치마크 캐시를 먼저 생성해 주세요.</div>
+          </div>
+        </div>
+        <div id="bench-main-row">
+          <!-- 좌: 1:1 벤치마킹 표 -->
+          <div class="card" id="bench-table-card">
+            <div class="bench-card-header">
+              <div class="bench-card-title">🏁 1:1 벤치마킹 — <span id="bench-our-name"></span> vs</div>
+              <!-- 대학 검색 드롭다운 -->
+              <div class="bench-search-row">
+                <input class="trend-univ-input bench-select" id="bench-univ-select" list="bench-univ-list" placeholder="대학명 검색…" autocomplete="off">
+                <datalist id="bench-univ-list"></datalist>
+                <button id="bench-add-btn" class="btn-small-primary">추가</button>
+              </div>
+              <!-- 선택된 대학 탭 -->
+              <div id="bench-univ-tabs" class="bench-univ-tabs"></div>
+            </div>
+            <div id="bench-comparison-table-wrap">
+              <table id="bench-comparison-table">
+                <thead><tr>
+                  <th class="bench-th-item">항목</th>
+                  <th class="bench-th-our">부산외대</th>
+                  <th class="bench-th-comp" id="bench-comp-header">선택 대학</th>
+                  <th class="bench-th-judge">비교</th>
+                  <th class="bench-th-diff">격차</th>
+                </tr></thead>
+                <tbody id="bench-comparison-body"></tbody>
+              </table>
+              <div id="bench-score-row"></div>
+            </div>
+          </div>
+          <!-- 우: 갭 분석 차트 -->
+          <div class="card" id="bench-gap-card">
+            <div class="bench-card-header">
+              <div class="bench-card-title">📊 동남권 평균 대비 갭 분석</div>
+              <!-- 필터 토글 -->
+              <div class="bench-filter-row">
+                <div class="bench-seg-wrap">
+                  <button class="seg-btn active" data-bgroup="found" data-val="전체">전체</button>
+                  <button class="seg-btn" data-bgroup="found" data-val="사립">사립</button>
+                </div>
+                <div class="bench-seg-wrap">
+                  <button class="seg-btn active" data-bgroup="region" data-val="전국">전국</button>
+                  <button class="seg-btn" data-bgroup="region" data-val="비수도권">비수도권</button>
+                  <button class="seg-btn" data-bgroup="region" data-val="동남권">동남권</button>
+                  <button class="seg-btn" data-bgroup="region" data-val="부산">부산</button>
+                </div>
+              </div>
+            </div>
+            <div id="gap-chart"></div>
           </div>
         </div>
       </div>
@@ -352,6 +383,7 @@
       </div>
 
     </div><!-- /view-container -->
+    </div><!-- /content-row -->
   </div><!-- /main-content -->
 </div><!-- /app-shell -->
 
