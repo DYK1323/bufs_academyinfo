@@ -244,6 +244,12 @@ const ScatterView = {
     AppState.scatter.yKey = yKey || null;
     AppState.scatter.연도 = year || null;
 
+    const parseRange = id => { const v = parseFloat(document.getElementById(id)?.value); return isNaN(v) ? null : v; };
+    AppState.scatter.xMin = parseRange('scatter-x-min');
+    AppState.scatter.xMax = parseRange('scatter-x-max');
+    AppState.scatter.yMin = parseRange('scatter-y-min');
+    AppState.scatter.yMax = parseRange('scatter-y-max');
+
     const el = document.getElementById('scatter-main-chart');
     if (!el) return;
 
@@ -310,12 +316,16 @@ const ScatterView = {
         nameTextStyle: { fontSize: 11 },
         axisLabel: { formatter: v => v.toFixed(xDp) + xUnit, fontSize: 11 },
         splitLine: { lineStyle: { type: 'dashed', color: cssVar('--border') } },
+        ...(AppState.scatter.xMin != null ? { min: AppState.scatter.xMin } : {}),
+        ...(AppState.scatter.xMax != null ? { max: AppState.scatter.xMax } : {}),
       },
       yAxis: {
         type: 'value', name: yLabel, nameLocation: 'middle', nameGap: 50,
         nameTextStyle: { fontSize: 11 },
         axisLabel: { formatter: v => v.toFixed(yDp) + yUnit, fontSize: 11 },
         splitLine: { lineStyle: { type: 'dashed', color: cssVar('--border') } },
+        ...(AppState.scatter.yMin != null ? { min: AppState.scatter.yMin } : {}),
+        ...(AppState.scatter.yMax != null ? { max: AppState.scatter.yMax } : {}),
       },
       series: [
         // 일반 대학

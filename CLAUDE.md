@@ -183,6 +183,12 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 - `AppState.trend.yMin` / `yMax`: Y축 범위 (null이면 자동)
 - 필터 바: 추이 뷰 활성 시 공시항목 드롭다운만 표시 (`#filter-bar.trend-mode`)
 
+**산포도 (`#scatter-view`)**
+- `benchmarkCache` 기반 — X/Y축 항목, 연도, 설립·지역 필터는 필터 바에 위치
+- X/Y축 범위(min/max) 입력은 **필터 바가 아닌 `#scatter-view` 카드 내부** 차트 위에 위치 (`scatter-range-input` / `scatter-range-auto`)
+- `AppState.scatter.xMin` / `xMax` / `yMin` / `yMax`: 축 범위 (null이면 자동)
+- Auto 버튼: 해당 축 입력란을 비우고 자동 범위로 복원
+
 ### admin.html (관리자 페이지)
 
 - PAT(Personal Access Token) 입력 후 GitHub API로 JSON 파일 직접 편집·저장

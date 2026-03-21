@@ -190,6 +190,19 @@ const App = {
       document.getElementById('scatter-x')?.addEventListener('change', () => ScatterView.render());
       document.getElementById('scatter-y')?.addEventListener('change', () => ScatterView.render());
       document.getElementById('scatter-year')?.addEventListener('change', () => ScatterView.render());
+      for (const id of ['scatter-x-min', 'scatter-x-max', 'scatter-y-min', 'scatter-y-max']) {
+        document.getElementById(id)?.addEventListener('input', () => ScatterView.render());
+      }
+      document.getElementById('scatter-x-auto')?.addEventListener('click', () => {
+        document.getElementById('scatter-x-min').value = '';
+        document.getElementById('scatter-x-max').value = '';
+        ScatterView.render();
+      });
+      document.getElementById('scatter-y-auto')?.addEventListener('click', () => {
+        document.getElementById('scatter-y-min').value = '';
+        document.getElementById('scatter-y-max').value = '';
+        ScatterView.render();
+      });
 
       document.getElementById('scatter-found-group')?.addEventListener('click', e => {
         const btn = e.target.closest('.seg-btn'); if (!btn) return;

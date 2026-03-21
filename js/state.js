@@ -68,5 +68,9 @@ const AppState = {
     연도: null,
     지역: '전국',
     설립: '전체',
+    xMin: null,
+    xMax: null,
+    yMin: null,
+    yMax: null,
   },
 };

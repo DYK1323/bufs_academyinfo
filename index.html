@@ -362,6 +362,22 @@
       <!-- 상관관계 히트맵 뷰 -->
       <div id="scatter-view">
          <div class="card" style="padding:20px;">
+           <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+             <div style="display:flex;align-items:center;gap:4px;">
+               <span class="filter-label" style="flex-shrink:0;">X축 범위</span>
+               <input class="scatter-range-input" id="scatter-x-min" type="number" placeholder="최소">
+               <span style="font-size:11px;color:var(--text-muted);">~</span>
+               <input class="scatter-range-input" id="scatter-x-max" type="number" placeholder="최대">
+               <button class="scatter-range-auto" id="scatter-x-auto">Auto</button>
+             </div>
+             <div style="display:flex;align-items:center;gap:4px;">
+               <span class="filter-label" style="flex-shrink:0;">Y축 범위</span>
+               <input class="scatter-range-input" id="scatter-y-min" type="number" placeholder="최소">
+               <span style="font-size:11px;color:var(--text-muted);">~</span>
+               <input class="scatter-range-input" id="scatter-y-max" type="number" placeholder="최대">
+               <button class="scatter-range-auto" id="scatter-y-auto">Auto</button>
+             </div>
+           </div>
            <div id="scatter-main-chart" style="min-height:520px;"></div>
         </div>
       </div>
