@@ -760,3 +760,109 @@ html, body {
   #filter-bar { padding: 0 14px; }
   #view-container { padding: 14px; }
 }
+
+/* ── 순위보기 2열 레이아웃 ─────────────────────────── */
+#ranking-main-row {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+#table-card { flex: 1 1 0; min-width: 0; }
+#threat-card { flex: 0 0 420px; min-width: 320px; padding: 0; overflow: hidden; }
+.threat-header { padding: 16px 20px 12px; border-bottom: 1px solid var(--border); }
+.threat-title { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.threat-subtitle { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+#threat-table-wrap { overflow-y: auto; max-height: 680px; }
+.threat-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.threat-table th { padding: 8px 10px; background: var(--surface-1); color: var(--text-muted); font-weight: 600; font-size: 11px; text-align: left; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 1; }
+.threat-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.threat-table tr:hover td { background: var(--surface-1); }
+
+/* 모멘텀 바 */
+.momentum-cell { display: flex; align-items: center; gap: 8px; min-width: 110px; }
+.momentum-bar-wrap { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.momentum-bar { height: 100%; border-radius: 3px; transition: width 0.3s; }
+.momentum-bar-pos { background: #ef4444; }
+.momentum-bar-neg { background: #94a3b8; }
+.momentum-score { font-size: 12px; font-weight: 700; color: var(--text-primary); min-width: 36px; text-align: right; }
+
+/* 위협 뱃지 */
+.threat-badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.threat-core    { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+.threat-latent  { background: #fff7ed; color: #ea580c; border: 1px solid #fed7aa; }
+.threat-watch   { background: #fefce8; color: #ca8a04; border: 1px solid #fde68a; }
+.threat-stable  { background: var(--surface-1); color: var(--text-muted); border: 1px solid var(--border); }
+
+@media (max-width: 1100px) {
+  #ranking-main-row { flex-direction: column; }
+  #threat-card { flex: none; width: 100%; }
+}
+
+/* ── Bump Chart 뷰 ──────────────────────────────────── */
+#bump-view {
+  display: none;
+  gap: 14px;
+  height: calc(100vh - var(--filter-bar-h) - 28px);
+}
+#bump-view.visible { display: flex; }
+#bump-side-panel { flex: 0 0 180px; min-width: 160px; padding: 16px; overflow-y: auto; }
+#bump-main { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
+#bump-chart-wrap { flex: 1; display: flex; flex-direction: column; }
+#bump-chart { flex: 1; min-height: 420px; }
+.bump-seg-group { display: flex; flex-direction: column; gap: 4px; }
+.bump-seg-group .seg-btn { width: 100%; justify-content: flex-start; }
+
+/* ── 레이더 차트 뷰 ─────────────────────────────────── */
+#radar-view {
+  display: none;
+  gap: 14px;
+  height: calc(100vh - var(--filter-bar-h) - 28px);
+}
+#radar-view.visible { display: flex; }
+#radar-side-panel { flex: 0 0 180px; min-width: 160px; padding: 16px; overflow-y: auto; }
+#radar-main { flex: 1 1 0; min-width: 0; }
+#radar-chart { min-height: 480px; }
+
+/* ── 벤치마킹 뷰 ────────────────────────────────────── */
+#benchmark-view {
+  display: none;
+  flex-direction: column;
+  gap: 0;
+}
+#benchmark-view.visible { display: flex; }
+.bench-cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; padding: 4px 0; }
+.bench-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.bench-card-label { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-bottom: 6px; }
+.bench-our-val { font-size: 22px; font-weight: 800; color: var(--our-color); line-height: 1.1; }
+.bench-card-sub { font-size: 10px; color: var(--text-muted); margin-bottom: 8px; }
+.bench-comp-row { display: flex; align-items: center; gap: 6px; font-size: 11px; padding-top: 6px; border-top: 1px solid var(--border); margin-top: 6px; }
+.bench-comp-name { flex: 1; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bench-comp-val { font-weight: 700; }
+.bench-ahead { color: var(--our-color); }
+.bench-behind { color: #ef4444; }
+.bench-arrow { font-size: 10px; color: var(--text-muted); white-space: nowrap; }
+#gap-chart { min-height: 200px; }
+
+/* ── 히트맵 뷰 ──────────────────────────────────────── */
+#heatmap-view {
+  display: none;
+  gap: 14px;
+  height: calc(100vh - var(--filter-bar-h) - 28px);
+}
+#heatmap-view.visible { display: flex; }
+#heatmap-side-panel { flex: 0 0 160px; padding: 16px; overflow-y: auto; }
+#heatmap-main { flex: 1 1 0; min-width: 0; overflow-y: auto; }
+#heatmap-chart { min-height: 400px; }
+#scatter-chart { min-height: 300px; }
+
+/* ── 필터 바 모드 ───────────────────────────────────── */
+#filter-bar.bump-mode .filter-label,
+#filter-bar.bump-mode #filter-year,
+#filter-bar.bump-mode .filter-divider,
+#filter-bar.bump-mode #univ-type-group,
+#filter-bar.bump-mode #found-quick,
+#filter-bar.bump-mode #region-group,
+#filter-bar.bump-mode #filter-special-excl,
+#filter-bar.bump-mode .seg-group { display: none; }
+#filter-bar.bump-mode #filter-item { display: inline-flex; }
+#filter-bar.benchmark-mode > * { display: none; }

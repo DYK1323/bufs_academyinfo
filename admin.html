@@ -2074,6 +2074,12 @@ const CacheManager = {
             <div class="cm-ms-dropdown" id="cm-ms-dd-${i}">${checkboxes || '<div style="padding:8px 12px;color:var(--text-muted);font-size:12px;">calc_rules에 지표가 없습니다</div>'}</div>
           </div>
         </div>
+        <div style="flex:0 0 80px;">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">연도 오프셋</div>
+          <input type="number" class="form-input cm-year-offset" style="width:100%;font-size:12.5px;" value="${ind.year_offset || 0}" min="-3" max="3" step="1"
+            title="기준연도와 공시연도 차이. 예: 중도탈락률은 전년도 기준이므로 +1"
+            onchange="CacheManager._onOffsetChange(${i}, this.value)">
+        </div>
         <button class="btn btn-danger btn-sm" style="margin-top:18px;flex-shrink:0;" onclick="CacheManager.removeRow(${i})">삭제</button>
       </div>`;
     }).join('');
@@ -2083,6 +2089,11 @@ const CacheManager = {
       const row = container.querySelector(`[data-idx="${i}"]`);
       if (row) { const sel = row.querySelector('select'); if (sel) sel.value = ind.manifest_key || ''; }
     });
+  },
+
+  _onOffsetChange(idx, val) {
+    const n = parseInt(val, 10);
+    this._config.indicators[idx].year_offset = isNaN(n) ? 0 : n;
   },
 
   _onKeyChange(idx, val) {
@@ -2218,13 +2229,15 @@ const CacheManager = {
         const years = [...new Set(rows.map(getYear).filter(y => !isNaN(y)))].sort();
         this._log(`  → 연도: ${years.join(', ')}`);
 
+        const offset = ind.year_offset || 0;
         for (const year of years) {
+          const mappedYear = year + offset;  // 오프셋 적용: 예) 중도탈락 2024년 → 2025년 버킷
           const agg = this._aggregate(rows, year, calcRules, baseUnivMap);
           for (const row of agg) {
-            const mapKey = `${row.기준대학명}__${year}`;
+            const mapKey = `${row.기준대학명}__${mappedYear}`;
             if (!mergedMap.has(mapKey)) {
               mergedMap.set(mapKey, {
-                기준대학명: row.기준대학명, 기준연도: year,
+                기준대학명: row.기준대학명, 기준연도: mappedYear,
                 지역: row.지역, 설립구분: row.설립구분,
                 대학구분: row.대학구분, 수도권여부: row.수도권여부,
               });
@@ -2234,7 +2247,7 @@ const CacheManager = {
               if (row[id] !== undefined) target[id] = row[id];
             }
           }
-          this._log(`  → ${year}년: ${agg.length}개교 집계`);
+          this._log(`  → ${year}년 (→ ${mappedYear}년 버킷): ${agg.length}개교 집계`);
         }
       }
 

@@ -34,9 +34,25 @@
         <span class="nav-icon">📉</span>
         <span class="nav-label">추이 분석</span>
       </div>
+      <div class="nav-item" data-view="bump">
+        <span class="nav-icon">🏁</span>
+        <span class="nav-label">순위 변동</span>
+      </div>
       <div class="nav-item" data-view="simulator">
         <span class="nav-icon">🎯</span>
         <span class="nav-label">목표 시뮬레이터</span>
+      </div>
+      <div class="nav-item" data-view="radar">
+        <span class="nav-icon">🕸️</span>
+        <span class="nav-label">레이더 차트</span>
+      </div>
+      <div class="nav-item" data-view="benchmark">
+        <span class="nav-icon">⚔️</span>
+        <span class="nav-label">벤치마킹</span>
+      </div>
+      <div class="nav-item" data-view="heatmap">
+        <span class="nav-icon">🌡️</span>
+        <span class="nav-label">상관관계</span>
       </div>
     </div>
 
@@ -66,7 +82,11 @@
     <div id="mobile-nav">
       <div class="mobile-nav-item active" data-view="ranking">📊 순위 보기</div>
       <div class="mobile-nav-item" data-view="trend">📉 추이 분석</div>
+      <div class="mobile-nav-item" data-view="bump">🏁 순위 변동</div>
       <div class="mobile-nav-item" data-view="simulator">🎯 시뮬레이터</div>
+      <div class="mobile-nav-item" data-view="radar">🕸️ 레이더</div>
+      <div class="mobile-nav-item" data-view="benchmark">⚔️ 벤치마킹</div>
+      <div class="mobile-nav-item" data-view="heatmap">🌡️ 상관관계</div>
     </div>
 
     <!-- 필터 바 -->
@@ -125,19 +145,32 @@
       <div id="ranking-view">
         <div id="kpi-bar"></div>
 
-        <div class="card" id="table-card" style="display:none;">
-          <div id="table-controls">
-            <div class="table-info" id="table-info"></div>
-            <input type="search" id="table-search" placeholder="대학명 검색…">
-            <button class="btn" id="btn-csv">⬇ CSV 다운로드</button>
+        <div id="ranking-main-row">
+          <div class="card" id="table-card" style="display:none;">
+            <div id="table-controls">
+              <div class="table-info" id="table-info"></div>
+              <input type="search" id="table-search" placeholder="대학명 검색…">
+              <button class="btn" id="btn-csv">⬇ CSV 다운로드</button>
+            </div>
+            <div id="ranking-table-wrap">
+              <table id="ranking-table">
+                <thead id="ranking-thead"></thead>
+                <tbody id="ranking-tbody"></tbody>
+              </table>
+            </div>
+            <div id="pagination"></div>
           </div>
-          <div id="ranking-table-wrap">
-            <table id="ranking-table">
-              <thead id="ranking-thead"></thead>
-              <tbody id="ranking-tbody"></tbody>
-            </table>
+
+          <!-- 위협 레이더 패널 -->
+          <div class="card" id="threat-card" style="display:none;">
+            <div class="threat-header">
+              <div>
+                <div class="threat-title">위협 순위 상세</div>
+                <div class="threat-subtitle">모멘텀 스코어 기준 내림차순 — 높을수록 빠르게 치고 올라오는 대학</div>
+              </div>
+            </div>
+            <div id="threat-table-wrap"></div>
           </div>
-          <div id="pagination"></div>
         </div>
 
         <div id="empty-state" class="card">
@@ -210,6 +243,110 @@
             <div class="empty-icon">🎯</div>
             <div class="empty-title">공시 항목을 선택해 주세요</div>
             <div class="empty-desc">항목을 선택하면 지표값을 조정해<br>순위 변화를 시뮬레이션할 수 있습니다.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 순위 변동 뷰 (Bump Chart) -->
+      <div id="bump-view">
+        <div id="bump-side-panel" class="card">
+          <div class="trend-section-label">지역 그룹</div>
+          <div class="bump-seg-group" id="bump-region-group">
+            <button class="seg-btn active" data-val="동남권">동남권</button>
+            <button class="seg-btn" data-val="비수도권">비수도권</button>
+            <button class="seg-btn" data-val="전국">전국</button>
+          </div>
+          <div class="trend-section-label" style="margin-top:14px;">설립구분</div>
+          <div class="bump-seg-group" id="bump-found-group">
+            <button class="seg-btn active" data-val="전체">전체</button>
+            <button class="seg-btn" data-val="사립">사립</button>
+          </div>
+          <div class="trend-section-label" style="margin-top:14px;">대학구분</div>
+          <div class="bump-seg-group" id="bump-type-group">
+            <button class="seg-btn active" data-val="일반대학">일반대학</button>
+            <button class="seg-btn" data-val="전체">전체</button>
+          </div>
+          <div class="trend-section-label" style="margin-top:14px;">표시 대학 수</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="bump-topn" min="5" max="50" value="20" style="flex:1;">
+            <span id="bump-topn-label" style="font-size:12px;font-weight:600;color:var(--text-primary);min-width:28px;">20</span>
+          </div>
+          <label class="trend-check-item is-checked" style="--dot-color:var(--our-color);margin-top:12px;"><input type="checkbox" id="bump-show-ours" checked><span class="chk-dot"></span>우리 대학 항상 포함</label>
+        </div>
+        <div id="bump-main">
+          <div id="bump-chart-wrap" class="card" style="padding:20px 20px 12px;">
+            <div id="bump-chart"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 레이더 차트 뷰 -->
+      <div id="radar-view">
+        <div id="radar-side-panel" class="card">
+          <div class="trend-section-label">비교 대학 추가</div>
+          <input class="trend-univ-input" id="radar-univ-input" list="radar-univ-list" placeholder="대학명 검색…" autocomplete="off">
+          <datalist id="radar-univ-list"></datalist>
+          <div id="radar-univ-tags"></div>
+          <div class="trend-section-label" style="margin-top:14px;">비교 그룹 평균</div>
+          <label class="trend-check-item is-checked" style="--dot-color:var(--trend-dongnam)"><input type="checkbox" data-rgroup="동남권" checked><span class="chk-dot"></span>동남권 평균</label>
+          <label class="trend-check-item is-checked" style="--dot-color:var(--trend-private)"><input type="checkbox" data-rgroup="전국 사립" checked><span class="chk-dot"></span>전국 사립 평균</label>
+          <div class="trend-section-label" style="margin-top:14px;">정규화 기준</div>
+          <div class="bump-seg-group" id="radar-norm-group">
+            <button class="seg-btn active" data-val="minmax">전체 min-max</button>
+            <button class="seg-btn" data-val="group">그룹 내 min-max</button>
+          </div>
+        </div>
+        <div id="radar-main">
+          <div class="card" style="padding:20px;">
+            <div id="radar-chart"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 벤치마킹 뷰 -->
+      <div id="benchmark-view">
+        <div id="benchmark-top-bar" class="card" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:14px 20px;margin-bottom:14px;">
+          <span style="font-size:13px;font-weight:600;color:var(--text-secondary);">비교 대학</span>
+          <input class="trend-univ-input" id="bench-univ-input" list="bench-univ-list" placeholder="대학명 검색…" style="flex:1;min-width:160px;" autocomplete="off">
+          <datalist id="bench-univ-list"></datalist>
+          <div id="bench-univ-tags" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+        </div>
+        <div id="benchmark-cards"></div>
+        <div class="card" id="gap-chart-card" style="padding:20px;margin-top:14px;">
+          <div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:12px;">갭 분석 — 우리 대학 vs 그룹 평균</div>
+          <div id="gap-chart"></div>
+        </div>
+        <div id="bench-empty-state" class="card" style="display:none;">
+          <div class="empty-state">
+            <div class="empty-icon">⚔️</div>
+            <div class="empty-title">벤치마크 데이터가 없습니다</div>
+            <div class="empty-desc">관리자 페이지에서 벤치마크 캐시를 먼저 생성해 주세요.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 상관관계 히트맵 뷰 -->
+      <div id="heatmap-view">
+        <div id="heatmap-side-panel" class="card">
+          <div class="trend-section-label">분석 대상</div>
+          <div class="bump-seg-group" id="heatmap-region-group">
+            <button class="seg-btn active" data-val="전국">전국</button>
+            <button class="seg-btn" data-val="비수도권">비수도권</button>
+            <button class="seg-btn" data-val="동남권">동남권</button>
+          </div>
+          <div class="trend-section-label" style="margin-top:14px;">설립구분</div>
+          <div class="bump-seg-group" id="heatmap-found-group">
+            <button class="seg-btn active" data-val="전체">전체</button>
+            <button class="seg-btn" data-val="사립">사립</button>
+          </div>
+        </div>
+        <div id="heatmap-main">
+          <div class="card" style="padding:20px;">
+            <div id="heatmap-chart"></div>
+          </div>
+          <div class="card" id="scatter-card" style="padding:20px;margin-top:14px;display:none;">
+            <div id="scatter-title" style="font-size:13px;font-weight:600;margin-bottom:12px;"></div>
+            <div id="scatter-chart"></div>
           </div>
         </div>
       </div>
