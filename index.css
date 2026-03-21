@@ -904,8 +904,23 @@ html, body {
 #heatmap-main { flex: 1 1 0; min-width: 0; overflow-y: auto; }
 #heatmap-chart { min-height: 400px; }
 #scatter-chart { min-height: 300px; }
+#scatter-view {
+  display: none;
+  flex-direction: column;
+  gap: 14px;
+}
+#scatter-view.visible { display: flex; }
+
+
 
 /* ── 필터 바 모드 ───────────────────────────────────── */
 /* bump-mode: 지표 선택 + 순위보기 동일 필터 (연도 숨김) */
 #filter-bar.bump-mode #filter-year { display: none; }
 #filter-bar.benchmark-mode > * { display: none; }
+
+
+/* scatter-mode: 산포도 전용 요소만 표시 */
+#filter-bar.scatter-mode > *:not(.scatter-only) { display: none; }
+#filter-bar:not(.scatter-mode) .scatter-only    { display: none; }
+
+

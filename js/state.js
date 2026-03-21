@@ -56,19 +56,17 @@ const AppState = {
     userRemoved: [],    // 사용자가 직접 제거한 동남권 대학
     selectedYears: new Set(),
   },
-  radar: {
-    customUnivs: [],
-    groups: new Set(['동남권', '전국 사립']),
-    normMode: 'minmax',
-  },
   benchmark: {
     customUnivs: [],
     activeTab: null,
     gapFound: '전체',
     gapRegion: '전국',
   },
-  heatmap: {
-    region: '전국',
+  scatter: {
+    xKey: null,
+    yKey: null,
+    연도: null,
+    지역: '전국',
     설립: '전체',
   },
 };

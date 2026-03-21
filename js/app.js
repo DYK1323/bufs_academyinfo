@@ -18,13 +18,15 @@ const App = {
     const switchView = (viewName) => {
       document.querySelectorAll('.nav-item[data-view], .mobile-nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === viewName));
       document.getElementById('ranking-view').classList.toggle('hidden-view', viewName !== 'ranking');
-      for (const v of ['trend', 'bump', 'simulator', 'radar', 'benchmark', 'heatmap']) {
+      for (const v of ['trend', 'bump', 'simulator', 'benchmark', 'scatter']) {
         document.getElementById(`${v}-view`)?.classList.toggle('visible', viewName === v);
       }
       document.getElementById('filter-bar').classList.toggle('trend-mode', viewName === 'trend');
       document.getElementById('filter-bar').classList.toggle('simulator-mode', viewName === 'simulator');
       document.getElementById('filter-bar').classList.toggle('bump-mode', viewName === 'bump');
-      document.getElementById('filter-bar').classList.toggle('benchmark-mode', ['radar','benchmark','heatmap'].includes(viewName));
+      document.getElementById('filter-bar').classList.toggle('benchmark-mode', ['benchmark'].includes(viewName));
+      document.getElementById('filter-bar').classList.toggle('scatter-mode', viewName === 'scatter');
+
       // 공유 사이드바 표시/숨김 및 모드 전환
       const sidePanel = document.getElementById('trend-side-panel');
       if (sidePanel) {
@@ -34,14 +36,12 @@ const App = {
       if (viewName === 'trend') TrendView.activate();
       if (viewName === 'bump') BumpView.activate();
       if (viewName === 'simulator') SimulatorView.activate();
-      if (viewName === 'radar') RadarView.activate();
       if (viewName === 'benchmark') BenchmarkView.activate();
-      if (viewName === 'heatmap') HeatmapView.activate();
+      if (viewName === 'scatter') ScatterView.activate();
       if (TrendView._chart) setTimeout(() => TrendView._chart.resize(), 60);
       setTimeout(() => {
         if (document.getElementById('bump-view')?.classList.contains('visible')) BumpView._fitHeight();
-        if (RadarView._chart) RadarView._chart.resize();
-        if (HeatmapView._chart) HeatmapView._chart.resize();
+        if (ScatterView._chart) ScatterView._chart.resize();
         if (BenchmarkView._gapChart) BenchmarkView._gapChart.resize();
       }, 60);
     };
@@ -139,35 +139,6 @@ const App = {
       }
     });
 
-    // 레이더 차트 패널
-    document.getElementById('radar-univ-input')?.addEventListener('change', () => {
-      const input = document.getElementById('radar-univ-input');
-      const name = input.value.trim();
-      if (!name || AppState.radar.customUnivs.includes(name) || AppState.radar.customUnivs.length >= 5) { input.value = ''; return; }
-      AppState.radar.customUnivs.push(name);
-      input.value = '';
-      const tags = document.getElementById('radar-univ-tags');
-      const tag = document.createElement('div');
-      tag.className = 'trend-univ-tag'; tag.dataset.name = name;
-      tag.innerHTML = `<span>${name}</span><button onclick="removeRadarUniv('${name.replace(/'/g,"\\'")}')">×</button>`;
-      tags.appendChild(tag);
-      if (document.getElementById('radar-view')?.classList.contains('visible')) RadarView.render();
-    });
-    document.querySelectorAll('#radar-side-panel input[type="checkbox"][data-rgroup]').forEach(cb => {
-      cb.addEventListener('change', () => {
-        const g = cb.dataset.rgroup; const item = cb.closest('.trend-check-item');
-        if (cb.checked) { AppState.radar.groups.add(g); item.classList.add('is-checked'); }
-        else { AppState.radar.groups.delete(g); item.classList.remove('is-checked'); }
-        if (document.getElementById('radar-view')?.classList.contains('visible')) RadarView.render();
-      });
-    });
-    document.getElementById('radar-norm-group')?.addEventListener('click', e => {
-      const btn = e.target.closest('.seg-btn'); if (!btn) return;
-      AppState.radar.normMode = btn.dataset.val;
-      document.querySelectorAll('#radar-norm-group .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.val === btn.dataset.val));
-      if (document.getElementById('radar-view')?.classList.contains('visible')) RadarView.render();
-    });
-
     // 벤치마킹 패널
     const _benchAdd = () => {
       const input = document.getElementById('bench-univ-select');
@@ -215,21 +186,28 @@ const App = {
     });
 
     // 히트맵 패널
-    const _hmSeg = (groupId, stateKey) => {
-      document.getElementById(groupId)?.addEventListener('click', e => {
+    // 기존 _hmSeg 블록 전체 삭제하고 아래로 교체
+      document.getElementById('scatter-x')?.addEventListener('change', () => ScatterView.render());
+      document.getElementById('scatter-y')?.addEventListener('change', () => ScatterView.render());
+      document.getElementById('scatter-year')?.addEventListener('change', () => ScatterView.render());
+
+      document.getElementById('scatter-found-group')?.addEventListener('click', e => {
         const btn = e.target.closest('.seg-btn'); if (!btn) return;
-        AppState.heatmap[stateKey] = btn.dataset.val;
-        document.querySelectorAll(`#${groupId} .seg-btn`).forEach(b => b.classList.toggle('active', b.dataset.val === btn.dataset.val));
-        if (document.getElementById('heatmap-view')?.classList.contains('visible')) HeatmapView.render();
+        AppState.scatter.설립 = btn.dataset.val;
+        document.querySelectorAll('#scatter-found-group .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.val === btn.dataset.val));
+        ScatterView.render();
       });
-    };
-    _hmSeg('heatmap-region-group', 'region');
-    _hmSeg('heatmap-found-group', '설립');
+      document.getElementById('scatter-region-group')?.addEventListener('click', e => {
+        const btn = e.target.closest('.seg-btn'); if (!btn) return;
+        AppState.scatter.지역 = btn.dataset.val;
+        document.querySelectorAll('#scatter-region-group .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.val === btn.dataset.val));
+        ScatterView.render();
+      });
 
     // 창 리사이즈
     window.addEventListener('resize', () => {
       if (document.getElementById('bump-view')?.classList.contains('visible')) BumpView._fitHeight();
-      [TrendView._chart, RadarView._chart, BenchmarkView._gapChart, HeatmapView._chart, HeatmapView._scatter].forEach(c => c?.resize());
+      [TrendView._chart, BenchmarkView._gapChart, ScatterView._chart].forEach(c => c?.resize());
     });
 
     // 초기 데이터 로드
@@ -260,14 +238,6 @@ function removeTrendUniv(name) {
   if (tag) tag.remove();
   if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
 }
-
-function removeRadarUniv(name) {
-  AppState.radar.customUnivs = AppState.radar.customUnivs.filter(n => n !== name);
-  const tag = document.querySelector(`#radar-univ-tags .trend-univ-tag[data-name="${CSS.escape(name)}"]`);
-  if (tag) tag.remove();
-  if (document.getElementById('radar-view')?.classList.contains('visible')) RadarView.render();
-}
-
 function removeBumpUniv(name) {
   AppState.bump.userAdded = AppState.bump.userAdded.filter(n => n !== name);
   if (!AppState.bump.userRemoved.includes(name)) AppState.bump.userRemoved.push(name);

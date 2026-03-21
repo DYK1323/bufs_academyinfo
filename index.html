@@ -43,17 +43,13 @@
         <span class="nav-icon">🎯</span>
         <span class="nav-label">목표 시뮬레이터</span>
       </div>
-      <div class="nav-item" data-view="radar">
-        <span class="nav-icon">🕸️</span>
-        <span class="nav-label">레이더 차트</span>
-      </div>
       <div class="nav-item" data-view="benchmark">
         <span class="nav-icon">⚔️</span>
         <span class="nav-label">벤치마킹</span>
       </div>
-      <div class="nav-item" data-view="heatmap">
+      <div class="nav-item" data-view="scatter">
         <span class="nav-icon">🌡️</span>
-        <span class="nav-label">상관관계</span>
+        <span class="nav-label">산포도</span>
       </div>
     </div>
 
@@ -85,9 +81,8 @@
       <div class="mobile-nav-item" data-view="trend">📉 추이 분석</div>
       <div class="mobile-nav-item" data-view="bump">🏁 순위 변동</div>
       <div class="mobile-nav-item" data-view="simulator">🎯 시뮬레이터</div>
-      <div class="mobile-nav-item" data-view="radar">🕸️ 레이더</div>
       <div class="mobile-nav-item" data-view="benchmark">⚔️ 벤치마킹</div>
-      <div class="mobile-nav-item" data-view="heatmap">🌡️ 상관관계</div>
+      <div class="mobile-nav-item" data-view="scatter">🌡️ 상관관계</div>
     </div>
 
     <!-- 필터 바 -->
@@ -136,6 +131,34 @@
           <span class="filter-toggle-track"></span>
           <span>특별법법인·특별법국립 제외</span>
         </label>
+      </div>
+      <!-- 산포도 전용 필터 -->
+      <span class="filter-label scatter-only">X축</span>
+      <select class="filter-select scatter-only" id="scatter-x" style="min-width:160px;">
+        <option value="">항목 선택</option>
+      </select>
+      <span class="filter-label scatter-only" style="padding:0 4px;font-weight:400;">vs</span>
+      <select class="filter-select scatter-only" id="scatter-y" style="min-width:160px;">
+        <option value="">항목 선택</option>
+      </select>
+      <div class="filter-divider scatter-only"></div>
+      <select class="filter-select scatter-only" id="scatter-year" style="min-width:80px;"></select>
+      <div class="filter-divider scatter-only"></div>
+      <div class="seg-group scatter-only">
+        <span class="seg-label">설립</span>
+        <div class="seg-toggle" id="scatter-found-group">
+          <button class="seg-btn active" data-val="전체">전체</button>
+          <button class="seg-btn" data-val="사립">사립</button>
+        </div>
+      </div>
+      <div class="seg-group scatter-only">
+        <span class="seg-label">지역</span>
+        <div class="seg-toggle" id="scatter-region-group">
+          <button class="seg-btn active" data-val="전국">전국</button>
+          <button class="seg-btn" data-val="비수도권">비수도권</button>
+          <button class="seg-btn" data-val="동남권">동남권</button>
+          <button class="seg-btn" data-val="부산">부산</button>
+        </div>
       </div>
 
     </div>
@@ -274,29 +297,6 @@
         </div>
       </div>
 
-      <!-- 레이더 차트 뷰 -->
-      <div id="radar-view">
-        <div id="radar-side-panel" class="card">
-          <div class="trend-section-label">비교 대학 추가</div>
-          <input class="trend-univ-input" id="radar-univ-input" list="radar-univ-list" placeholder="대학명 검색…" autocomplete="off">
-          <datalist id="radar-univ-list"></datalist>
-          <div id="radar-univ-tags"></div>
-          <div class="trend-section-label" style="margin-top:14px;">비교 그룹 평균</div>
-          <label class="trend-check-item is-checked" style="--dot-color:var(--trend-dongnam)"><input type="checkbox" data-rgroup="동남권" checked><span class="chk-dot"></span>동남권 평균</label>
-          <label class="trend-check-item is-checked" style="--dot-color:var(--trend-private)"><input type="checkbox" data-rgroup="전국 사립" checked><span class="chk-dot"></span>전국 사립 평균</label>
-          <div class="trend-section-label" style="margin-top:14px;">정규화 기준</div>
-          <div class="bump-seg-group" id="radar-norm-group">
-            <button class="seg-btn active" data-val="minmax">전체 min-max</button>
-            <button class="seg-btn" data-val="group">그룹 내 min-max</button>
-          </div>
-        </div>
-        <div id="radar-main">
-          <div class="card" style="padding:20px;">
-            <div id="radar-chart"></div>
-          </div>
-        </div>
-      </div>
-
       <!-- 벤치마킹 뷰 -->
       <div id="benchmark-view">
         <div id="bench-empty-state" class="card" style="display:none;">
@@ -358,28 +358,9 @@
       </div>
 
       <!-- 상관관계 히트맵 뷰 -->
-      <div id="heatmap-view">
-        <div id="heatmap-side-panel" class="card">
-          <div class="trend-section-label">분석 대상</div>
-          <div class="bump-seg-group" id="heatmap-region-group">
-            <button class="seg-btn active" data-val="전국">전국</button>
-            <button class="seg-btn" data-val="비수도권">비수도권</button>
-            <button class="seg-btn" data-val="동남권">동남권</button>
-          </div>
-          <div class="trend-section-label" style="margin-top:14px;">설립구분</div>
-          <div class="bump-seg-group" id="heatmap-found-group">
-            <button class="seg-btn active" data-val="전체">전체</button>
-            <button class="seg-btn" data-val="사립">사립</button>
-          </div>
-        </div>
-        <div id="heatmap-main">
-          <div class="card" style="padding:20px;">
-            <div id="heatmap-chart"></div>
-          </div>
-          <div class="card" id="scatter-card" style="padding:20px;margin-top:14px;display:none;">
-            <div id="scatter-title" style="font-size:13px;font-weight:600;margin-bottom:12px;"></div>
-            <div id="scatter-chart"></div>
-          </div>
+      <div id="scatter-view">
+         <div class="card" style="padding:20px;">
+           <div id="scatter-main-chart" style="min-height:520px;"></div>
         </div>
       </div>
 

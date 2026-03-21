@@ -1,98 +1,5 @@
 'use strict';
 
-/* ═══════════════════════════════════════════════════════
-   RadarView — 다지표 레이더 차트 (benchmarkCache 기반)
-═══════════════════════════════════════════════════════ */
-const RadarView = {
-  _chart: null,
-
-  _filterCache() {
-    return (AppState.raw.benchmarkCache || []).filter(r => BenchmarkUtils.baseFilter(r));
-  },
-
-  activate() {
-    const cache = AppState.raw.benchmarkCache;
-    const emptyEl = document.getElementById('radar-chart');
-    if (!cache || !cache.length) {
-      if (emptyEl) emptyEl.innerHTML = '<div class="trend-empty">벤치마크 캐시가 없습니다. 관리자 페이지에서 생성해 주세요.</div>';
-      return;
-    }
-    const names = [...new Set(cache.map(r => r.기준대학명))].sort();
-    BenchmarkUtils.populateDatalist('radar-univ-list', names);
-    this.render();
-    if (this._chart) setTimeout(() => this._chart.resize(), 60);
-  },
-
-  render() {
-    const cache = AppState.raw.benchmarkCache || [];
-    if (!cache.length) return;
-    const indicators = BenchmarkUtils.getIndicators(cache[0]);
-    if (!indicators.length) return;
-    const filteredAll = this._filterCache();
-
-    // min-max 정규화
-    const minMax = {};
-    for (const ind of indicators) {
-      const vals = filteredAll.map(r => r[ind]).filter(v => v != null && !isNaN(v));
-      minMax[ind] = { min: Math.min(...vals), max: Math.max(...vals) };
-    }
-    const normalize = (val, ind) => {
-      const { min, max } = minMax[ind] || { min: 0, max: 100 };
-      if (max === min) return 50;
-      return Math.max(0, Math.min(100, ((val - min) / (max - min)) * 100));
-    };
-
-    const series = [];
-    const CUSTOM_COLORS = getCustomColors();
-    const ourColor = cssVar('--our-color');
-
-    const ourRow = cache.find(r => r.기준대학명 === OUR_UNIV);
-    if (ourRow) {
-      series.push({ name: OUR_UNIV, isOurs: true, color: ourColor, values: indicators.map(ind => normalize(ourRow[ind], ind)) });
-    }
-
-    AppState.radar.customUnivs.forEach((name, idx) => {
-      const row = cache.find(r => r.기준대학명 === name);
-      if (!row) return;
-      series.push({ name, color: CUSTOM_COLORS[idx % CUSTOM_COLORS.length], values: indicators.map(ind => normalize(row[ind], ind)) });
-    });
-
-    if (AppState.radar.groups.has('동남권')) {
-      const rows = filteredAll.filter(r => DONGNAM.has(r.지역));
-      const avg = BenchmarkUtils.groupAvgMulti(rows, indicators);
-      series.push({ name: '동남권 평균', isDashed: true, color: cssVar('--trend-dongnam'), values: indicators.map(ind => normalize(avg[ind], ind)) });
-    }
-    if (AppState.radar.groups.has('전국 사립')) {
-      const rows = filteredAll.filter(r => r.설립구분 === '사립');
-      const avg = BenchmarkUtils.groupAvgMulti(rows, indicators);
-      series.push({ name: '전국 사립 평균', isDashed: true, color: cssVar('--trend-private'), values: indicators.map(ind => normalize(avg[ind], ind)) });
-    }
-
-    const el = document.getElementById('radar-chart');
-    if (!el) return;
-    if (!this._chart) this._chart = echarts.init(el);
-
-    this._chart.setOption({
-      tooltip: { trigger: 'item' },
-      legend: { bottom: 0, type: 'scroll', textStyle: { fontSize: 11 } },
-      radar: {
-        indicator: indicators.map(ind => ({ name: AppState.raw.calcRules[ind]?.label || ind, max: 100 })),
-        radius: '65%',
-        axisName: { fontSize: 11, color: cssVar('--text-secondary') },
-      },
-      series: [{
-        type: 'radar',
-        data: series.map(s => ({
-          name: s.name,
-          value: s.values,
-          lineStyle: { width: s.isOurs ? 2.5 : 1.5, type: s.isDashed ? 'dashed' : 'solid', color: s.color },
-          itemStyle: { color: s.color },
-          areaStyle: s.isOurs ? { color: s.color, opacity: 0.15 } : undefined,
-        })),
-      }],
-    }, true);
-  },
-};
 
 /* ═══════════════════════════════════════════════════════
    BenchmarkView — 1:1 벤치마킹 표 + 갭 분석 차트
@@ -273,118 +180,182 @@ const BenchmarkView = {
 };
 
 /* ═══════════════════════════════════════════════════════
-   HeatmapView — 상관관계 히트맵 (benchmarkCache 기반)
+   ScatterView — 산포도 (benchmarkCache 기반)
 ═══════════════════════════════════════════════════════ */
-const HeatmapView = {
+const ScatterView = {
   _chart: null,
-  _scatter: null,
-
-  _pearson(xs, ys) {
-    const n = xs.length;
-    if (n < 3) return null;
-    const mx = xs.reduce((a, b) => a + b, 0) / n;
-    const my = ys.reduce((a, b) => a + b, 0) / n;
-    const num = xs.reduce((acc, x, i) => acc + (x - mx) * (ys[i] - my), 0);
-    const dx = Math.sqrt(xs.reduce((acc, x) => acc + (x - mx) ** 2, 0));
-    const dy = Math.sqrt(ys.reduce((acc, y) => acc + (y - my) ** 2, 0));
-    return dx * dy > 0 ? num / (dx * dy) : null;
-  },
 
   _filterCache() {
     const cache = AppState.raw.benchmarkCache || [];
-    const h = AppState.heatmap;
+    const s = AppState.scatter;
     return cache.filter(r => {
       if (!BenchmarkUtils.baseFilter(r)) return false;
-      if (h.설립 === '사립' && r.설립구분 !== '사립') return false;
-      if (h.region === '비수도권' && METRO.has(r.지역)) return false;
-      if (h.region === '동남권' && !DONGNAM.has(r.지역)) return false;
+      if (s.설립 === '사립' && r.설립구분 !== '사립') return false;
+      if (s.지역 === '비수도권' && METRO.has(r.지역)) return false;
+      if (s.지역 === '동남권' && !DONGNAM.has(r.지역)) return false;
+      if (s.지역 === '부산' && r.지역 !== '부산') return false;
       return true;
     });
   },
 
   activate() {
     const cache = AppState.raw.benchmarkCache;
-    const el = document.getElementById('heatmap-chart');
+    const el = document.getElementById('scatter-main-chart');
     if (!cache || !cache.length) {
       if (el) el.innerHTML = '<div class="trend-empty">벤치마크 캐시가 없습니다. 관리자 페이지에서 생성해 주세요.</div>';
       return;
     }
+
+    // X/Y 셀렉트 옵션 채우기
+    const calcRules = AppState.raw.calcRules;
+    const opts = '<option value="">항목 선택</option>' +
+      Object.entries(calcRules)
+        .filter(([, r]) => r.visible)
+        .map(([key, r]) => `<option value="${key}">${r.label || key}</option>`)
+        .join('');
+    document.getElementById('scatter-x').innerHTML = opts;
+    document.getElementById('scatter-y').innerHTML = opts;
+
+    // 연도 셀렉트 채우기
+    const years = [...new Set(cache.map(r => r.기준연도))].sort((a, b) => b - a);
+    document.getElementById('scatter-year').innerHTML =
+      years.map(y => `<option value="${y}">${y}년</option>`).join('');
+
+    // 기존 선택값 복원
+    if (AppState.scatter.xKey) document.getElementById('scatter-x').value = AppState.scatter.xKey;
+    if (AppState.scatter.yKey) document.getElementById('scatter-y').value = AppState.scatter.yKey;
+    if (AppState.scatter.연도) document.getElementById('scatter-year').value = AppState.scatter.연도;
+    else AppState.scatter.연도 = years[0];
+
     this.render();
     if (this._chart) setTimeout(() => this._chart.resize(), 60);
   },
 
   render() {
-    const filtered = this._filterCache();
-    if (!filtered.length) return;
-    const indicators = BenchmarkUtils.getIndicators(filtered[0]);
-    if (indicators.length < 2) return;
+    const xKey = document.getElementById('scatter-x')?.value;
+    const yKey = document.getElementById('scatter-y')?.value;
+    const year = parseInt(document.getElementById('scatter-year')?.value);
+    AppState.scatter.xKey = xKey || null;
+    AppState.scatter.yKey = yKey || null;
+    AppState.scatter.연도 = year || null;
 
-    const labels = indicators.map(ind => AppState.raw.calcRules[ind]?.label || ind);
+    const el = document.getElementById('scatter-main-chart');
+    if (!el) return;
 
-    const matrix = [];
-    for (let i = 0; i < indicators.length; i++) {
-      for (let j = 0; j < indicators.length; j++) {
-        const pairs = filtered.map(r => [r[indicators[i]], r[indicators[j]]]).filter(([x, y]) => x != null && y != null);
-        const r = pairs.length >= 3 ? this._pearson(pairs.map(p => p[0]), pairs.map(p => p[1])) : null;
-        matrix.push([j, i, r != null ? +r.toFixed(3) : null]);
-      }
+    const msgEl = document.getElementById('scatter-msg') || (() => {
+    const d = document.createElement('div');
+    d.id = 'scatter-msg';
+    d.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;';
+    el.style.position = 'relative';
+    el.appendChild(d);
+    return d;
+    })();
+
+    if (!xKey || !yKey) {
+      msgEl.innerHTML = '<div class="trend-empty">X축과 Y축 항목을 선택하세요.</div>';
+      if (this._chart) this._chart.clear();
+      return;
+    }
+    if (xKey === yKey) {
+      msgEl.innerHTML = '<div class="trend-empty">X축과 Y축에 서로 다른 항목을 선택하세요.</div>';
+      if (this._chart) this._chart.clear();
+      return;
     }
 
-    const el = document.getElementById('heatmap-chart');
-    if (!el) return;
+    // 정상 렌더 시 메시지 숨기기
+    msgEl.innerHTML = '';
+
+    const filtered = this._filterCache().filter(r => r.기준연도 === year);
+    if (!filtered.length) {
+      msgEl.innerHTML = '<div class="trend-empty">조건에 해당하는 데이터가 없습니다.</div>';
+      if (this._chart) this._chart.clear();
+      return;
+    }
+
+    const xLabel = AppState.raw.calcRules[xKey]?.label || xKey;
+    const yLabel = AppState.raw.calcRules[yKey]?.label || yKey;
+    const xUnit  = AppState.raw.calcRules[xKey]?.unit || '';
+    const yUnit  = AppState.raw.calcRules[yKey]?.unit || '';
+    const xDp    = AppState.raw.calcRules[xKey]?.decimal_places ?? 1;
+    const yDp    = AppState.raw.calcRules[yKey]?.decimal_places ?? 1;
+
+    const data = filtered
+      .map(r => [r[xKey], r[yKey], r.기준대학명, r.대학구분])
+      .filter(([x, y]) => x != null && y != null);
+
+    // 평균선 계산
+    const xs = data.map(d => d[0]);
+    const ys = data.map(d => d[1]);
+    const avgX = xs.reduce((a, b) => a + b, 0) / xs.length;
+    const avgY = ys.reduce((a, b) => a + b, 0) / ys.length;
+
     if (!this._chart) this._chart = echarts.init(el);
 
     this._chart.setOption({
       tooltip: {
-        formatter(p) {
-          const [xi, yi, val] = p.data;
-          return `${labels[yi]} × ${labels[xi]}<br>상관계수: <b>${val != null ? val : '-'}</b>`;
+        formatter: p => {
+          if (!p.data?.value) return '';
+          const [x, y, name] = p.data.value;
+          return `<b>${name}</b><br>${xLabel}: <b>${x?.toFixed(xDp)}${xUnit}</b><br>${yLabel}: <b>${y?.toFixed(yDp)}${yUnit}</b>`;
         },
       },
-      grid: { top: 20, right: 20, bottom: 100, left: 100 },
-      xAxis: { type: 'category', data: labels, axisLabel: { rotate: 30, fontSize: 10 } },
-      yAxis: { type: 'category', data: labels, axisLabel: { fontSize: 10 } },
-      visualMap: { min: -1, max: 1, calculable: true, orient: 'horizontal', left: 'center', bottom: 0, inRange: { color: ['#ef4444', '#f8fafc', '#2563eb'] } },
-      series: [{
-        type: 'heatmap',
-        data: matrix,
-        label: { show: true, fontSize: 9, formatter: p => p.data[2] != null ? p.data[2].toFixed(2) : '' },
-        emphasis: { itemStyle: { shadowBlur: 10 } },
-      }],
+      grid: { top: 40, right: 40, bottom: 60, left: 70 },
+      xAxis: {
+        type: 'value', name: xLabel, nameLocation: 'middle', nameGap: 35,
+        nameTextStyle: { fontSize: 11 },
+        axisLabel: { formatter: v => v.toFixed(xDp) + xUnit, fontSize: 11 },
+        splitLine: { lineStyle: { type: 'dashed', color: cssVar('--border') } },
+      },
+      yAxis: {
+        type: 'value', name: yLabel, nameLocation: 'middle', nameGap: 50,
+        nameTextStyle: { fontSize: 11 },
+        axisLabel: { formatter: v => v.toFixed(yDp) + yUnit, fontSize: 11 },
+        splitLine: { lineStyle: { type: 'dashed', color: cssVar('--border') } },
+      },
+      series: [
+        // 일반 대학
+        {
+          type: 'scatter',
+          data: data.filter(d => d[2] !== OUR_UNIV).map(d => ({
+            value: [d[0], d[1], d[2]],
+            symbolSize: 8,
+            itemStyle: { color: cssVar('--text-muted'), opacity: 0.6 },
+          })),
+          emphasis: {
+            label: { show: true, formatter: p => p.data.value[2], position: 'top', fontSize: 11 },
+          },
+        },
+        // 우리 대학
+        {
+          type: 'scatter',
+          data: data.filter(d => d[2] === OUR_UNIV).map(d => ({
+            value: [d[0], d[1], d[2]],
+            symbolSize: 13,
+            itemStyle: { color: cssVar('--our-color'), borderColor: '#fff', borderWidth: 2 },
+            label: {
+              show: true, formatter: OUR_UNIV.replace('대학교', ''),
+              position: 'top', fontSize: 12, fontWeight: 700, color: cssVar('--our-color'),
+            },
+          })),
+          z: 10,
+        },
+        // X 평균선
+        {
+          type: 'line',
+          markLine: {
+            silent: true, symbol: 'none',
+            lineStyle: { type: 'dashed', color: cssVar('--border-mid'), width: 1 },
+            data: [{ xAxis: avgX }, { yAxis: avgY }],
+            label: {
+              formatter: p => p.name === 'xAxis'
+                ? `평균 ${avgX.toFixed(xDp)}${xUnit}`
+                : `평균 ${avgY.toFixed(yDp)}${yUnit}`,
+              fontSize: 10, color: cssVar('--text-muted'),
+            },
+          },
+          data: [],
+        },
+      ],
     }, true);
-
-    this._chart.off('click');
-    this._chart.on('click', params => {
-      if (params.componentType !== 'series') return;
-      const [xi, yi] = params.data;
-      const xInd = indicators[xi], yInd = indicators[yi];
-      if (xInd === yInd) return;
-      this._renderScatter(filtered, xInd, yInd, labels[xi], labels[yi]);
-    });
-  },
-
-  _renderScatter(rows, xInd, yInd, xLabel, yLabel) {
-    const card = document.getElementById('scatter-card');
-    const title = document.getElementById('scatter-title');
-    const el = document.getElementById('scatter-chart');
-    if (!card || !el) return;
-    card.style.display = '';
-    if (title) title.textContent = `${xLabel} × ${yLabel} 산점도`;
-    if (!this._scatter) this._scatter = echarts.init(el);
-
-    const data = rows.map(r => [r[xInd], r[yInd], r.기준대학명]).filter(([x, y]) => x != null && y != null);
-
-    this._scatter.setOption({
-      tooltip: { formatter: p => `${p.data[2]}<br>${xLabel}: ${p.data[0]?.toFixed(1)}<br>${yLabel}: ${p.data[1]?.toFixed(1)}` },
-      grid: { top: 20, right: 20, bottom: 50, left: 70 },
-      xAxis: { type: 'value', name: xLabel, nameLocation: 'middle', nameGap: 30 },
-      yAxis: { type: 'value', name: yLabel, nameLocation: 'middle', nameGap: 50 },
-      series: [{
-        type: 'scatter',
-        data: data.map(d => ({ value: [d[0], d[1]], name: d[2], itemStyle: { color: d[2] === OUR_UNIV ? cssVar('--our-color') : '#94a3b8', opacity: 0.7 } })),
-        symbolSize: 8,
-      }],
-    }, true);
-    setTimeout(() => this._scatter.resize(), 60);
   },
 };
