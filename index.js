@@ -255,10 +255,28 @@ const DataService = {
       return result;
     };
 
+    // rolling_avg 규칙: 해당 대학의 sourceField를 forYear 기준 numYears개 연도 합산 후 평균
+    const computeRollingAvg = (univName, sourceField, numYears, forYear) => {
+      const startYear = forYear - numYears + 1;
+      const yearVals = [];
+      for (let y = startYear; y <= forYear; y++) {
+        const yRows = rows.filter(r => {
+          if (getYear(r) !== y) return false;
+          const parsedName = r['대학명'] || r['학교'] || '(미확인)';
+          return (baseUnivMap.get(parsedName)?.['기준대학명'] || parsedName) === univName;
+        });
+        if (!yRows.length) continue;
+        const nums = yRows.map(r => r[sourceField]).filter(v => typeof v === 'number' && !isNaN(v));
+        if (nums.length) yearVals.push(nums.reduce((a, b) => a + b, 0));
+      }
+      return yearVals.length ? yearVals.reduce((a, b) => a + b, 0) / yearVals.length : null;
+    };
+
     const applyCalcRules = (summed, rawRows) => {
       const result = { ...summed };
       for (const [key, rule] of Object.entries(calcRules)) {
         if (rule.min_of) continue;
+        if (rule.rolling_avg) continue; // 이미 summed에 주입됨
         let num, den;
         if (rule.exclude_rows && rawRows) {
           const filtered = rawRows.filter(r => Object.entries(rule.exclude_rows).every(([f, vs]) => !vs.includes(r[f])));
@@ -284,11 +302,19 @@ const DataService = {
       return result;
     };
 
+    const rollingRules = Object.entries(calcRules).filter(([, r]) => r.rolling_avg);
+    const injectRollingAvg = (summed, univName, forYear) => {
+      for (const [key, rule] of rollingRules) {
+        summed[key] = computeRollingAvg(univName, rule.rolling_avg, rule.rolling_years ?? 5, forYear);
+      }
+    };
+
     const currentGroups = groupBy(yearRows);
     const prevGroups = prevYear != null ? groupBy(prevRows) : new Map();
     const result = [];
     for (const [univName, univRows] of currentGroups) {
       const summed = sumGroup(univRows);
+      injectRollingAvg(summed, univName, targetYear);
       const withRatios = applyCalcRules(summed, univRows);
       const info = univInfoMap.get(univName) || {};
       const 지역 = info['지역'] || univRows[0]['지역'] || '미확인';
@@ -296,8 +322,9 @@ const DataService = {
       const 대학구분 = info['대학구분'] || univRows[0]['학교종류'] || '미확인';
       const 수도권여부 = METRO_REGIONS.has(지역) ? 'Y' : 'N';
       let prevSummed = null;
-      if (prevGroups.has(univName)) {
+      if (prevGroups.has(univName) && prevYear != null) {
         const ps = sumGroup(prevGroups.get(univName));
+        injectRollingAvg(ps, univName, prevYear);
         prevSummed = applyCalcRules(ps, prevGroups.get(univName));
       }
       result.push({ 기준대학명: univName, 지역, 설립구분, 대학구분, 수도권여부, ...withRatios, _prev: prevSummed, _isOurs: univName === OUR_UNIV });
@@ -306,7 +333,7 @@ const DataService = {
   },
   detectPrimaryValueField(aggregated, calcRules) {
     if (!aggregated.length) return null;
-    const calcKeys = Object.keys(calcRules);
+    const calcKeys = Object.keys(calcRules).filter(k => !calcRules[k].rolling_avg);
     if (calcKeys.length) return calcKeys[0];
     const sample = aggregated[0];
     for (const [k, v] of Object.entries(sample)) {
@@ -346,7 +373,7 @@ const FilterManager = {
   },
   renderItemSelect(manifest) {
     const sel = document.getElementById('filter-item');
-    sel.innerHTML = '<option value="">— 항목 선택 —</option>';
+    sel.innerHTML = '<option value="">지표 선택</option>';
     if (!manifest.length) { sel.innerHTML += '<option value="" disabled>등록된 항목이 없습니다</option>'; return; }
     for (const item of manifest) {
       const key = item?.key ?? item; const label = item?.label || key;
@@ -513,7 +540,7 @@ const RankingView = {
   },
   renderTable(sorted, page) {
     const calcRules = AppState.raw.calcRules;
-    const { sortKey, sortDir } = AppState.computed;
+    const { sortKey, sortDir, rankKey } = AppState.computed;
     const itemConfig = AppState.raw.currentItem;
     let columns;
     if (itemConfig?.columns?.length) {
@@ -553,7 +580,7 @@ const RankingView = {
     const start = (page - 1) * ROWS_PER_PAGE;
     const pageRows = displayRows.slice(start, start + ROWS_PER_PAGE);
     const total = displayRows.length;
-    const deltaKey = sortKey;
+    const deltaKey = (sortKey === '_rank' || !sortKey) ? rankKey : sortKey;
     const tbody = document.getElementById('ranking-tbody');
     tbody.innerHTML = '';
     pageRows.forEach((row, i) => {
@@ -565,7 +592,7 @@ const RankingView = {
       const rankClass = rank <= 3 ? ' top3' : '';
       tr.innerHTML = `
         <td class="td-rank${rankClass}">${rank}</td>
-        <td class="td-univ">${row.기준대학명}${row._isOurs ? '<span class="our-tag">우리</span>' : ''}</td>
+        <td class="td-univ"><span class="td-univ-inner" title="${row.기준대학명}">${row.기준대학명}</span>${row._isOurs ? '<span class="our-tag">우리</span>' : ''}</td>
         <td>${row.지역 || '-'}</td>
         <td>${row.설립구분 || '-'}</td>
         ${columns.map(c => `<td class="td-num">${formatCell(c.key, row[c.key])}</td>`).join('')}
