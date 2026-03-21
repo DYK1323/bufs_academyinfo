@@ -79,7 +79,9 @@ const FilterManager = {
     // manifest에서 이 지표에 해당하는 항목 찾아 per-item JSON 로드
     const manifestItem = AppState.raw.manifest.find(m => m.indicator === indicatorKey) || null;
     AppState.raw.currentManifestItem = manifestItem;
-    AppState.raw.항목데이터 = manifestItem?.source ? await DataService.fetchItemData(manifestItem.source) : [];
+    const sources = manifestItem?.sources || [];
+    const fetched = await Promise.all(sources.map(s => DataService.fetchItemData(s)));
+    AppState.raw.항목데이터 = fetched.flat();
     this._reAggregate();
   },
   onYearChange(year) { AppState.filters.연도 = year; this._reAggregate(); },
