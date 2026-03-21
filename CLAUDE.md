@@ -4,6 +4,8 @@
 
 대학알리미 공시 데이터를 연 1회 정제·누적하고, 여러 구성원이 웹에서 순위·비교·추이를 조회할 수 있는 분석 툴이다. 전체 기능 명세는 **`docs/spec.md`** 를 참조한다.
 
+중요한 구조 변경이 있었을 때는 사용자가 요청하지 않아도 이 파일을 업데이트한다.
+
 ---
 
 ## 핵심 제약 (반드시 준수)
@@ -46,10 +48,12 @@
 │       ├── ranking.js             # RankingView (순위 표) + ThreatView (위협 레이더)
 │       ├── simulator.js           # SimulatorView (목표 시뮬레이터)
 │       ├── trend.js               # TrendView (추이 분석) + BumpView (순위 변동)
-│       └── benchmark.js           # RadarView + BenchmarkView + HeatmapView
+│       └── benchmark.js           # BenchmarkView + scatter
 ├── data/
 │   ├── 기준대학.json              # 캠퍼스 합산 기준 + 대학 속성
 │   ├── 학과분류.json              # 학과 계열 대/중/소 분류 (관리자 직접 관리)
+│   ├── manifest.json              # 분석 페이지 공시항목 목록 (indicator·source·columns 정의)
+│   ├── benchmark_cache.json       # 벤치마크 뷰용 사전 계산 캐시 (대학별 지표값, admin.html 생성)
 │   └── {항목키}.json              # 항목별 누적 데이터 (최근 5년 보관)
 └── docs/
     └── spec.md                    # 기능 명세서
@@ -113,15 +117,23 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 {
   "지표명": {
     "label": "화면 표시명",
+    "visible": true,
+    "sort_asc": false,
+    "unit": "%",
+    "decimal_places": 2,
+    "year_offset": 1,
     "exclude_rows": { "계열": ["의학계열"] },
     "numerator": ["분자_필드1", "분자_필드2"],
     "denominator_base": "분모_기준_필드",
     "denominator_exclude": ["분모_제외_필드1"],
-    "multiply": 100
+    "multiply": 100,
+    "used_in": ["항목키"]
   },
   "최솟값 지표": {
     "label": "화면 표시명",
-    "min_of": ["지표A", "지표B"]
+    "visible": false,
+    "min_of": ["지표A", "지표B"],
+    "used_in": []
   },
   "N년평균 중간값": {
     "rolling_avg": "원본_필드명",
@@ -130,6 +142,12 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 }
 ```
 
+- `visible`: 분석 페이지 지표 선택 드롭다운에 노출 여부 (false면 중간 계산용)
+- `sort_asc`: 순위 정렬 방향 — true면 낮을수록 높은 순위 (중도탈락률 등)
+- `unit`: 표시 단위 문자열 (예: `"%"`, `"명"`)
+- `decimal_places`: 표시 소수점 자리수
+- `year_offset`: 기준연도 오프셋 — 1이면 전년도 데이터를 해당 연도 값으로 사용 (중도탈락률 등)
+- `used_in`: 이 지표가 사용되는 공시항목 키 목록 (admin.html 드롭다운 연동)
 - `exclude_rows`: 산식 계산 전 특정 행 제외 (예: 의학계열 제외). 대학 단위 합산 전 원시 행에 적용.
 - `min_of`: 다른 산식 결과의 최솟값을 취하는 2단계 계산. 1단계 산식 완료 후 처리.
 - `rolling_avg`: 지정 필드의 최근 N년 평균을 계산하는 중간값. 다른 산식의 `numerator`에서 참조 가능. `rolling_years` 생략 시 기본값 5년. 해당 대학의 연도별 합산 후 연도 평균으로 계산됨.
@@ -192,6 +210,61 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 - 키: 표준 필드명, 값: 지금까지 쓰인 모든 별칭 배열
 - `normalize_gui.py`가 자동으로 읽고 갱신함 — 수동 편집도 가능
 
+### manifest.json (`data/manifest.json`)
+
+분석 페이지 공시항목 목록. admin.html에서 편집, index.html이 읽어서 항목 드롭다운 구성.
+
+```json
+[
+  {
+    "indicator": "정원내 신입생 충원율",
+    "sources": ["대학_4-다. 신입생 충원 현황_학과별자료"],
+    "columns": [
+      { "key": "입학정원 (A)", "label": "입학정원" },
+      { "key": "정원내 신입생 충원율", "label": "충원율(%)" }
+    ]
+  },
+  {
+    "indicator": "장학금 지급률",
+    "sources": [
+      "대학_12-다-1. 장학금 수혜 현황_학교별자료",
+      "대학_12-다-2. 학비감면 준수 여부_학교별자료"
+    ],
+    "columns": []
+  }
+]
+```
+
+- `indicator`: `calc_rules.json`의 지표명 (키)
+- `sources`: `data/{항목키}.json` 파일명 배열 (확장자 제외) — 복수 소스 지원, 단일 소스도 배열로 표기
+- `columns`: 순위 표에 표시할 컬럼 목록 — `key`는 raw 필드명 또는 calc_rules 지표명, `label`은 헤더 표시명
+- 복수 소스인 경우 캐시 생성 시 `기준대학명 + 기준연도` 기준으로 join 후 산식 적용
+
+### benchmark_cache.json (`data/benchmark_cache.json`)
+
+벤치마크 뷰(레이더·히트맵) 용 사전 계산 캐시. admin.html에서 생성·저장, index.html이 읽어서 사용.
+
+```json
+[
+  {
+    "기준대학명": "가야대학교",
+    "기준연도": 2025,
+    "지역": "경남",
+    "설립구분": "사립",
+    "대학구분": "대학교",
+    "수도권여부": "N",
+    "정원내 신입생 충원율": 95.11,
+    "중도탈락률(재학생)": 8.9,
+    "전임교원 확보율": 68.04
+  }
+]
+```
+
+- 대학별 1개 레코드 (최신 연도 기준)
+- 지표값은 calc_rules.json 산식 적용 후 계산된 값 (비율 등 포함)
+- `BenchmarkUtils.getIndicators(sample)`로 지표 키 목록 추출
+- raw data가 아닌 계산 결과를 저장하는 유일한 예외 파일 — admin.html에서만 생성
+
 ### 기준대학.json
 
 ```json
@@ -249,6 +322,32 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 | `index.html` | ✅ 구현 완료 | 순위 보기 + 추이 분석 뷰 모두 완성 |
 | `admin.html` | ✅ 구현 완료 | 기준대학 매핑 / 산식 관리 / 공시항목 관리 |
 | 캠퍼스 합산 로직 | 🔲 미착수 | `normalize_gui.py`에 추가 예정 |
+
+---
+
+## 향후 과제
+
+### 교육비 환원율 — 건축비 데이터 통합
+
+교육비 환원율 산식에 건축비 항목이 필요하나, 공시 데이터에 건축비가 없어 별도 수집 필요.
+
+**데이터 출처 및 특이사항**
+- 출처: 대학재정정보시스템 (본분교 합산본) + 직접 수집 결산서 (일부 대학 개별)
+- 단위: 천원 (공시 데이터는 원 단위 → 저장 시 ×1000 변환 필요)
+
+**계산 흐름**
+```
+건축비(천원) × 1000 → 건축비_원(원 단위, raw 저장)
+→ 최근 5년 평균 (calc_rules.json: rolling_avg)
+→ × 0.025 (2.5% 반영, calc_rules.json: multiply)
+→ 교육비 환원율 분자에 합산
+```
+
+**구현 필요 항목**
+1. 건축비 join 스크립트: 대학명을 `기준대학.json`으로 정규화 후 `건축비_원` 필드로 저장
+2. JS calc_rules 엔진: `rolling_avg` 타입 구현 (현재 명세만 있고 JS 미구현)
+3. calc_rules.json: `건축비_환원분` 산식 정의 (`rolling_avg` + `multiply: 0.025`)
+4. 대학명 미매칭 처리: join 스크립트에서 미매칭 목록 출력 → `기준대학.json` alias 추가
 
 ---
 

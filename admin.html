@@ -1627,7 +1627,12 @@ function renderManifest(items) {
     return;
   }
   visibleIndicators.forEach(([indicatorKey, rule], i) => {
-    const existing = manifestData.find(m => m.indicator === indicatorKey) || { indicator: indicatorKey, source: '', columns: [] };
+    const existing = manifestData.find(m => m.indicator === indicatorKey) || { indicator: indicatorKey, sources: [], columns: [] };
+    // 구버전 source 문자열 → sources 배열 마이그레이션
+    if (existing.source !== undefined && existing.sources === undefined) {
+      existing.sources = existing.source ? [existing.source] : [];
+      delete existing.source;
+    }
     // manifestData에 없으면 추가
     if (!manifestData.find(m => m.indicator === indicatorKey)) manifestData.push(existing);
     container.appendChild(buildManifestCard(existing, indicatorKey, rule.label || indicatorKey));
@@ -1640,7 +1645,8 @@ function buildManifestCard(item, indicatorKey, indicatorLabel) {
   card.dataset.indicator = indicatorKey;
 
   const cols = item.columns || [];
-  const isConfigured = !!item.source;
+  const sources = item.sources || [];
+  const isConfigured = sources.length > 0;
 
   card.innerHTML = `
     <div class="manifest-card-header" onclick="toggleCard(this)">
@@ -1656,9 +1662,16 @@ function buildManifestCard(item, indicatorKey, indicatorLabel) {
     <div class="manifest-card-body">
       <!-- 소스 파일 -->
       <div class="form-group" style="margin-bottom:12px;">
-        <label>소스 파일 (data/*.json 파일명)</label>
-        <input class="form-input mf-source" type="text" value="${esc(item.source||'')}"
-          placeholder="예: 대학_4-다. 신입생 충원 현황_학과별자료" oninput="setDirty()">
+        <label>소스 파일 (data/*.json 파일명, 여러 개 가능)</label>
+        <div class="mf-sources-list" style="display:flex;flex-direction:column;gap:4px;margin-bottom:4px;">
+          ${sources.map(s => `
+            <div style="display:flex;gap:4px;">
+              <input class="form-input mf-source-item" type="text" value="${esc(s)}"
+                placeholder="예: 대학_4-다. 신입생 충원 현황_학과별자료" oninput="setDirty()" style="flex:1;">
+              <button class="btn btn-danger btn-sm" onclick="removeSourceRow(this)" style="white-space:nowrap;">−</button>
+            </div>`).join('')}
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="addSourceRow(this)">+ 소스 추가</button>
       </div>
       <!-- 표시 컬럼 -->
       <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">순위 표시 컬럼</div>
@@ -1702,12 +1715,31 @@ function deleteColRow(btn) {
   btn.closest('tr').remove(); setDirty();
 }
 
+function addSourceRow(btn) {
+  const list = btn.closest('.form-group').querySelector('.mf-sources-list');
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;gap:4px;';
+  div.innerHTML = `
+    <input class="form-input mf-source-item" type="text"
+      placeholder="예: 대학_4-다. 신입생 충원 현황_학과별자료" oninput="setDirty()" style="flex:1;">
+    <button class="btn btn-danger btn-sm" onclick="removeSourceRow(this)" style="white-space:nowrap;">−</button>`;
+  list.appendChild(div);
+  div.querySelector('input').focus();
+  setDirty();
+}
+
+function removeSourceRow(btn) {
+  btn.closest('div').remove();
+  setDirty();
+}
+
 function applyManifestCard(btn) {
   const card = btn.closest('.manifest-card');
   const indicatorKey = card.dataset.indicator;
   const msgEl = card.querySelector('.mf-apply-msg');
 
-  const source = card.querySelector('.mf-source').value.trim();
+  const sources = [...card.querySelectorAll('.mf-source-item')]
+    .map(el => el.value.trim()).filter(Boolean);
   const cols = [];
   card.querySelectorAll('.col-tbody tr').forEach(tr => {
     const k = tr.querySelector('.col-key').value.trim();
@@ -1716,16 +1748,16 @@ function applyManifestCard(btn) {
   });
 
   const idx = manifestData.findIndex(m => m.indicator === indicatorKey);
-  const updated = { indicator: indicatorKey, source, columns: cols };
+  const updated = { indicator: indicatorKey, sources, columns: cols };
   if (idx >= 0) manifestData[idx] = updated;
   else manifestData.push(updated);
 
   // 헤더 배지 업데이트
   const badge = card.querySelector('.manifest-card-header span:nth-child(2)');
   if (badge) {
-    badge.style.background = source ? '#dcfce7' : '#f1f5f9';
-    badge.style.color = source ? '#15803d' : '#94a3b8';
-    badge.textContent = source ? `설정됨 · 컬럼 ${cols.length}개` : '미설정';
+    badge.style.background = sources.length ? '#dcfce7' : '#f1f5f9';
+    badge.style.color = sources.length ? '#15803d' : '#94a3b8';
+    badge.textContent = sources.length ? `설정됨 · 컬럼 ${cols.length}개` : '미설정';
   }
 
   msgEl.textContent = '적용됨 ✓';
@@ -1757,9 +1789,13 @@ const DataViewer = {
       document.getElementById('dv-body').innerHTML = '<div class="dv-empty">먼저 GitHub에 연결하세요.</div>';
       return;
     }
+    // sources 배열의 첫 번째 소스를 대표 소스로 사용 (데이터 조회용)
     this._items = manifest
-      .filter(m => m.source)
-      .map(m => ({ key: m.source, label: State.original.calcRules?.[m.indicator]?.label || m.indicator }));
+      .filter(m => m.sources?.length || m.source)
+      .map(m => {
+        const src = m.sources?.[0] || m.source || '';
+        return { key: src, label: State.original.calcRules?.[m.indicator]?.label || m.indicator };
+      });
     this._buildDropdown('');
   },
 
@@ -1898,7 +1934,7 @@ const DataViewer = {
    캐시 관리
 ══════════════════════════════════════════ */
 const CacheManager = {
-  /** calc_rules(visible) + manifest(source, year_offset)로 집계 대상 자동 구성 */
+  /** calc_rules(visible) + manifest(sources, year_offset)로 집계 대상 자동 구성 */
   _getConfig() {
     const calcRules = State.original.calc || {};
     const manifest  = State.original.manifest || [];
@@ -1906,10 +1942,12 @@ const CacheManager = {
       .filter(([, r]) => r.visible)
       .map(([key, rule]) => {
         const mItem = manifest.find(m => m.indicator === key) || {};
+        // 구버전 source 문자열 호환
+        const sources = mItem.sources || (mItem.source ? [mItem.source] : []);
         return {
           indicator:   key,
           label:       rule.label || key,
-          source:      mItem.source || '',
+          sources,
           year_offset: rule.year_offset ?? 0,
         };
       });
@@ -1954,8 +1992,8 @@ const CacheManager = {
               <div style="font-weight:600;">${esc(item.label)}</div>
               <div style="font-size:11px;color:var(--text-muted);">${esc(item.indicator)}</div>
             </td>
-            <td style="padding:8px;${item.source ? '' : 'color:#ef4444;'}">
-              ${item.source ? esc(item.source) : '⚠️ 미설정 — 공시항목 탭에서 설정'}
+            <td style="padding:8px;${item.sources.length ? '' : 'color:#ef4444;'}">
+              ${item.sources.length ? item.sources.map(s => esc(s)).join('<br>') : '⚠️ 미설정 — 공시항목 탭에서 설정'}
             </td>
             <td style="padding:8px;text-align:center;">
               <span style="color:var(--text-muted);">${item.year_offset > 0 ? '+' : ''}${item.year_offset}</span>
@@ -1975,7 +2013,7 @@ const CacheManager = {
     if (!State.connected) { alert('먼저 GitHub에 연결하세요.'); return; }
 
     const config = this._getConfig();
-    const valid = config.filter(c => c.source);
+    const valid = config.filter(c => c.sources.length > 0);
     if (!valid.length) { alert('공시항목 탭에서 소스 파일을 먼저 설정하세요.'); return; }
 
     const btn = document.getElementById('btn-cache-generate');
@@ -1997,17 +2035,13 @@ const CacheManager = {
       // 2. calc_rules
       const calcRules = State.original.calc || {};
 
-      // 3. 소스 파일별로 그룹화 (같은 파일은 한 번만 fetch)
-      const bySource = new Map();
-      for (const item of valid) {
-        if (!bySource.has(item.source)) bySource.set(item.source, []);
-        bySource.get(item.source).push(item);
-      }
+      // 3. 고유 소스 파일 목록 수집 (중복 제거)
+      const allSources = new Set(valid.flatMap(c => c.sources));
 
-      // 4. 각 소스 파일 fetch → 집계 → 지표별 머지
-      const mergedMap = new Map(); // `${기준대학명}__${기준연도}` → object
-
-      for (const [source, items] of bySource) {
+      // 4. 소스 파일별 fetch → raw 합산만 수행 (산식 적용 없음)
+      //    rawMap: source → Map<year, aggRows[]>
+      const rawMap = new Map();
+      for (const source of allSources) {
         this._log(`\n📥 ${source} 로드 중…`);
         let rows;
         try {
@@ -2023,27 +2057,56 @@ const CacheManager = {
         const years = [...new Set(rows.map(getYear).filter(y => !isNaN(y)))].sort();
         this._log(`  → 연도: ${years.join(', ')}`);
 
-        const agg = this._aggregateAllYears(rows, years, calcRules, baseUnivMap);
+        rawMap.set(source, this._aggregateRawAllYears(rows, years, baseUnivMap));
+      }
 
-        for (const item of items) {
+      // 5. 지표별로 필요한 소스들을 year+대학명 기준으로 join → mergedRaw 구성
+      //    mergedRaw: mapKey → { 기준대학명, 기준연도, 메타, ...raw필드들 }
+      const mergedRaw = new Map();
+
+      for (const item of valid) {
+        for (const source of item.sources) {
+          const agg = rawMap.get(source);
+          if (!agg) continue;
           const offset = item.year_offset || 0;
           for (const [year, aggRows] of agg) {
             const mappedYear = year + offset;
             for (const row of aggRows) {
               const mapKey = `${row.기준대학명}__${mappedYear}`;
-              if (!mergedMap.has(mapKey)) {
-                mergedMap.set(mapKey, {
+              if (!mergedRaw.has(mapKey)) {
+                mergedRaw.set(mapKey, {
                   기준대학명: row.기준대학명, 기준연도: mappedYear,
                   지역: row.지역, 설립구분: row.설립구분,
                   대학구분: row.대학구분, 수도권여부: row.수도권여부,
                 });
               }
-              const target = mergedMap.get(mapKey);
-              if (row[item.indicator] !== undefined) target[item.indicator] = row[item.indicator];
+              // raw 필드 병합 (산식 키 제외)
+              const target = mergedRaw.get(mapKey);
+              for (const [k, v] of Object.entries(row)) {
+                if (['기준대학명','기준연도','지역','설립구분','대학구분','수도권여부'].includes(k)) continue;
+                if (target[k] === undefined) target[k] = v;
+              }
             }
-            this._log(`  [${item.indicator}] ${year}년 → ${mappedYear}년 버킷`);
           }
+          this._log(`  [${item.indicator}] ${source} 병합 완료`);
         }
+      }
+
+      // 6. 모든 raw 필드가 모인 후 산식 일괄 적용
+      this._log('\n⚙️ 산식 적용 중…');
+      const mergedMap = new Map();
+      for (const [mapKey, rawRow] of mergedRaw) {
+        const withRatios = this._applyCalc(rawRow, calcRules);
+        // visible 지표만 남기기
+        const out = {
+          기준대학명: rawRow.기준대학명, 기준연도: rawRow.기준연도,
+          지역: rawRow.지역, 설립구분: rawRow.설립구분,
+          대학구분: rawRow.대학구분, 수도권여부: rawRow.수도권여부,
+        };
+        for (const item of valid) {
+          if (withRatios[item.indicator] !== undefined) out[item.indicator] = withRatios[item.indicator];
+        }
+        mergedMap.set(mapKey, out);
       }
 
       const cacheData = [...mergedMap.values()].sort((a, b) => {
@@ -2182,6 +2245,89 @@ const CacheManager = {
       result.set(year, this._aggregate(rows, year, calcRules, baseUnivMap));
     }
     return result;
+  },
+
+  /** raw 합산 전용 (산식 적용 없음) — 단일 연도, 대학별 수치 합산만 수행 */
+  _aggregateRaw(rows, targetYear, baseUnivMap) {
+    const METRO = new Set(['서울', '경기', '인천']);
+    const getYear = r => parseInt(r['기준연도'] ?? r['기준년도'], 10);
+    const yearRows = rows.filter(r => getYear(r) === targetYear);
+
+    const groups = new Map();
+    for (const row of yearRows) {
+      const raw = row['대학명'] || row['학교'] || '(미확인)';
+      const key = baseUnivMap.get(raw)?.['기준대학명'] || raw;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(row);
+    }
+
+    const result = [];
+    for (const [univName, univRows] of groups) {
+      const summed = { 기준대학명: univName };
+      const first = univRows[0];
+      for (const field of Object.keys(first)) {
+        if (['기준연도','기준년도','대학명','학교'].includes(field)) continue;
+        const nums = univRows.map(r => r[field]).filter(v => typeof v === 'number' && !isNaN(v));
+        summed[field] = nums.length ? nums.reduce((a, b) => a + b, 0) : first[field];
+      }
+      const 지역 = first['지역'] || '미확인';
+      summed['지역'] = 지역;
+      summed['설립구분'] = first['설립구분'] || '미확인';
+      summed['대학구분'] = first['학교종류'] || '미확인';
+      summed['수도권여부'] = METRO.has(지역) ? 'Y' : 'N';
+      result.push(summed);
+    }
+    return result;
+  },
+
+  /** raw 합산 전체 연도 — Map<year, aggRows[]> 반환 */
+  _aggregateRawAllYears(rows, years, baseUnivMap) {
+    const result = new Map();
+    for (const year of years) {
+      result.set(year, this._aggregateRaw(rows, year, baseUnivMap));
+    }
+    return result;
+  },
+
+  /** 이미 합산된 단일 row에 calc_rules 산식 적용 — 계산된 지표 포함 row 반환 */
+  _applyCalc(summed, calcRules) {
+    const res = { ...summed };
+
+    const sumFields = (fields) => {
+      const out = {};
+      for (const field of fields) {
+        out[field] = typeof summed[field] === 'number' ? summed[field] : 0;
+      }
+      return out;
+    };
+
+    // 1단계: numerator/denominator 산식
+    for (const [key, rule] of Object.entries(calcRules)) {
+      if (rule.min_of || rule.rolling_avg) continue;
+      let num, den;
+      if (rule.exclude_rows) {
+        // exclude_rows는 원시 행 단위 처리가 필요해 단일 row에서는 적용 불가 — 필드 그대로 참조
+        num = (rule.numerator || []).reduce((acc, f) => acc + (res[f] ?? 0), 0);
+        const db = rule.denominator_base;
+        den = !isNaN(Number(db)) ? Number(db) : (res[db] ?? 0);
+        for (const ex of (rule.denominator_exclude || [])) den -= (res[ex] ?? 0);
+      } else {
+        num = (rule.numerator || []).reduce((acc, f) => acc + (res[f] ?? 0), 0);
+        const db = rule.denominator_base;
+        den = !isNaN(Number(db)) ? Number(db) : (res[db] ?? 0);
+        for (const ex of (rule.denominator_exclude || [])) den -= (res[ex] ?? 0);
+      }
+      res[key] = den > 0 ? (num / den) * (rule.multiply ?? 1) : null;
+    }
+
+    // 2단계: min_of
+    for (const [key, rule] of Object.entries(calcRules)) {
+      if (!rule.min_of) continue;
+      const vals = rule.min_of.map(k => res[k]).filter(v => v != null && !isNaN(v));
+      res[key] = vals.length ? Math.min(...vals) : null;
+    }
+
+    return res;
   },
 };
 
