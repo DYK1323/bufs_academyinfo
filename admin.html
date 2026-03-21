@@ -372,7 +372,7 @@ body { padding-bottom: 60px; }
 .dv-filters select { min-width:90px; }
 .dv-filters input { min-width:140px; }
 .dv-count { font-size:12px; color:var(--text-muted); white-space:nowrap; align-self:center; }
-.dv-table-wrap { overflow:auto; max-height:calc(100vh - 180px); border:1px solid var(--border); border-radius:8px; background:#fff; }
+.dv-table-wrap { overflow:auto; border:1px solid var(--border); border-radius:8px; background:#fff; }
 .dv-table { width:100%; border-collapse:collapse; font-size:12.5px; }
 .dv-table thead th {
   position:sticky; top:0; background:#f8fafc; z-index:2;
@@ -632,6 +632,9 @@ function switchTab(name, btn) {
   document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
   document.getElementById(`tab-${name}`).classList.add('active');
   btn.classList.add('active');
+  const saveBar = document.querySelector('.save-bar');
+  if (saveBar) saveBar.style.display = name === 'data' ? 'none' : '';
+  document.body.style.paddingBottom = name === 'data' ? '0' : '';
 }
 
 /* ══════════════════════════════════════════
@@ -1764,7 +1767,7 @@ const DataViewer = {
       ? this._items.filter(m => m.label.includes(q) || m.key.includes(q))
       : this._items;
     dd.innerHTML = filtered.map(m =>
-      `<div class="dv-dd-item" onmousedown="DataViewer.selectItem('${esc(m.key)}','${esc(m.label)}')">${esc(m.label)}<span style="margin-left:6px;font-size:11px;color:var(--text-muted);">${esc(m.key)}</span></div>`
+      `<div class="dv-dd-item" onmousedown="DataViewer.selectItem('${esc(m.key)}','${esc(m.label)}')">${esc(m.key)}<span style="margin-left:6px;font-size:11px;color:var(--text-muted);">${esc(m.label)}</span></div>`
     ).join('') || '<div class="dv-dd-item" style="color:var(--text-muted)">검색 결과 없음</div>';
   },
 
@@ -1773,7 +1776,7 @@ const DataViewer = {
   closeDropdown() { document.getElementById('dv-dropdown').classList.remove('open'); },
 
   async selectItem(key, label) {
-    document.getElementById('dv-item-input').value = label;
+    document.getElementById('dv-item-input').value = key;
     this.closeDropdown();
     document.getElementById('dv-body').innerHTML = '<div class="dv-empty">데이터 로딩 중…</div>';
     document.getElementById('dv-count').textContent = '';
@@ -1879,6 +1882,11 @@ const DataViewer = {
           <tbody>${tbody}</tbody>
         </table>
       </div>`;
+    const wrap = document.querySelector('#dv-body .dv-table-wrap');
+    if (wrap) {
+      const top = wrap.getBoundingClientRect().top;
+      wrap.style.maxHeight = (window.innerHeight - top - 8) + 'px';
+    }
   },
 
   _goPage(p) { this._page = p; this._render(); },
