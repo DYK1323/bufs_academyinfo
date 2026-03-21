@@ -166,14 +166,19 @@ const BenchmarkView = {
       xAxis: { type: 'value', axisLabel: { formatter: v => v > 0 ? '+' + v : String(v) } },
       yAxis: { type: 'category', data: labels, axisLabel: { fontSize: 11, width: 120, overflow: 'truncate' } },
       series: [{
-        name: seriesLabel, type: 'bar', data: gaps,
+        name: seriesLabel, type: 'bar',
+        data: gaps.map((value, i) => ({
+          value,
+          label: {
+            show: true,
+            position: value != null && value >= 0 ? 'right' : 'left',
+            distance: 6,
+            formatter: value != null ? fmtGap(value, indicators[i]) : '',
+            color: '#000000', fontSize: 12, fontWeight: 'bold',
+          },
+        })),
+        barMaxWidth: '70%',
         itemStyle: { color: p => isGood(p.value, indicators[p.dataIndex]) ? '#3b82f6' : '#ef4444' },
-        label: {
-          show: true,
-          position: p => p.value != null && p.value >= 0 ? 'right' : 'left',
-          formatter: p => p.value != null ? fmtGap(p.value, indicators[p.dataIndex]) : '',
-          color: '#374151', fontSize: 11,
-        },
       }],
     }, true);
   },
