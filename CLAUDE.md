@@ -172,6 +172,7 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 - KPI 바: 상위 백분율 / 전체 순위 / 지표값 (숫자 크게, 단위 작게)
 - 대학명 검색 필터 (`nameQuery`)
 - CSV 내보내기: `_rank` 기준 순위 포함
+- **raw 컬럼 연도 처리** (`filter.js _reAggregate()`): 항목데이터의 `공시연도=selectedYear`인 행들 중 최솟값 `기준연도`를 구해 그 기준으로 raw 집계. 예) 파견 교환학생 비율(공시연도 2025) → baseYear=2024로 재학생 집계 → 올바른 연도 재학생 수 표시
 
 **추이 분석 (`#trend-view`)**
 - `TrendView.buildAllYears()`: 전체 연도별 `aggregateByUniversity()` 호출 → `AppState.trend.allYears` 캐시
@@ -243,10 +244,13 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 **캐시 관리 탭**
 - `visible` 지표 × manifest sources 기준으로 집계 대상 자동 구성
 - 대학별 · 연도별 원시 집계 → calc_rules 산식 적용 → `benchmark_cache.json` 생성·저장
-- **연도 처리 방식 (중요)**:
-  - **join 키**: `기준연도` 기준 — 소스마다 `공시연도`가 달라도 동일 학년도끼리 join 가능
-  - **캐시 출력 연도**: 주 소스(sources 배열 첫 번째)의 `공시연도` 사용 — `기준연도` 필드에 저장
-  - 예) 파견 교환학생(공시연도 2025/기준연도 2024) + 재학생 현황(공시연도 2024/기준연도 2024) → 기준연도 2024로 join 후 캐시에는 기준연도=2025 출력
+- **연도 처리 방식 (중요) — 2단계 join**:
+  - **1단계 (지표 내 소스 join)**: `tempMap` 키 = `대학명__기준연도` — 소스마다 `공시연도`가 달라도 같은 `기준연도`끼리 묶음. 이때 주 소스(sources[0])의 `공시연도`를 tempRow에 보존.
+  - **2단계 (지표 간 집계)**: `mergedRaw` 키 = `대학명__공시연도` — tempRow의 `공시연도` 기준으로 cross-indicator merge. `기준연도`는 이 단계에서 버림.
+  - **캐시 출력 연도**: `공시연도` 필드로 저장. `기준연도`는 캐시에 포함하지 않음.
+  - 예) 파견 교환학생(공시연도 2025/기준연도 2024) + 재학생 현황(공시연도 2024/기준연도 2024) → 기준연도 2024로 1단계 join → 공시연도 2025로 2단계 집계 → 캐시에는 공시연도=2025 출력
+- **대학명 인식**: `row['대학명'] || row['학교'] || row['학교명'] || '(미확인)'` — `학교명` 필드 사용 항목(예: 학점교류 현황)도 정상 인식
+- **`GH.getFileSha(path)`**: SHA만 가져오는 전용 메서드 (benchmark_cache.json 같은 대용량 파일도 content 디코딩 없이 안전하게 SHA 취득)
 
 ### field_mapping.json
 
@@ -442,11 +446,20 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 **Q. admin.html 저장 시 "SHA mismatch" 오류**
 → GitHub CDN 캐시 또는 병렬 PUT race condition. 현재 코드는 파일별 순차 저장(GET→PUT)으로 방지되어 있음. 재발 시 브라우저 새로고침 후 재시도.
 
-**Q. 캐시 생성 시 "nil is not a string" 오류 (For 'properties/sha')**
-→ `GH.putFile()`에 SHA가 null로 전달되면 발생. 신규 파일 생성 시 SHA를 body에서 제외해야 함. `putFile` 내부에서 `sha ? { ...sha } : { ... }` 분기로 처리됨.
+**Q. 캐시 생성 시 "nil is not a string" 또는 "'sha' wasn't supplied" 오류**
+→ GitHub API PUT 시 SHA 처리 문제. 두 가지 원인: (1) 신규 파일에 sha 포함 — `putFile`에서 `sha ? {..., sha} : {...}` 분기로 처리. (2) benchmark_cache.json 같은 1MB 초과 파일을 `GH.getFile()`로 SHA 취득 시 content 디코딩 실패 — `GH.getFileSha(path)` 전용 메서드 사용으로 해결.
 
 **Q. admin.html 공시항목에서 수정 후 저장했는데 반영이 안 됨**
 → 카드 수정 후 반드시 **"적용" 버튼**을 눌러야 `manifestData`에 반영됨. 적용 없이 GitHub 저장 시 기존값이 그대로 저장됨.
 
 **Q. admin.html에서 작업하다 새로고침했는데 내용이 날아감**
 → "적용" 버튼 클릭 후 2초 이내에 새로고침하면 로컬 초안 저장 전일 수 있음. 재연결 시 초안이 있으면 하단에 복원 배너가 표시됨. 초안은 마지막 "적용" 시점 기준이므로, 적용 없이 입력 중이던 내용은 복원되지 않음.
+
+**Q. 산식 빌더에서 분자 필드를 자동완성으로 선택했는데 저장이 안 됨**
+→ 자동완성 드롭다운에서 클릭 시 chip이 자동 추가됨. 만약 chip이 안 보이면 `facSelect()` 내부에서 `.chip-search-row` 감지 후 `addChipFromSearch()` 호출하는 로직 확인.
+
+**Q. 순위보기에서 복수 소스 지표(예: 파견 교환학생 비율)의 raw 컬럼 연도가 잘못 표시됨**
+→ `filter.js _reAggregate()`는 항목데이터의 `공시연도=selectedYear` 행들 중 최솟값 `기준연도`를 찾아 그 기준으로 raw 집계함. 공시연도≠기준연도인 항목에서 소스별 연도 불일치가 생기면 이 로직 확인.
+
+**Q. 캐시에 `(미확인)` 대학이 나타남**
+→ 해당 소스 파일의 대학명 필드가 `대학명`, `학교`, `학교명` 중 어느 것도 아닌 경우. `_aggregateRaw()`의 대학명 lookup 코드(`row['대학명'] || row['학교'] || row['학교명']`)에 해당 필드명 추가 필요.
