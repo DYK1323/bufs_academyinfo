@@ -2374,7 +2374,7 @@ const CacheManager = {
     const groupBy = rowSet => {
       const g = new Map();
       for (const row of rowSet) {
-        const raw = row['대학명'] || row['학교'] || '(미확인)';
+        const raw = row['대학명'] || row['학교'] || row['학교명'] || '(미확인)';
         const key = baseUnivMap.get(raw)?.['기준대학명'] || raw;
         if (!g.has(key)) g.set(key, []); g.get(key).push(row);
       }
@@ -2486,7 +2486,7 @@ const CacheManager = {
 
     const groups = new Map();
     for (const row of yearRows) {
-      const raw = row['대학명'] || row['학교'] || '(미확인)';
+      const raw = row['대학명'] || row['학교'] || row['학교명'] || '(미확인)';
       const key = baseUnivMap.get(raw)?.['기준대학명'] || raw;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(row);
