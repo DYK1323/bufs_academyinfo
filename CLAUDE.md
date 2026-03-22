@@ -101,6 +101,8 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
   6. 새 필드 발견 시 팝업
   7. **`공시연도` 삽입** — 파일명 앞 연도(`2025년__...`)를 두 번째 컬럼으로 삽입 (`pub_year_from_filename()`)
   8. JSON 누적
+- **`parse_학교_field()`**: `학교` 컬럼 우선, 없으면 `학교명` 컬럼으로 fallback — `{대학명} _제N캠퍼스` / `{대학명} _분교` 형식을 파싱해 `대학명` / `본분교` / `캠퍼스` 컬럼 추가. 학점교류 현황처럼 `학교명` 필드를 쓰는 항목도 대응.
+- **문자열 공백 제거**: JSON 저장 직전 모든 object 컬럼에 `.strip()` 적용 — raw 데이터의 trailing space로 인한 `baseUnivMap` 매핑 실패 방지
 
 ### merge_rules.json
 
@@ -243,6 +245,7 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 
 **캐시 관리 탭**
 - `visible` 지표 × manifest sources 기준으로 집계 대상 자동 구성
+- 버튼 2개: **⚡ 캐시 생성 및 저장** (기존) / **🔍 데이터 검증** (저장 없이 join 품질 리포트)
 - 대학별 · 연도별 원시 집계 → calc_rules 산식 적용 → `benchmark_cache.json` 생성·저장
 - **연도 처리 방식 (중요) — 2단계 join**:
   - **1단계 (지표 내 소스 join)**: `tempMap` 키 = `대학명__기준연도` — 소스마다 `공시연도`가 달라도 같은 `기준연도`끼리 묶음. 이때 주 소스(sources[0])의 `공시연도`를 tempRow에 보존.
@@ -250,7 +253,16 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
   - **캐시 출력 연도**: `공시연도` 필드로 저장. `기준연도`는 캐시에 포함하지 않음.
   - 예) 파견 교환학생(공시연도 2025/기준연도 2024) + 재학생 현황(공시연도 2024/기준연도 2024) → 기준연도 2024로 1단계 join → 공시연도 2025로 2단계 집계 → 캐시에는 공시연도=2025 출력
 - **대학명 인식**: `row['대학명'] || row['학교'] || row['학교명'] || '(미확인)'` — `학교명` 필드 사용 항목(예: 학점교류 현황)도 정상 인식
-- **`GH.getFileSha(path)`**: SHA만 가져오는 전용 메서드 (benchmark_cache.json 같은 대용량 파일도 content 디코딩 없이 안전하게 SHA 취득)
+- **`GH.getFileSha(path)`**: SHA만 가져오는 전용 메서드 (benchmark_cache.json 같은 대용량 파일도 content 디코딩 없이 안전하게 SHA 취득) — 1MB 초과 시 Git Trees API fallback
+
+**데이터 검증 도구 (`CacheManager.validate()`)**
+- 캐시를 저장하지 않고 join 과정의 오류를 사전 탐지
+- 결과는 `#cache-validation-wrap` 카드에 4개 섹션으로 표시:
+  - **V1** `_aggregateRaw` — `baseUnivMap` 미매칭 대학명 (소스파일별 목록)
+  - **V2** 1단계 tempMap join — 복수 소스 간 기준연도 키 불일치로 분자·분모 한쪽 누락
+  - **V3** 2단계 mergedRaw join — 지표 간 공시연도 불일치로 cross-indicator 연결 불가
+  - **V4** `_applyCalc` — numerator/denominator 필드 미존재 → `?? 0` 처리로 지표값 0 위험
+- 이슈 없는 섹션 ✅ 접힘, 이슈 있는 섹션 ❌ 열림으로 표시
 
 ### field_mapping.json
 

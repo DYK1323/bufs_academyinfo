@@ -2414,7 +2414,13 @@ const CacheManager = {
     const groupBy = rowSet => {
       const g = new Map();
       for (const row of rowSet) {
-        const raw = row['대학명'] || row['학교'] || row['학교명'] || '(미확인)';
+        let raw = (row['대학명'] || row['학교'] || row['학교명'] || '(미확인)').trim();
+        // ' _캠퍼스명' suffix 제거 — 학교명 필드에 '_제2캠퍼스' 등이 붙는 경우 처리
+        const suffixMatch = raw.match(/^(.+?)\s+_\S/);
+        if (suffixMatch && !baseUnivMap.has(raw)) {
+          const trimmed = suffixMatch[1].trim();
+          if (baseUnivMap.has(trimmed)) raw = trimmed;
+        }
         const key = baseUnivMap.get(raw)?.['기준대학명'] || raw;
         if (!g.has(key)) g.set(key, []); g.get(key).push(row);
       }
@@ -2526,7 +2532,13 @@ const CacheManager = {
 
     const groups = new Map();
     for (const row of yearRows) {
-      const raw = (row['대학명'] || row['학교'] || row['학교명'] || '(미확인)').trim();
+      let raw = (row['대학명'] || row['학교'] || row['학교명'] || '(미확인)').trim();
+      // ' _캠퍼스명' suffix 제거 — 학교명 필드에 '_제2캠퍼스' 등이 붙는 경우 처리
+      const suffixMatch = raw.match(/^(.+?)\s+_\S/);
+      if (suffixMatch && !baseUnivMap.has(raw)) {
+        const trimmed = suffixMatch[1].trim();
+        if (baseUnivMap.has(trimmed)) raw = trimmed;
+      }
       const key = baseUnivMap.get(raw)?.['기준대학명'] || raw;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(row);
@@ -2538,16 +2550,18 @@ const CacheManager = {
       // 공시연도 캡처 — 캐시 출력 연도로 사용 (소스마다 공시연도가 다를 수 있음)
       const rawPubYear = parseInt(univRows[0]['공시연도'] ?? univRows[0]['기준연도'] ?? univRows[0]['기준년도'], 10);
       summed['공시연도'] = isNaN(rawPubYear) ? targetYear : rawPubYear;
+      // 지역 등 메타 결정 시 '본교' 행 우선 사용 (본교 기준 지역이 맞음)
+      const mainRow = univRows.find(r => r['본분교'] === '본교') || univRows[0];
       const first = univRows[0];
       for (const field of Object.keys(first)) {
         if (['공시연도','기준연도','기준년도','대학명','학교'].includes(field)) continue;
         const nums = univRows.map(r => r[field]).filter(v => typeof v === 'number' && !isNaN(v));
         summed[field] = nums.length ? nums.reduce((a, b) => a + b, 0) : first[field];
       }
-      const 지역 = first['지역'] || '미확인';
+      const 지역 = mainRow['지역'] || '미확인';
       summed['지역'] = 지역;
-      summed['설립구분'] = first['설립구분'] || '미확인';
-      summed['대학구분'] = first['학교종류'] || '미확인';
+      summed['설립구분'] = mainRow['설립구분'] || '미확인';
+      summed['대학구분'] = mainRow['학교종류'] || '미확인';
       summed['수도권여부'] = METRO.has(지역) ? 'Y' : 'N';
       result.push(summed);
     }
@@ -2632,20 +2646,35 @@ const CacheManager = {
       // 2. 소스 파일 로드 (rawMap 구성) + V1 수집
       const allSources = new Set(valid.flatMap(c => c.sources));
       const rawMap = new Map();
-      const unmatchedNames = new Map(); // source → Set<rawName>
+      // V1: 기준대학.json에 있어야 하는데 공백 차이 등으로 매칭 실패한 near-miss만 수집
+      // (기준대학.json 자체에 없는 이름은 정상 — 변경/합산 없는 대학은 등록 안 됨)
+      const baseKeyNormMap = new Map(); // 공백제거 소문자 → 원래 key
+      for (const key of baseUnivMap.keys()) baseKeyNormMap.set(key.replace(/\s/g, ''), key);
+      const unmatchedNames = new Map(); // source → Array<{raw, suggested}>
 
       for (const source of allSources) {
-        unmatchedNames.set(source, new Set());
+        unmatchedNames.set(source, []);
         let rows;
         try {
           rows = await DataViewer._fetchLarge(`data/${source}.json`);
           if (!Array.isArray(rows)) throw new Error('배열 아님');
         } catch { continue; }
 
-        // V1: baseUnivMap 미매칭 수집
+        // V1: 정확한 매칭 실패 + 공백 제거 후 매칭 성공 = near-miss (수정 필요)
+        const seenRaw = new Set();
         for (const row of rows) {
-          const raw = (row['대학명'] || row['학교'] || row['학교명'] || '').trim();
-          if (raw && !baseUnivMap.has(raw)) unmatchedNames.get(source).add(raw);
+          let raw = (row['대학명'] || row['학교'] || row['학교명'] || '').trim();
+          if (!raw || seenRaw.has(raw)) continue;
+          // suffix 제거 후 매칭 가능하면 near-miss가 아님 (정상 처리됨)
+          if (baseUnivMap.has(raw)) continue;
+          const suffixMatch = raw.match(/^(.+?)\s+_\S/);
+          if (suffixMatch) {
+            const trimmed = suffixMatch[1].trim();
+            if (baseUnivMap.has(trimmed)) continue; // suffix 제거 후 매칭 성공 — 정상
+          }
+          seenRaw.add(raw);
+          const suggested = baseKeyNormMap.get(raw.replace(/\s/g, ''));
+          if (suggested) unmatchedNames.get(source).push({ raw, suggested });
         }
 
         const getYear = r => parseInt(r['기준연도'] ?? r['기준년도'] ?? r['공시연도'], 10);
@@ -2804,7 +2833,7 @@ const CacheManager = {
     const e = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
     // 건수 집계
-    const v1Count = [...unmatchedNames.values()].reduce((a, s) => a + s.size, 0);
+    const v1Count = [...unmatchedNames.values()].reduce((a, arr) => a + arr.length, 0);
     const v2Count = Object.values(tempJoinMiss).reduce((a, arr) => a + arr.length, 0);
     const v3Count = crossJoinMiss.length;
     const v4Count = Object.values(zeroFields).reduce((a, arr) => a + arr.length, 0);
@@ -2835,16 +2864,17 @@ const CacheManager = {
     // V1
     const v1Open = v1Count > 0 ? ' open' : '';
     const v1Icon = v1Count > 0 ? '<span style="color:#ef4444;">❌</span>' : '<span style="color:#16a34a;">✅</span>';
-    html += `<details${v1Open} style="${sectionStyle}"><summary style="${summaryStyle}">${v1Icon} [V1] 대학명 미매칭 (기준대학.json에 없는 이름) <span style="color:#ef4444;">${v1Count > 0 ? v1Count+'건' : ''}</span></summary><div style="${bodyStyle}">`;
+    html += `<details${v1Open} style="${sectionStyle}"><summary style="${summaryStyle}">${v1Icon} [V1] 기준대학 near-miss (공백 차이로 매칭 누락) <span style="color:#ef4444;">${v1Count > 0 ? v1Count+'건' : ''}</span></summary><div style="${bodyStyle}">`;
     if (v1Count === 0) {
-      html += '<p style="color:#16a34a;margin:6px 0;">모든 대학명이 정상 매칭됩니다.</p>';
+      html += '<p style="color:#16a34a;margin:6px 0;">기준대학.json 매핑이 누락된 near-miss 없음.</p>';
     } else {
-      html += `<table style="${tableStyle}"><thead><tr><th style="${thStyle}">소스 파일</th><th style="${thStyle}">미매칭 대학명</th><th style="${thStyle}">건수</th></tr></thead><tbody>`;
-      for (const [source, names] of unmatchedNames) {
-        if (!names.size) continue;
-        const arr = [...names];
-        const display = arr.slice(0, 20).map(n => e(n)).join(', ') + (arr.length > 20 ? ` 외 ${arr.length-20}개` : '');
-        html += `<tr><td style="${tdStyle}">${e(source)}</td><td style="${tdStyle}">${display}</td><td style="${tdStyle}">${arr.length}</td></tr>`;
+      html += '<p style="font-size:12px;color:var(--text-muted);margin:6px 0 8px;">기준대학.json에 등록된 이름과 공백 차이로 매칭이 누락된 케이스입니다. 소스 파일 재정규화 또는 기준대학.json에 별칭 추가가 필요합니다.</p>';
+      html += `<table style="${tableStyle}"><thead><tr><th style="${thStyle}">소스 파일</th><th style="${thStyle}">원시 대학명 (raw)</th><th style="${thStyle}">기준대학.json 예상 키</th></tr></thead><tbody>`;
+      for (const [source, misses] of unmatchedNames) {
+        if (!misses.length) continue;
+        for (const { raw, suggested } of misses) {
+          html += `<tr><td style="${tdStyle}">${e(source)}</td><td style="${tdStyle}">${e(raw)}</td><td style="${tdStyle}color:#d97706;">${e(suggested)}</td></tr>`;
+        }
       }
       html += '</tbody></table>';
     }
