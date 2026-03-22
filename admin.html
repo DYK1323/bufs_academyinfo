@@ -211,32 +211,29 @@ select.cell-input { appearance: none; -webkit-appearance: none; cursor: pointer;
 .rule-name-row { display: flex; gap: 10px; padding: 12px 16px 10px; border-bottom: 1px solid #f1f5f9; flex-wrap: wrap; }
 
 /* ── 산식 빌더 ── */
-.formula-split { display: flex; min-height: 240px; border-bottom: 1px solid #f1f5f9; }
+.fb-panel { padding: 12px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid #f1f5f9; }
 
-.fp-panel {
-  width: 185px; flex-shrink: 0; border-right: 1px solid var(--border);
-  display: flex; flex-direction: column; padding: 8px; gap: 5px; background: #fafafa;
+/* ── 필드 자동완성 드롭다운 ── */
+.fac-dropdown {
+  position: fixed; z-index: 9999; background: #fff;
+  border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.12); max-height: 280px; overflow-y: auto;
 }
-.fp-panel-title { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; }
-.fp-search {
-  height: 26px; padding: 0 8px; border: 1px solid var(--border); border-radius: 5px;
-  font-size: 12px; font-family: inherit; outline: none; width: 100%; background: #fff;
-}
-.fp-search:focus { border-color: var(--primary); }
-.fp-list { overflow-y: auto; flex: 1; }
-.fp-group-label {
+.fac-group-label {
   font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;
-  letter-spacing: .05em; padding: 5px 4px 2px; display: block;
+  letter-spacing: .05em; padding: 7px 10px 3px; background: #f8fafc;
+  border-bottom: 1px solid #f1f5f9; position: sticky; top: 0;
 }
-.fp-item {
-  font-size: 11.5px; padding: 3px 7px; border-radius: 4px; cursor: pointer;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #334155; display: block;
-  transition: background 0.08s;
+.fac-item {
+  font-size: 12.5px; padding: 6px 10px; cursor: pointer; color: #334155;
+  display: flex; align-items: center; gap: 6px;
 }
-.fp-item:hover { background: #eff6ff; color: var(--primary); }
-.fp-item.fp-hidden { display: none !important; }
-
-.fb-panel { flex: 1; padding: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; overflow: hidden; }
+.fac-item:hover, .fac-item.fac-active { background: #eff6ff; color: var(--primary); }
+.fac-source-hint {
+  font-size: 10.5px; color: var(--text-muted); margin-left: auto;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;
+}
+.fac-item mark { background: #fef08a; color: inherit; border-radius: 2px; padding: 0 1px; font-style: normal; }
 .fb-type-row { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; padding-bottom: 8px; border-bottom: 1px solid #f1f5f9; }
 .fb-type-label { font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; }
 .fb-type-radio-label { display: flex; align-items: center; gap: 4px; font-size: 12.5px; cursor: pointer; }
@@ -742,8 +739,9 @@ const State = {
   sha: { 기준대학: null, calc: null, manifest: null },
   original: { 기준대학: [], calc: {}, manifest: [] },
   dirty: false,
-  fieldKeys: [],   // field_mapping.json 키 목록 (연결 시 로드)
-  dataFiles: [],   // data/ 폴더 내 항목 JSON 파일명 목록 (연결 시 로드)
+  fieldKeys: [],        // field_mapping.json 키 목록 (연결 시 로드)
+  fieldsBySource: [],   // [{ source, fields[] }] — 소스별 그룹 (자동완성용)
+  dataFiles: [],        // data/ 폴더 내 항목 JSON 파일명 목록 (연결 시 로드)
 };
 
 /* ══════════════════════════════════════════
@@ -894,10 +892,11 @@ async function loadAll() {
   State.original.calc     = JSON.parse(JSON.stringify(calc.content));
   State.original.manifest = JSON.parse(JSON.stringify(manifest.content));
   // field_mapping.json 구조: { "__shared": {}, "항목키": {} }
-  // 모든 섹션의 키를 모아 중복 제거 후 정렬
-  State.fieldKeys = [...new Set(
-    Object.values(fieldMapping.content).flatMap(sec => Object.keys(sec))
-  )].sort();
+  // 소스별 필드 그룹 구성 (자동완성용) — __shared는 "(공통 필드)"로 표시
+  State.fieldsBySource = Object.entries(fieldMapping.content)
+    .map(([src, sec]) => ({ source: src === '__shared' ? '(공통 필드)' : src, fields: Object.keys(sec) }))
+    .filter(g => g.fields.length > 0);
+  State.fieldKeys = [...new Set(State.fieldsBySource.flatMap(g => g.fields))].sort();
 
   renderMappingTable(기준대학.content);
   renderCalcRules(calc.content);
@@ -1084,13 +1083,96 @@ function splitCsvLine(line) {
    공통 datalist 갱신
 ══════════════════════════════════════════ */
 function refreshDatalistOptions() {
-  const dlRaw  = document.getElementById('dl-raw-fields');
-  const dlAll  = document.getElementById('dl-all-fields');
   const dlFiles = document.getElementById('dl-data-files');
-  if (dlRaw)  dlRaw.innerHTML  = State.fieldKeys.map(k => `<option value="${esc(k)}">`).join('');
-  if (dlAll)  dlAll.innerHTML  = [...new Set([...State.fieldKeys, ...Object.keys(calcData)])].map(k => `<option value="${esc(k)}">`).join('');
   if (dlFiles) dlFiles.innerHTML = State.dataFiles.map(f => `<option value="${esc(f)}">`).join('');
 }
+
+/* ══════════════════════════════════════════
+   필드 자동완성 (소스별 그룹)
+══════════════════════════════════════════ */
+let _facDropdown = null;
+let _facTarget   = null;
+
+function _facItems(scope) {
+  const raw = State.fieldsBySource.flatMap(g => g.fields.map(f => ({ field: f, source: g.source })));
+  if (scope === 'all') {
+    const calc = Object.keys(calcData).map(k => ({ field: k, source: '계산 지표' }));
+    return [...calc, ...raw];
+  }
+  return raw;
+}
+
+function facShow(input) {
+  facHide();
+  const q = input.value.trim().toLowerCase();
+  const scope = input.dataset.fac || 'raw';
+  let items = _facItems(scope);
+  if (q) items = items.filter(i => i.field.toLowerCase().includes(q) || i.source.toLowerCase().includes(q));
+  if (!items.length) return;
+
+  const dd = document.createElement('div');
+  dd.className = 'fac-dropdown';
+
+  if (q) {
+    // 검색 모드: 플랫 목록 + 소스 힌트
+    items.forEach(({ field, source }) => {
+      const div = document.createElement('div');
+      div.className = 'fac-item';
+      const nameSpan = document.createElement('span');
+      const idx = field.toLowerCase().indexOf(q);
+      nameSpan.innerHTML = idx >= 0
+        ? esc(field.slice(0, idx)) + '<mark>' + esc(field.slice(idx, idx + q.length)) + '</mark>' + esc(field.slice(idx + q.length))
+        : esc(field);
+      const srcSpan = document.createElement('span');
+      srcSpan.className = 'fac-source-hint';
+      srcSpan.textContent = source;
+      div.appendChild(nameSpan);
+      div.appendChild(srcSpan);
+      div.addEventListener('mousedown', e => { e.preventDefault(); facSelect(input, field); });
+      dd.appendChild(div);
+    });
+  } else {
+    // 그룹 모드: 소스별 섹션
+    const groups = {};
+    items.forEach(({ field, source }) => { (groups[source] ??= []).push(field); });
+    for (const [src, fields] of Object.entries(groups)) {
+      const lbl = document.createElement('div');
+      lbl.className = 'fac-group-label';
+      lbl.textContent = src;
+      dd.appendChild(lbl);
+      fields.forEach(field => {
+        const div = document.createElement('div');
+        div.className = 'fac-item';
+        div.textContent = field;
+        div.addEventListener('mousedown', e => { e.preventDefault(); facSelect(input, field); });
+        dd.appendChild(div);
+      });
+    }
+  }
+
+  const rect = input.getBoundingClientRect();
+  dd.style.top   = (rect.bottom + 2) + 'px';
+  dd.style.left  = rect.left         + 'px';
+  dd.style.width = Math.max(rect.width, 300) + 'px';
+  document.body.appendChild(dd);
+  _facDropdown = dd;
+  _facTarget   = input;
+}
+
+function facHide() {
+  if (_facDropdown) { _facDropdown.remove(); _facDropdown = null; _facTarget = null; }
+}
+
+function facSelect(input, value) {
+  input.value = value;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  facHide();
+  input.focus();
+}
+
+document.addEventListener('focusin',  e => { if (e.target.dataset?.fac) facShow(e.target); });
+document.addEventListener('input',    e => { if (e.target.dataset?.fac) facShow(e.target); });
+document.addEventListener('focusout', e => { if (e.target.dataset?.fac) setTimeout(facHide, 150); });
 
 function addChipFromSearch(btn) {
   const input = btn.previousElementSibling;
@@ -1132,18 +1214,6 @@ function makeChip(fieldName) {
   return span;
 }
 
-function addToActiveZone(fieldName) {
-  let zone = _activeChipZone;
-  if (!zone || !zone.closest('.rule-card.open')) {
-    const openCard = document.querySelector('.rule-card.open');
-    if (!openCard) return;
-    zone = openCard.querySelector('.chip-zone');
-    if (!zone) return;
-    setActiveChipZone(zone);
-  }
-  zone.appendChild(makeChip(fieldName));
-  setDirty();
-}
 
 function renderCalcRules(rules) {
   calcData = JSON.parse(JSON.stringify(rules));
@@ -1231,12 +1301,8 @@ function buildRuleCard(key, rule) {
   `;
   body.appendChild(displayRow);
 
-  // 산식 빌더 (좌: 팔레트 / 우: 빌더)
-  const split = document.createElement('div');
-  split.className = 'formula-split';
-  split.appendChild(buildFieldPalette(card));
-  split.appendChild(buildFormulaBuilder(card, rule, isMin, isSum, isRolling));
-  body.appendChild(split);
+  // 산식 빌더
+  body.appendChild(buildFormulaBuilder(card, rule, isMin, isSum, isRolling));
 
   // 행 제외 (MIN·N년평균 제외)
   if (!isMin && !isRolling) {
@@ -1261,61 +1327,6 @@ function buildRuleCard(key, rule) {
   return card;
 }
 
-function buildFieldPalette(card) {
-  const div = document.createElement('div');
-  div.className = 'fp-panel';
-
-  const title = document.createElement('div');
-  title.className = 'fp-panel-title';
-  title.textContent = '필드 목록';
-
-  const search = document.createElement('input');
-  search.className = 'fp-search';
-  search.placeholder = '검색…';
-  search.addEventListener('input', () => {
-    const q = search.value.trim().toLowerCase();
-    div.querySelectorAll('.fp-item').forEach(item => {
-      item.classList.toggle('fp-hidden', q.length > 0 && !item.dataset.field.toLowerCase().includes(q));
-    });
-  });
-
-  const list = document.createElement('div');
-  list.className = 'fp-list';
-
-  const addGroup = (label, keys) => {
-    if (!keys.length) return;
-    const gl = document.createElement('div');
-    gl.className = 'fp-group-label';
-    gl.textContent = label;
-    list.appendChild(gl);
-    keys.forEach(k => {
-      const item = document.createElement('div');
-      item.className = 'fp-item';
-      item.textContent = k;
-      item.dataset.field = k;
-      item.title = k;
-      item.addEventListener('click', () => addToActiveZone(k));
-      list.appendChild(item);
-    });
-  };
-
-  const selfKey = card.dataset.key;
-  const calcKeys = Object.keys(calcData).filter(k => k !== selfKey);
-  addGroup('원시 데이터', State.fieldKeys);
-  addGroup('계산 지표', calcKeys);
-
-  if (!State.fieldKeys.length && !calcKeys.length) {
-    const hint = document.createElement('div');
-    hint.style.cssText = 'font-size:11.5px;color:var(--text-muted);padding:8px 4px;line-height:1.5;';
-    hint.textContent = 'GitHub 연결 후 표시됩니다.';
-    list.appendChild(hint);
-  }
-
-  div.appendChild(title);
-  div.appendChild(search);
-  div.appendChild(list);
-  return div;
-}
 
 function buildFormulaBuilder(card, rule, isMin, isSum, isRolling) {
   const type = isRolling ? 'rolling' : (isMin ? 'min' : (isSum ? 'sum' : 'ratio'));
@@ -1347,7 +1358,7 @@ function buildFormulaBuilder(card, rule, isMin, isSum, isRolling) {
   numLabel.textContent = '분자';
   const numSearchRow = document.createElement('div');
   numSearchRow.className = 'chip-search-row';
-  numSearchRow.innerHTML = `<input type="text" list="dl-raw-fields" placeholder="필드 검색 후 추가…"><button class="btn btn-secondary btn-sm" onclick="addChipFromSearch(this)">추가</button>`;
+  numSearchRow.innerHTML = `<input type="text" data-fac="raw" placeholder="필드 검색 후 추가…"><button class="btn btn-secondary btn-sm" onclick="addChipFromSearch(this)">추가</button>`;
   const numZone = document.createElement('div');
   numZone.className = 'chip-zone';
   numZone.dataset.area = 'num';
@@ -1376,7 +1387,7 @@ function buildFormulaBuilder(card, rule, isMin, isSum, isRolling) {
   const denInput = document.createElement('input');
   denInput.type = 'text';
   denInput.className = 'fb-den-select rule-field-den-base';
-  denInput.setAttribute('list', 'dl-all-fields');
+  denInput.setAttribute('data-fac', 'all');
   denInput.placeholder = '분모 필드 검색…';
   denInput.value = rule.denominator_base || '';
   denInput.addEventListener('input', setDirty);
@@ -1387,7 +1398,7 @@ function buildFormulaBuilder(card, rule, isMin, isSum, isRolling) {
 
   const denExclSearchRow = document.createElement('div');
   denExclSearchRow.className = 'chip-search-row';
-  denExclSearchRow.innerHTML = `<input type="text" list="dl-raw-fields" placeholder="제외 필드 검색…"><button class="btn btn-secondary btn-sm" onclick="addChipFromSearch(this)">추가</button>`;
+  denExclSearchRow.innerHTML = `<input type="text" data-fac="raw" placeholder="제외 필드 검색…"><button class="btn btn-secondary btn-sm" onclick="addChipFromSearch(this)">추가</button>`;
 
   const denExclZone = document.createElement('div');
   denExclZone.className = 'chip-zone';
@@ -1448,14 +1459,18 @@ function buildFormulaBuilder(card, rule, isMin, isSum, isRolling) {
   minArea.className = type !== 'min' ? 'fb-hidden' : '';
   const minLabel = document.createElement('div');
   minLabel.className = 'fb-area-label';
-  minLabel.innerHTML = 'MIN 대상 지표 <span style="font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;">(왼쪽 계산 지표에서 클릭해 추가)</span>';
+  minLabel.textContent = 'MIN 대상 지표';
+  const minSearchRow = document.createElement('div');
+  minSearchRow.className = 'chip-search-row';
+  minSearchRow.innerHTML = `<input type="text" data-fac="all" placeholder="계산 지표 검색 후 추가…"><button class="btn btn-secondary btn-sm" onclick="addChipFromSearch(this)">추가</button>`;
   const minZone = document.createElement('div');
   minZone.className = 'chip-zone';
   minZone.dataset.area = 'min';
-  minZone.dataset.placeholder = '+ 계산 지표 추가';
+  minZone.dataset.placeholder = '+ 지표 추가';
   (rule.min_of || []).forEach(f => minZone.appendChild(makeChip(f)));
   minZone.addEventListener('click', () => setActiveChipZone(minZone));
   minArea.appendChild(minLabel);
+  minArea.appendChild(minSearchRow);
   minArea.appendChild(minZone);
   panel.appendChild(minArea);
 
@@ -1468,7 +1483,7 @@ function buildFormulaBuilder(card, rule, isMin, isSum, isRolling) {
   const srcInput = document.createElement('input');
   srcInput.type = 'text';
   srcInput.className = 'fb-den-select rule-field-rolling-src';
-  srcInput.setAttribute('list', 'dl-raw-fields');
+  srcInput.setAttribute('data-fac', 'raw');
   srcInput.placeholder = '원본 필드 검색…';
   srcInput.value = rule.rolling_avg || '';
   srcInput.addEventListener('input', setDirty);
@@ -1539,7 +1554,7 @@ function makeExclRow(field, vals) {
   const div = document.createElement('div');
   div.className = 'excl-row';
   div.innerHTML = `
-    <input class="form-input excl-field" type="text" list="dl-raw-fields" value="${esc(field)}" placeholder="필드명 (예: 계열)" oninput="setDirty()">
+    <input class="form-input excl-field" type="text" data-fac="raw" value="${esc(field)}" placeholder="필드명 (예: 계열)" oninput="setDirty()">
     <input class="form-input excl-vals" type="text" value="${esc(vals)}" placeholder="제외값 (쉼표 구분)" oninput="setDirty()">
     <button class="btn btn-danger btn-sm" onclick="this.closest('.excl-row').remove();setDirty()">−</button>
   `;
@@ -2281,7 +2296,9 @@ const CacheManager = {
         const withRatios = this._applyCalc(rawRow, calcRules);
         // visible 지표만 남기기
         const out = {
-          기준대학명: rawRow.기준대학명, 기준연도: rawRow.공시연도 ?? rawRow.기준연도,
+          기준대학명: rawRow.기준대학명,
+          기준연도: rawRow.기준연도,
+          공시연도: rawRow.공시연도 ?? rawRow.기준연도,
           지역: rawRow.지역, 설립구분: rawRow.설립구분,
           대학구분: rawRow.대학구분, 수도권여부: rawRow.수도권여부,
         };
@@ -2292,7 +2309,7 @@ const CacheManager = {
       }
 
       const cacheData = [...mergedMap.values()].sort((a, b) => {
-        if (a.기준연도 !== b.기준연도) return b.기준연도 - a.기준연도;
+        if (a.공시연도 !== b.공시연도) return b.공시연도 - a.공시연도;
         return a.기준대학명.localeCompare(b.기준대학명, 'ko');
       });
 

@@ -222,7 +222,7 @@ const ScatterView = {
     document.getElementById('scatter-y').innerHTML = opts;
 
     // 연도 셀렉트 채우기
-    const years = [...new Set(cache.map(r => r.기준연도))].sort((a, b) => b - a);
+    const years = [...new Set(cache.map(r => r.공시연도 ?? r.기준연도))].sort((a, b) => b - a);
     document.getElementById('scatter-year').innerHTML =
       years.map(y => `<option value="${y}">${y}년</option>`).join('');
 
@@ -276,7 +276,7 @@ const ScatterView = {
     // 정상 렌더 시 메시지 숨기기
     msgEl.innerHTML = '';
 
-    const filtered = this._filterCache().filter(r => r.기준연도 === year);
+    const filtered = this._filterCache().filter(r => (r.공시연도 ?? r.기준연도) === year);
     if (!filtered.length) {
       msgEl.innerHTML = '<div class="trend-empty">조건에 해당하는 데이터가 없습니다.</div>';
       if (this._chart) this._chart.clear();

@@ -238,7 +238,10 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 **캐시 관리 탭**
 - `visible` 지표 × manifest sources 기준으로 집계 대상 자동 구성
 - 대학별 · 연도별 원시 집계 → calc_rules 산식 적용 → `benchmark_cache.json` 생성·저장
-- `공시연도` 기준 연도 매칭 (`기준연도` fallback 포함)
+- **연도 처리 방식 (중요)**:
+  - **join 키**: `기준연도` 기준 — 소스마다 `공시연도`가 달라도 동일 학년도끼리 join 가능
+  - **캐시 출력 연도**: 주 소스(sources 배열 첫 번째)의 `공시연도` 사용 — `기준연도` 필드에 저장
+  - 예) 파견 교환학생(공시연도 2025/기준연도 2024) + 재학생 현황(공시연도 2024/기준연도 2024) → 기준연도 2024로 join 후 캐시에는 기준연도=2025 출력
 
 ### field_mapping.json
 
