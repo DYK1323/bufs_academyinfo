@@ -41,10 +41,10 @@ const TrendView = {
     const cache = AppState.raw.benchmarkCache;
     const rankKey = AppState.computed.rankKey;
     if (!cache?.length || !rankKey) return;
-    const years = [...new Set(cache.filter(r => r[rankKey] != null).map(r => r.공시연도 ?? r.기준연도))].sort((a, b) => a - b);
+    const years = [...new Set(cache.filter(r => r[rankKey] != null).map(r => r.공시연도))].sort((a, b) => a - b);
     const allYears = new Map();
     for (const year of years) {
-      allYears.set(year, cache.filter(r => (r.공시연도 ?? r.기준연도) === year).map(r => ({ ...r, _isOurs: r.기준대학명 === OUR_UNIV })));
+      allYears.set(year, cache.filter(r => (r.공시연도) === year).map(r => ({ ...r, _isOurs: r.기준대학명 === OUR_UNIV })));
     }
     AppState.trend.allYears = allYears;
   },

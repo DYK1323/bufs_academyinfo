@@ -307,7 +307,6 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 [
   {
     "기준대학명": "가야대학교",
-    "기준연도": 2024,
     "공시연도": 2025,
     "지역": "경남",
     "설립구분": "사립",
@@ -321,9 +320,9 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 ```
 
 - 대학별 1개 레코드 (최신 연도 기준)
-- `기준연도`: 소스 join에 사용한 실제 학년도
 - `공시연도`: 주 소스(sources 배열 첫 번째)의 공시연도 — **index.html의 모든 연도 필터링은 이 값 기준**
-  - filter.js / ranking.js / trend.js / benchmark.js 모두 `r.공시연도 ?? r.기준연도` 패턴 사용
+  - `기준연도`는 join에만 사용하고 캐시 출력에는 포함하지 않음
+  - filter.js / ranking.js / trend.js / benchmark.js 모두 `r.공시연도` 기준
   - `BENCHMARK_META_KEYS`에 `공시연도` 포함 — 지표 목록에 노출 안 됨
 - 지표값은 calc_rules.json 산식 적용 후 계산된 값 (비율 등 포함)
 - `BenchmarkUtils.getIndicators(sample)`로 지표 키 목록 추출

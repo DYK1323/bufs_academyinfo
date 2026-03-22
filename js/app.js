@@ -57,7 +57,7 @@ const App = {
     document.getElementById('btn-csv').addEventListener('click', () => {
       const { sorted } = AppState.computed;
       const calcRules = AppState.raw.calcRules;
-      const metaFields = new Set(['기준대학명', '지역', '설립구분', '대학구분', '수도권여부', '기준연도', '공시연도']);
+      const metaFields = new Set(['기준대학명', '지역', '설립구분', '대학구분', '수도권여부', '공시연도']);
       const numFields = Object.keys(sorted[0] || {}).filter(k => !k.startsWith('_') && !metaFields.has(k) && typeof sorted[0][k] === 'number');
       const columns = [
         { key: '_rank', label: '순위' }, { key: '기준대학명', label: '대학명' },

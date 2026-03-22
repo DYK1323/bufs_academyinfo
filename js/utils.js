@@ -129,7 +129,7 @@ const FilterUtils = {
 /* ═══════════════════════════════════════════════════════
    BenchmarkUtils — benchmarkCache 뷰 공용 유틸 (RadarView·BenchmarkView·HeatmapView)
 ═══════════════════════════════════════════════════════ */
-const BENCHMARK_META_KEYS = new Set(['기준대학명', '기준연도', '공시연도', '지역', '설립구분', '대학구분', '수도권여부']);
+const BENCHMARK_META_KEYS = new Set(['기준대학명', '공시연도', '지역', '설립구분', '대학구분', '수도권여부']);
 
 const BenchmarkUtils = {
   /** benchmarkCache의 기본 대학 필터: 국공립/사립 + 대학교/산업대학 */

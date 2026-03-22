@@ -2268,36 +2268,57 @@ const CacheManager = {
         rawMap.set(source, this._aggregateRawAllYears(rows, years, baseUnivMap));
       }
 
-      // 5. 지표별로 필요한 소스들을 year+대학명 기준으로 join → mergedRaw 구성
-      //    mergedRaw: mapKey → { 기준대학명, 기준연도, 메타, ...raw필드들 }
+      // 5. 지표별 2단계 join → mergedRaw 구성
+      //    1단계: 지표 내 복수 소스를 기준연도 기준으로 join (tempMap)
+      //    2단계: tempMap 결과를 공시연도 기준 mergedRaw로 합산
+      //    mergedRaw: 대학+공시연도 → { 기준대학명, 공시연도, 메타, ...raw필드들 }
+      const META = ['기준대학명','기준연도','공시연도','지역','설립구분','대학구분','수도권여부'];
       const mergedRaw = new Map();
 
       for (const item of valid) {
+        // 1단계: 이 지표의 소스들을 기준연도 기준으로 join
+        const tempMap = new Map(); // 대학+기준연도 → row
         for (const source of item.sources) {
           const agg = rawMap.get(source);
           if (!agg) continue;
-          for (const [year, aggRows] of agg) {
+          for (const [baseYear, aggRows] of agg) {
             for (const row of aggRows) {
-              const mapKey = `${row.기준대학명}__${year}`;
-              if (!mergedRaw.has(mapKey)) {
-                mergedRaw.set(mapKey, {
-                  기준대학명: row.기준대학명, 기준연도: year,
-                  // 주 소스(첫 번째 기록) 의 공시연도를 캐시 출력 연도로 사용
-                  공시연도: row.공시연도 ?? year,
+              const tempKey = `${row.기준대학명}__${baseYear}`;
+              if (!tempMap.has(tempKey)) {
+                tempMap.set(tempKey, {
+                  기준대학명: row.기준대학명, 기준연도: baseYear,
+                  공시연도: row.공시연도 ?? baseYear,  // 첫 소스의 공시연도
                   지역: row.지역, 설립구분: row.설립구분,
                   대학구분: row.대학구분, 수도권여부: row.수도권여부,
                 });
               }
-              // raw 필드 병합 (산식 키 및 메타 키 제외 — 공시연도는 주 소스 값 유지)
-              const target = mergedRaw.get(mapKey);
+              const target = tempMap.get(tempKey);
               for (const [k, v] of Object.entries(row)) {
-                if (['기준대학명','기준연도','공시연도','지역','설립구분','대학구분','수도권여부'].includes(k)) continue;
+                if (META.includes(k)) continue;
                 if (target[k] === undefined) target[k] = v;
               }
             }
           }
-          this._log(`  [${item.indicator}] ${source} 병합 완료`);
         }
+
+        // 2단계: 기준연도 기준 tempMap → 공시연도 기준 mergedRaw로 합산
+        for (const tempRow of tempMap.values()) {
+          const pubYear = tempRow.공시연도;
+          const mapKey  = `${tempRow.기준대학명}__${pubYear}`;
+          if (!mergedRaw.has(mapKey)) {
+            mergedRaw.set(mapKey, {
+              기준대학명: tempRow.기준대학명, 공시연도: pubYear,
+              지역: tempRow.지역, 설립구분: tempRow.설립구분,
+              대학구분: tempRow.대학구분, 수도권여부: tempRow.수도권여부,
+            });
+          }
+          const target = mergedRaw.get(mapKey);
+          for (const [k, v] of Object.entries(tempRow)) {
+            if (META.includes(k)) continue;
+            if (target[k] === undefined) target[k] = v;
+          }
+        }
+        this._log(`  [${item.indicator}] 병합 완료`);
       }
 
       // 6. 모든 raw 필드가 모인 후 산식 일괄 적용
@@ -2308,8 +2329,7 @@ const CacheManager = {
         // visible 지표만 남기기
         const out = {
           기준대학명: rawRow.기준대학명,
-          기준연도: rawRow.기준연도,
-          공시연도: rawRow.공시연도 ?? rawRow.기준연도,
+          공시연도: rawRow.공시연도,
           지역: rawRow.지역, 설립구분: rawRow.설립구분,
           대학구분: rawRow.대학구분, 수도권여부: rawRow.수도권여부,
         };
