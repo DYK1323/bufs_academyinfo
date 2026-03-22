@@ -692,6 +692,17 @@ const GH = {
     return { content: JSON.parse(text), sha: data.sha };
   },
 
+  /** SHA만 조회 (대용량 파일도 안전 — content 디코딩 없음). 파일 없으면 null 반환. */
+  async getFileSha(path) {
+    const res = await fetch(
+      `https://api.github.com/repos/${this.owner}/${this.repo}/contents/${path}`,
+      { headers: this.headers() }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.sha || null;
+  },
+
   async putFile(path, content, sha, message) {
     const text = JSON.stringify(content, null, 2);
     const b64  = btoa(unescape(encodeURIComponent(text)));
@@ -2316,7 +2327,7 @@ const CacheManager = {
       this._log(`\n📊 총 ${cacheData.length}행. 저장 중…`);
 
       let cacheSha = null;
-      try { cacheSha = (await GH.getFile('data/benchmark_cache.json')).sha; } catch {}
+      cacheSha = await GH.getFileSha('data/benchmark_cache.json');
       await GH.putFile('data/benchmark_cache.json', cacheData, cacheSha, '벤치마크 캐시 업데이트');
 
       this._log('✅ benchmark_cache.json 저장 완료!');

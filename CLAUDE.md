@@ -208,18 +208,22 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 - GitHub 저장 성공 또는 초기화 시 초안 삭제
 - 저장소가 다른 초안은 무시 (repo 필드로 식별)
 
-**전역 datalist** (JS `refreshDatalistOptions()`로 채움, `applyRule()` 후 재갱신)
-- `#dl-raw-fields` — `State.fieldKeys` (원시 필드명)
-- `#dl-all-fields` — 원시 필드 + `calcData` 키 통합
-- `#dl-data-files` — `State.dataFiles`
+**전역 datalist** (JS `refreshDatalistOptions()`로 채움)
+- `#dl-data-files` — `State.dataFiles` (소스 파일 선택용)
+- `#dl-raw-fields`, `#dl-all-fields`는 제거됨 — 산식 빌더는 커스텀 자동완성 사용
 
 **산식 관리 탭**
-- 좌측 필드 팔레트: 원시 데이터 / 계산 지표 그룹으로 표시, 클릭 시 활성 chip-zone에 추가
-- 우측 산식 빌더: 유형 라디오 (비율 / 합계 / MIN / N년평균)
-  - 분자: `chip-search-row`(input `list="dl-raw-fields"` + 추가 버튼) + chip-zone
-  - 분모: `<input list="dl-all-fields">` (원시 + 계산 지표 검색)
-  - 분모 제외: `chip-search-row`(input `list="dl-raw-fields"`) + chip-zone
-  - N년평균 원본 필드: `<input list="dl-raw-fields">`
+- 좌측 필드 팔레트 없음 — 각 입력란에서 직접 검색
+- 산식 빌더: 유형 라디오 (비율 / 합계 / MIN / N년평균)
+  - 분자/분모 제외/MIN/N년평균 원본 필드: `data-fac="raw"` 또는 `data-fac="all"` 속성으로 커스텀 자동완성 연결
+  - 분모: `data-fac="all"` (원시 + 계산 지표)
+  - 나머지: `data-fac="raw"` (원시 필드만)
+
+**필드 자동완성 시스템** (`State.fieldsBySource` / `facShow` / `facHide` / `facSelect`)
+- `State.fieldsBySource`: `[{ source: "소스파일명", fields: [...] }]` — loadAll() 시 field_mapping.json 섹션별로 구성
+- 빈 상태: 소스 파일명으로 그룹 구분해서 표시
+- 검색 시: 플랫 목록 + 오른쪽에 소스명 힌트 + 매칭 문자 하이라이트
+- `data-fac="all"` 이면 상단에 계산 지표(`calcData` 키) 그룹 추가
 - 행 제외 조건: 필드명 `<input list="dl-raw-fields">` + 제외값 (쉼표 구분)
 - "적용" → `calcData` 갱신 + `refreshDatalistOptions()` 호출 → 하단 "GitHub에 저장"
 
@@ -303,7 +307,8 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 [
   {
     "기준대학명": "가야대학교",
-    "기준연도": 2025,
+    "기준연도": 2024,
+    "공시연도": 2025,
     "지역": "경남",
     "설립구분": "사립",
     "대학구분": "대학교",
@@ -316,6 +321,10 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 ```
 
 - 대학별 1개 레코드 (최신 연도 기준)
+- `기준연도`: 소스 join에 사용한 실제 학년도
+- `공시연도`: 주 소스(sources 배열 첫 번째)의 공시연도 — **index.html의 모든 연도 필터링은 이 값 기준**
+  - filter.js / ranking.js / trend.js / benchmark.js 모두 `r.공시연도 ?? r.기준연도` 패턴 사용
+  - `BENCHMARK_META_KEYS`에 `공시연도` 포함 — 지표 목록에 노출 안 됨
 - 지표값은 calc_rules.json 산식 적용 후 계산된 값 (비율 등 포함)
 - `BenchmarkUtils.getIndicators(sample)`로 지표 키 목록 추출
 - raw data가 아닌 계산 결과를 저장하는 유일한 예외 파일 — admin.html에서만 생성
@@ -432,6 +441,9 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 
 **Q. admin.html 저장 시 "SHA mismatch" 오류**
 → GitHub CDN 캐시 또는 병렬 PUT race condition. 현재 코드는 파일별 순차 저장(GET→PUT)으로 방지되어 있음. 재발 시 브라우저 새로고침 후 재시도.
+
+**Q. 캐시 생성 시 "nil is not a string" 오류 (For 'properties/sha')**
+→ `GH.putFile()`에 SHA가 null로 전달되면 발생. 신규 파일 생성 시 SHA를 body에서 제외해야 함. `putFile` 내부에서 `sha ? { ...sha } : { ... }` 분기로 처리됨.
 
 **Q. admin.html 공시항목에서 수정 후 저장했는데 반영이 안 됨**
 → 카드 수정 후 반드시 **"적용" 버튼**을 눌러야 `manifestData`에 반영됨. 적용 없이 GitHub 저장 시 기존값이 그대로 저장됨.
