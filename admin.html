@@ -1176,8 +1176,12 @@ function facHide() {
 
 function facSelect(input, value) {
   input.value = value;
-  input.dispatchEvent(new Event('input', { bubbles: true }));
   facHide();
+  if (input.closest('.chip-search-row')) {
+    addChipFromSearch(input.nextElementSibling);
+    return;
+  }
+  input.dispatchEvent(new Event('input', { bubbles: true }));
   input.focus();
 }
 

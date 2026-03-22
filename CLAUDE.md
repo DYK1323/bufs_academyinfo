@@ -199,7 +199,7 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 **전역 상태 객체**
 - `calcData` — 현재 편집 중인 calc_rules 객체 (적용 버튼으로 갱신)
 - `manifestData` — 현재 편집 중인 manifest 배열 (적용 버튼으로 갱신)
-- `State.fieldKeys` — field_mapping.json 모든 섹션 키 합집합 (datalist 원본)
+- `State.fieldsBySource` — `[{ source: "소스파일명", fields: [...] }]` — 커스텀 자동완성 원본
 - `State.dataFiles` — data/ 폴더 항목 파일명 목록 (소스 선택 드롭다운 원본)
 
 **로컬 초안 자동저장** (`DRAFT_KEY = 'admin_draft_v2'`)
@@ -224,7 +224,8 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 - 빈 상태: 소스 파일명으로 그룹 구분해서 표시
 - 검색 시: 플랫 목록 + 오른쪽에 소스명 힌트 + 매칭 문자 하이라이트
 - `data-fac="all"` 이면 상단에 계산 지표(`calcData` 키) 그룹 추가
-- 행 제외 조건: 필드명 `<input list="dl-raw-fields">` + 제외값 (쉼표 구분)
+- 행 제외 조건: 필드명 입력란 (`data-fac="raw"`) + 제외값 (쉼표 구분)
+- `facSelect()`: 드롭다운에서 값 선택 시 — `.chip-search-row` 내부 입력란이면 `addChipFromSearch()` 자동 호출 (수동 "추가" 클릭 불필요)
 - "적용" → `calcData` 갱신 + `refreshDatalistOptions()` 호출 → 하단 "GitHub에 저장"
 
 **공시항목 탭**

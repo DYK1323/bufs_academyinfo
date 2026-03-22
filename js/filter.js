@@ -95,10 +95,14 @@ const FilterManager = {
       cache.filter(r => (r.공시연도) === prevYear).map(r => [r.기준대학명, r])
     );
     // per-item JSON을 대학 단위로 합산 (raw 컬럼 표시용)
-    // 공시연도 기준으로 필터 — raw 데이터에 공시연도가 없는 구버전은 기준연도 fallback
+    // 공시연도=selectedYear인 행들의 최솟값 기준연도를 사용해 집계
+    // (예: 파견교환학생 공시연도=2025/기준연도=2024 → baseYear=2024로 집계)
     const rawAggMap = new Map();
     if (AppState.raw.항목데이터?.length) {
-      DataService.aggregateByUniv(AppState.raw.항목데이터, year, '공시연도')
+      const refRows = AppState.raw.항목데이터.filter(r => (r['공시연도'] ?? r['기준연도']) === year);
+      const baseYears = refRows.map(r => parseInt(r['기준연도'] ?? year, 10)).filter(n => !isNaN(n));
+      const baseYear = baseYears.length > 0 ? Math.min(...baseYears) : year;
+      DataService.aggregateByUniv(AppState.raw.항목데이터, baseYear, '기준연도')
         .forEach(r => rawAggMap.set(r.기준대학명, r));
     }
     // benchmark_cache(지표값·메타)와 per-item raw 컬럼 머지
