@@ -27,11 +27,15 @@ const DataService = {
   },
 
   /** 학과 단위 rows를 대학(기준대학명) 단위로 합산 (수치는 sum, 문자열은 첫 값) */
-  aggregateByUniv(rows, year) {
+  aggregateByUniv(rows, year, yearField = '기준연도') {
     const baseUnivMap = AppState.raw._baseUnivMap;
-    // 기준연도가 문자열("2016")·숫자(2016) 모두 대응
+    // 연도 필드가 문자열("2016")·숫자(2016) 모두 대응
+    // yearField='공시연도'이면 해당 필드로 필터, 없는 레코드는 기준연도 fallback
     const yearStr = String(year);
-    const yearRows = rows.filter(r => String(r.기준연도) === yearStr);
+    const yearRows = rows.filter(r => {
+      const val = r[yearField] !== undefined ? r[yearField] : r.기준연도;
+      return String(val) === yearStr;
+    });
     const groups = new Map();
     for (const row of yearRows) {
       const rawName = row.기준대학명 || row.대학명;

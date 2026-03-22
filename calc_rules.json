@@ -79,7 +79,6 @@
     "sort_asc": true,
     "unit": "%",
     "decimal_places": 2,
-    "year_offset": 1,
     "numerator": [
       "사유별 중도탈락 학생_계(B)"
     ],
@@ -95,7 +94,6 @@
     "sort_asc": true,
     "unit": "%",
     "decimal_places": 2,
-    "year_offset": 1,
     "numerator": [
       "사유별 중도탈락 학생(신입생)_계(B`)"
     ],

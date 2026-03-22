@@ -95,12 +95,10 @@ const FilterManager = {
       cache.filter(r => r.기준연도 === prevYear).map(r => [r.기준대학명, r])
     );
     // per-item JSON을 대학 단위로 합산 (raw 컬럼 표시용)
-    // year_offset: benchmark year = raw year + offset → raw year = selected year - offset
-    const yearOffset = AppState.raw.calcRules[indicatorKey]?.year_offset ?? 0;
-    const rawYear = year - yearOffset;
+    // 공시연도 기준으로 필터 — raw 데이터에 공시연도가 없는 구버전은 기준연도 fallback
     const rawAggMap = new Map();
     if (AppState.raw.항목데이터?.length) {
-      DataService.aggregateByUniv(AppState.raw.항목데이터, rawYear)
+      DataService.aggregateByUniv(AppState.raw.항목데이터, year, '공시연도')
         .forEach(r => rawAggMap.set(r.기준대학명, r));
     }
     // benchmark_cache(지표값·메타)와 per-item raw 컬럼 머지

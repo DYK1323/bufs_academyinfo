@@ -99,7 +99,8 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
   4. 헤더 flatten
   5. 필드 매핑 적용 (`field_mapping.json` 역방향 조회)
   6. 새 필드 발견 시 팝업
-  7. JSON 누적
+  7. **`공시연도` 삽입** — 파일명 앞 연도(`2025년__...`)를 두 번째 컬럼으로 삽입 (`pub_year_from_filename()`)
+  8. JSON 누적
 
 ### merge_rules.json
 
@@ -121,7 +122,6 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
     "sort_asc": false,
     "unit": "%",
     "decimal_places": 2,
-    "year_offset": 1,
     "exclude_rows": { "계열": ["의학계열"] },
     "numerator": ["분자_필드1", "분자_필드2"],
     "denominator_base": "분모_기준_필드",
@@ -146,7 +146,6 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 - `sort_asc`: 순위 정렬 방향 — true면 낮을수록 높은 순위 (중도탈락률 등)
 - `unit`: 표시 단위 문자열 (예: `"%"`, `"명"`)
 - `decimal_places`: 표시 소수점 자리수
-- `year_offset`: 기준연도 오프셋 — 1이면 전년도 데이터를 해당 연도 값으로 사용 (중도탈락률 등)
 - `used_in`: 이 지표가 사용되는 공시항목 키 목록 (admin.html 드롭다운 연동)
 - `exclude_rows`: 산식 계산 전 특정 행 제외 (예: 의학계열 제외). 대학 단위 합산 전 원시 행에 적용.
 - `min_of`: 다른 산식 결과의 최솟값을 취하는 2단계 계산. 1단계 산식 완료 후 처리.
@@ -297,6 +296,7 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 [
   {
     "기준연도": 2023,
+    "공시연도": 2024,
     "기준대학명": "서울대학교",
     "학과명": "컴퓨터공학부",
     "필드1": 값,
@@ -306,7 +306,10 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 ```
 
 - 레코드 배열(array of objects) 형태
-- 같은 항목 + 같은 연도 재처리 시 해당 연도 전체 덮어쓰기 (중복 안전)
+- `기준연도`: 데이터가 실제 다루는 학년도 (xlsx A열에서 추출)
+- `공시연도`: 대학알리미에 공시된 연도 (파일명 앞 연도에서 추출) — 분석 페이지·캐시가 이 값 기준으로 연도 매칭
+- 대부분의 항목은 `공시연도 = 기준연도`, 집계 시차가 있는 항목(중도탈락 등)은 다름
+- 같은 항목 + 같은 `공시연도` 재처리 시 해당 연도 전체 덮어쓰기 (중복 안전)
 - 새 연도에 추가된 필드는 이전 연도 레코드에서 `null`
 
 ### 항목 키 규칙

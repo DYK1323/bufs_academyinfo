@@ -163,6 +163,14 @@ def item_key_from_filename(filename: str) -> str:
     return stem
 
 
+def pub_year_from_filename(filename: str) -> int | None:
+    """파일명 앞 연도를 공시연도로 반환.
+    예) '2025년__대학_4-사_중도탈락...' → 2025
+    """
+    m = re.match(r"^(\d{4})년", Path(filename).name)
+    return int(m.group(1)) if m else None
+
+
 # ─────────────────────────────────────────────────────
 # 필드 매핑 관리
 # ─────────────────────────────────────────────────────
@@ -255,13 +263,16 @@ def accumulate_json(item_key: str, df: pd.DataFrame):
     if json_path.exists():
         existing = json.loads(json_path.read_text(encoding="utf-8"))
 
-    # 이번 파일의 연도 추출
-    year_col  = df.columns[0]   # 첫 번째 컬럼이 기준연도 (매핑 후 "기준연도")
-    new_years = df[year_col].astype(str).unique().tolist()
-
-    # 기존 데이터에서 같은 연도 제거 (덮어쓰기)
-    # JSON 포맷은 항상 "기준연도" 키를 사용하므로 고정 조회
-    existing = [row for row in existing if str(row.get("기준연도", "")) not in new_years]
+    # 이번 파일의 공시연도 추출 → 같은 공시연도 기존 데이터 제거 (덮어쓰기)
+    if '공시연도' in df.columns:
+        new_pub_years = df['공시연도'].astype(str).unique().tolist()
+        existing = [row for row in existing
+                    if str(row.get("공시연도", row.get("기준연도", ""))) not in new_pub_years]
+    else:
+        # 구버전 호환: 공시연도 없는 df는 기준연도 기반 제거
+        year_col  = df.columns[0]
+        new_years = df[year_col].astype(str).unique().tolist()
+        existing  = [row for row in existing if str(row.get("기준연도", "")) not in new_years]
 
     # 새 데이터 append
     new_records = df.where(pd.notnull(df), None).to_dict(orient="records")
@@ -307,6 +318,10 @@ def validate_df(df: pd.DataFrame) -> list[str]:
     if not bad_years.empty:
         unique_bad = bad_years.dropna().unique()[:5]
         warnings.append(f"기준연도 이상값 {len(bad_years)}개: {list(unique_bad)}")
+
+    # 공시연도 존재 여부 검사
+    if '공시연도' not in df.columns:
+        warnings.append("공시연도 컬럼이 없습니다 (파일명에서 연도 추출 실패)")
 
     # 대학명 / 학교 공백 검사
     for col in ("대학명", "학교"):
@@ -695,6 +710,13 @@ class App(tk.Tk):
 
                 # 4-1. '학교' 필드 파싱 → 대학명 / 본분교 / 캠퍼스 추가
                 df = parse_학교_field(df)
+
+                # 4-2. 공시연도 삽입 (파일명 앞 연도)
+                pub_year = pub_year_from_filename(fname)
+                if pub_year is not None:
+                    df.insert(1, '공시연도', pub_year)
+                else:
+                    self._log("  ⚠️  파일명에서 공시연도를 추출할 수 없습니다.", "warn")
 
                 item_key = item_key_from_filename(fname)
 
