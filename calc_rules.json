@@ -102,5 +102,34 @@
     "used_in": [
       "대학_4-사. 중도탈락 학생 현황_학교별자료"
     ]
+  },
+  "재학생 충원율": {
+    "label": "정원내 재학생 충원율",
+    "numerator": [
+      "재학생_정원내(D)"
+    ],
+    "denominator_base": "학생정원(A)",
+    "multiply": 100,
+    "denominator_exclude": [
+      "학생모집정지인원(B)"
+    ],
+    "visible": true,
+    "unit": "%",
+    "decimal_places": 2,
+    "sort_asc": false
+  },
+  "재학생 충원율(정원외)": {
+    "label": "정원외 재학생 충원율",
+    "numerator": [
+      "재학생_계(C)"
+    ],
+    "denominator_base": "학생정원(A)",
+    "multiply": 100,
+    "denominator_exclude": [
+      "학생모집정지인원(B)"
+    ],
+    "unit": "%",
+    "decimal_places": 2,
+    "sort_asc": false
   }
 }
