@@ -157,7 +157,7 @@ const ThreatView = {
     if (!currentYear) return [];
 
     // 최근 4개년 연도 목록 (내림차순)
-    const allYears = [...new Set(cache.filter(r => r[rankKey] != null && r.기준연도 <= currentYear).map(r => r.기준연도))]
+    const allYears = [...new Set(cache.filter(r => r[rankKey] != null && (r.공시연도 ?? r.기준연도) <= currentYear).map(r => r.공시연도 ?? r.기준연도))]
       .sort((a, b) => b - a).slice(0, 4);
     if (allYears.length < 2) return [];
 
@@ -165,7 +165,7 @@ const ThreatView = {
     const rankMaps = new Map();
     const f = AppState.filters;
     for (const year of allYears) {
-      const yearRows = cache.filter(r => r.기준연도 === year)
+      const yearRows = cache.filter(r => (r.공시연도 ?? r.기준연도) === year)
         .map(r => ({ ...r, _isOurs: r.기준대학명 === OUR_UNIV }));
       const filteredAgg = yearRows.filter(r => FilterUtils.matchesFilters(r, f));
       const sorted = [...filteredAgg].sort((a, b) => {

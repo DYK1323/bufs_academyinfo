@@ -72,7 +72,7 @@ const FilterManager = {
     if (!indicatorKey) { Utils.showEmptyState('no-item'); return; }
     const cache = AppState.raw.benchmarkCache;
     if (!cache?.length) { Utils.showEmptyState('fetch-error'); return; }
-    const years = [...new Set(cache.filter(r => r[indicatorKey] != null).map(r => r.기준연도))]
+    const years = [...new Set(cache.filter(r => r[indicatorKey] != null).map(r => r.공시연도 ?? r.기준연도))]
       .sort((a, b) => b - a);
     if (!years.length) { Utils.showEmptyState('no-data'); return; }
     this.renderYearSelect(years);
@@ -92,7 +92,7 @@ const FilterManager = {
     const cache = AppState.raw.benchmarkCache;
     const prevYear = year - 1;
     const prevMap = new Map(
-      cache.filter(r => r.기준연도 === prevYear).map(r => [r.기준대학명, r])
+      cache.filter(r => (r.공시연도 ?? r.기준연도) === prevYear).map(r => [r.기준대학명, r])
     );
     // per-item JSON을 대학 단위로 합산 (raw 컬럼 표시용)
     // 공시연도 기준으로 필터 — raw 데이터에 공시연도가 없는 구버전은 기준연도 fallback
@@ -103,7 +103,7 @@ const FilterManager = {
     }
     // benchmark_cache(지표값·메타)와 per-item raw 컬럼 머지
     AppState.computed.aggregated = cache
-      .filter(r => r.기준연도 === year)
+      .filter(r => (r.공시연도 ?? r.기준연도) === year)
       .map(r => ({
         ...rawAggMap.get(r.기준대학명) || {},  // raw 컬럼 (낮은 우선순위)
         ...r,                                   // benchmark 데이터 (높은 우선순위)
