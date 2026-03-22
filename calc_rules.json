@@ -113,6 +113,7 @@
     "denominator_exclude": [
       "학생모집정지인원(B)"
     ],
+    "visible": true,
     "unit": "%",
     "decimal_places": 2,
     "sort_asc": false
