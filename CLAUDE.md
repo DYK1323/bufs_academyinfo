@@ -191,29 +191,76 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 ### admin.html (관리자 페이지)
 
 - PAT(Personal Access Token) 입력 후 GitHub API로 JSON 파일 직접 편집·저장
-- 연결 성공 후 탭(기준대학 매핑 / 산식 관리 / 공시항목) 표시
+- 연결 성공 후 탭 5개 표시: **기준대학 매핑 / 산식 관리 / 공시항목 / 데이터 조회 / 캐시 관리**
 - **저장 방식**: 파일별 순차 저장 (GET SHA → PUT) — 병렬 PUT 시 GitHub race condition 방지
-- 로드 파일: `data/기준대학.json`, `calc_rules.json`, `data/manifest.json`, `field_mapping.json`
+- **로드 파일**: `data/기준대학.json`, `calc_rules.json`, `data/manifest.json`, `field_mapping.json` + `GH.listDataFiles()`로 `data/` 폴더 항목 파일 목록 수집
+- **저장소 기억**: `localStorage['gh_repo']` (저장소명), `sessionStorage['gh_token']` (PAT — 탭 닫으면 삭제)
+
+**전역 상태 객체**
+- `calcData` — 현재 편집 중인 calc_rules 객체 (적용 버튼으로 갱신)
+- `manifestData` — 현재 편집 중인 manifest 배열 (적용 버튼으로 갱신)
+- `State.fieldKeys` — field_mapping.json 모든 섹션 키 합집합 (datalist 원본)
+- `State.dataFiles` — data/ 폴더 항목 파일명 목록 (소스 선택 드롭다운 원본)
+
+**로컬 초안 자동저장** (`DRAFT_KEY = 'admin_draft_v2'`)
+- `setDirty()` 호출 시 2초 debounce → `localStorage`에 `{ ts, repo, calc, manifest, 기준대학 }` 저장
+- GitHub 재연결 시 동일 저장소 초안 발견 → 하단 복원 바 표시 ("복원하기" / "무시")
+- GitHub 저장 성공 또는 초기화 시 초안 삭제
+- 저장소가 다른 초안은 무시 (repo 필드로 식별)
+
+**전역 datalist** (JS `refreshDatalistOptions()`로 채움, `applyRule()` 후 재갱신)
+- `#dl-raw-fields` — `State.fieldKeys` (원시 필드명)
+- `#dl-all-fields` — 원시 필드 + `calcData` 키 통합
+- `#dl-data-files` — `State.dataFiles`
 
 **산식 관리 탭**
-- `calcData` 객체에 로컬 반영 → "적용" 버튼으로 확정 → 하단 "GitHub에 저장"
-- `exclude_rows` UI: 필드명 + 제외값 행 추가/삭제
+- 좌측 필드 팔레트: 원시 데이터 / 계산 지표 그룹으로 표시, 클릭 시 활성 chip-zone에 추가
+- 우측 산식 빌더: 유형 라디오 (비율 / 합계 / MIN / N년평균)
+  - 분자: `chip-search-row`(input `list="dl-raw-fields"` + 추가 버튼) + chip-zone
+  - 분모: `<input list="dl-all-fields">` (원시 + 계산 지표 검색)
+  - 분모 제외: `chip-search-row`(input `list="dl-raw-fields"`) + chip-zone
+  - N년평균 원본 필드: `<input list="dl-raw-fields">`
+- 행 제외 조건: 필드명 `<input list="dl-raw-fields">` + 제외값 (쉼표 구분)
+- "적용" → `calcData` 갱신 + `refreshDatalistOptions()` 호출 → 하단 "GitHub에 저장"
 
 **공시항목 탭**
-- 카드별 "적용" 버튼 → `manifestData[idx]` 업데이트 (산식과 동일 패턴)
-- 필드명(KEY) 셀: `field_mapping.json` 키 + `calc_rules.json` 키를 `<optgroup>` 드롭다운으로 선택
+- `calc_rules.json`의 `visible: true` 지표 목록 기준으로 카드 자동 생성
+- 소스 파일: `<select>`로 `State.dataFiles` 목록 선택 (`makeSourceSelectEl()`)
+- 컬럼 key 셀: `field_mapping.json` 키 + `calc_rules.json` 키를 `<optgroup>` 드롭다운으로 선택
+- 카드별 "적용" 버튼 → `manifestData[idx]` 업데이트
+- 탭 전환 시 `renderManifest(manifestData)` 호출 → 산식 관리 변경 즉시 반영
+
+**데이터 조회 탭**
+- `data/*.json` 원시 데이터 직접 조회 (manifest sources 기준 드롭다운)
+- 연도 / 설립구분 / 지역 / 대학명 필터 + 페이지 단위 렌더링
+- 1 MB 초과 파일은 git blobs API(raw) 자동 fallback
+
+**캐시 관리 탭**
+- `visible` 지표 × manifest sources 기준으로 집계 대상 자동 구성
+- 대학별 · 연도별 원시 집계 → calc_rules 산식 적용 → `benchmark_cache.json` 생성·저장
+- `공시연도` 기준 연도 매칭 (`기준연도` fallback 포함)
 
 ### field_mapping.json
 
 ```json
 {
-  "표준필드명": ["alias1", "alias2", ...],
-  "해외취업자수": []
+  "__shared": {
+    "기준연도": ["기준년도"],
+    "학교": [],
+    "학과 (모집단위)": []
+  },
+  "대학_4-다. 신입생 충원 현황_학과별자료": {
+    "입학정원 (A)": [],
+    "모집인원_계": []
+  }
 }
 ```
 
-- 키: 표준 필드명, 값: 지금까지 쓰인 모든 별칭 배열
-- `normalize_gui.py`가 자동으로 읽고 갱신함 — 수동 편집도 가능
+- `__shared`: 여러 항목에 공통으로 등장하는 필드 (기준연도, 학교명, 지역 등 18개)
+- 항목키 섹션: 해당 공시항목에만 등장하는 필드
+- 값 배열: 같은 필드의 과거 별칭 목록 (빈 배열이면 별칭 없음)
+- `normalize_gui.py`가 `load_mapping()` 시 자동 로드·갱신 — `__shared` + 항목키 섹션 병합 후 역방향 조회
+- 구버전 플랫 구조(`{"표준명": [aliases]}`)는 `load_mapping()` 실행 시 `__shared`로 자동 마이그레이션
 
 ### manifest.json (`data/manifest.json`)
 
@@ -329,7 +376,7 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 | `normalize_gui.py` | ✅ 구현 완료 | 테스트 필요 |
 | `download_academyinfo.py` | ✅ 구현 완료 | TEST_MODE=True로 먼저 테스트 |
 | `index.html` | ✅ 구현 완료 | 순위 보기 + 추이 분석 뷰 모두 완성 |
-| `admin.html` | ✅ 구현 완료 | 기준대학 매핑 / 산식 관리 / 공시항목 관리 |
+| `admin.html` | ✅ 구현 완료 | 기준대학 / 산식 / 공시항목 / 데이터 조회 / 캐시 관리 (5탭) |
 | 캠퍼스 합산 로직 | 🔲 미착수 | `normalize_gui.py`에 추가 예정 |
 
 ---
@@ -385,3 +432,6 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 
 **Q. admin.html 공시항목에서 수정 후 저장했는데 반영이 안 됨**
 → 카드 수정 후 반드시 **"적용" 버튼**을 눌러야 `manifestData`에 반영됨. 적용 없이 GitHub 저장 시 기존값이 그대로 저장됨.
+
+**Q. admin.html에서 작업하다 새로고침했는데 내용이 날아감**
+→ "적용" 버튼 클릭 후 2초 이내에 새로고침하면 로컬 초안 저장 전일 수 있음. 재연결 시 초안이 있으면 하단에 복원 배너가 표시됨. 초안은 마지막 "적용" 시점 기준이므로, 적용 없이 입력 중이던 내용은 복원되지 않음.
