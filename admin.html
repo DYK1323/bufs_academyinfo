@@ -272,6 +272,17 @@ select.cell-input { appearance: none; -webkit-appearance: none; cursor: pointer;
   flex: 1; min-width: 120px; max-width: 280px;
 }
 .fb-den-select:focus { border-color: var(--primary); background: #fff; }
+
+.chip-search-row {
+  display: flex; gap: 4px; margin-bottom: 4px;
+}
+.chip-search-row input {
+  flex: 1; height: 28px; padding: 0 8px;
+  border: 1px solid var(--border); border-radius: 5px;
+  font-size: 12.5px; font-family: inherit; outline: none; background: #fff;
+}
+.chip-search-row input:focus { border-color: var(--primary); }
+.chip-search-row button { flex-shrink: 0; }
 .fb-multiply-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .fb-mul-label { display: flex; align-items: center; gap: 4px; font-size: 12.5px; cursor: pointer; }
 .fb-mul-custom {
@@ -624,6 +635,11 @@ body { padding-bottom: 60px; }
   </div>
 </div>
 
+<!-- ── 전역 datalist ── -->
+<datalist id="dl-raw-fields"></datalist>
+<datalist id="dl-all-fields"></datalist>
+<datalist id="dl-data-files"></datalist>
+
 <!-- ── 저장 바 ── -->
 <div class="save-bar">
   <span class="status-msg" id="status-msg">GitHub에 연결하면 저장할 수 있습니다.</span>
@@ -679,6 +695,25 @@ const GH = {
     const data = await res.json();
     return data.content.sha;
   },
+
+  async listDataFiles() {
+    const EXCLUDE = new Set([
+      'benchmark_cache.json', 'benchmark_config.json',
+      '기준대학.json', '대학기본정보.json', 'manifest.json', '학과분류.json',
+    ]);
+    try {
+      const res = await fetch(
+        `https://api.github.com/repos/${this.owner}/${this.repo}/contents/data`,
+        { headers: this.headers() }
+      );
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data
+        .filter(f => f.type === 'file' && f.name.endsWith('.json') && !EXCLUDE.has(f.name))
+        .map(f => f.name.replace(/\.json$/, ''))
+        .sort();
+    } catch { return []; }
+  },
 };
 
 /* ══════════════════════════════════════════
@@ -690,6 +725,7 @@ const State = {
   original: { 기준대학: [], calc: {}, manifest: [] },
   dirty: false,
   fieldKeys: [],   // field_mapping.json 키 목록 (연결 시 로드)
+  dataFiles: [],   // data/ 폴더 내 항목 JSON 파일명 목록 (연결 시 로드)
 };
 
 function setDirty() {
@@ -760,12 +796,14 @@ async function ghConnect() {
 }
 
 async function loadAll() {
-  const [기준대학, calc, manifest, fieldMapping] = await Promise.all([
+  const [기준대학, calc, manifest, fieldMapping, dataFiles] = await Promise.all([
     GH.getFile('data/기준대학.json'),
     GH.getFile('calc_rules.json'),
     GH.getFile('data/manifest.json'),
     GH.getFile('field_mapping.json'),
+    GH.listDataFiles(),
   ]);
+  State.dataFiles = dataFiles;
   State.sha.기준대학 = 기준대학.sha;
   State.sha.calc     = calc.sha;
   State.sha.manifest = manifest.sha;
@@ -781,6 +819,7 @@ async function loadAll() {
   renderMappingTable(기준대학.content);
   renderCalcRules(calc.content);
   renderManifest(manifest.content);
+  refreshDatalistOptions();
 }
 
 /* ══════════════════════════════════════════
@@ -954,6 +993,29 @@ function splitCsvLine(line) {
     else cur+=c;
   }
   cols.push(cur); return cols;
+}
+
+/* ══════════════════════════════════════════
+   공통 datalist 갱신
+══════════════════════════════════════════ */
+function refreshDatalistOptions() {
+  const dlRaw  = document.getElementById('dl-raw-fields');
+  const dlAll  = document.getElementById('dl-all-fields');
+  const dlFiles = document.getElementById('dl-data-files');
+  if (dlRaw)  dlRaw.innerHTML  = State.fieldKeys.map(k => `<option value="${esc(k)}">`).join('');
+  if (dlAll)  dlAll.innerHTML  = [...new Set([...State.fieldKeys, ...Object.keys(calcData)])].map(k => `<option value="${esc(k)}">`).join('');
+  if (dlFiles) dlFiles.innerHTML = State.dataFiles.map(f => `<option value="${esc(f)}">`).join('');
+}
+
+function addChipFromSearch(btn) {
+  const input = btn.previousElementSibling;
+  const val = input.value.trim();
+  if (!val) return;
+  const zone = btn.closest('.chip-search-row').nextElementSibling;
+  zone.appendChild(makeChip(val));
+  input.value = '';
+  input.focus();
+  setDirty();
 }
 
 /* ══════════════════════════════════════════
@@ -1197,7 +1259,10 @@ function buildFormulaBuilder(card, rule, isMin, isSum, isRolling) {
   // 분자
   const numLabel = document.createElement('div');
   numLabel.className = 'fb-area-label';
-  numLabel.innerHTML = '분자 <span style="font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;">(왼쪽 목록 클릭해서 추가)</span>';
+  numLabel.textContent = '분자';
+  const numSearchRow = document.createElement('div');
+  numSearchRow.className = 'chip-search-row';
+  numSearchRow.innerHTML = `<input type="text" list="dl-raw-fields" placeholder="필드 검색 후 추가…"><button class="btn btn-secondary btn-sm" onclick="addChipFromSearch(this)">추가</button>`;
   const numZone = document.createElement('div');
   numZone.className = 'chip-zone';
   numZone.dataset.area = 'num';
@@ -1206,6 +1271,7 @@ function buildFormulaBuilder(card, rule, isMin, isSum, isRolling) {
   numZone.addEventListener('click', () => setActiveChipZone(numZone));
 
   ratioSumArea.appendChild(numLabel);
+  ratioSumArea.appendChild(numSearchRow);
   ratioSumArea.appendChild(numZone);
 
   // ÷ 분모 (ratio only)
@@ -1222,26 +1288,21 @@ function buildFormulaBuilder(card, rule, isMin, isSum, isRolling) {
   const denRow = document.createElement('div');
   denRow.className = 'fb-den-row';
 
-  const denSelect = document.createElement('select');
-  denSelect.className = 'fb-den-select rule-field-den-base';
-  const selfKey = card.dataset.key;
-  let optHtml = `<option value="">— 분모 선택 —</option>`;
-  if (State.fieldKeys.length) {
-    optHtml += `<optgroup label="원시 데이터">` +
-      State.fieldKeys.map(k => `<option value="${esc(k)}"${rule.denominator_base === k ? ' selected' : ''}>${esc(k)}</option>`).join('') +
-      `</optgroup>`;
-  }
-  const calcDenKeys = Object.keys(calcData).filter(k => k !== selfKey);
-  if (calcDenKeys.length) {
-    optHtml += `<optgroup label="계산 지표">` +
-      calcDenKeys.map(k => `<option value="${esc(k)}"${rule.denominator_base === k ? ' selected' : ''}>${esc(k)}</option>`).join('') +
-      `</optgroup>`;
-  }
-  denSelect.innerHTML = optHtml;
+  const denInput = document.createElement('input');
+  denInput.type = 'text';
+  denInput.className = 'fb-den-select rule-field-den-base';
+  denInput.setAttribute('list', 'dl-all-fields');
+  denInput.placeholder = '분모 필드 검색…';
+  denInput.value = rule.denominator_base || '';
+  denInput.addEventListener('input', setDirty);
 
   const exclLabel = document.createElement('span');
   exclLabel.style.cssText = 'font-size:12px;color:var(--text-muted);white-space:nowrap;flex-shrink:0;';
   exclLabel.textContent = '제외:';
+
+  const denExclSearchRow = document.createElement('div');
+  denExclSearchRow.className = 'chip-search-row';
+  denExclSearchRow.innerHTML = `<input type="text" list="dl-raw-fields" placeholder="제외 필드 검색…"><button class="btn btn-secondary btn-sm" onclick="addChipFromSearch(this)">추가</button>`;
 
   const denExclZone = document.createElement('div');
   denExclZone.className = 'chip-zone';
@@ -1251,12 +1312,20 @@ function buildFormulaBuilder(card, rule, isMin, isSum, isRolling) {
   (rule.denominator_exclude || []).forEach(f => denExclZone.appendChild(makeChip(f)));
   denExclZone.addEventListener('click', () => setActiveChipZone(denExclZone));
 
-  denRow.appendChild(denSelect);
-  denRow.appendChild(exclLabel);
-  denRow.appendChild(denExclZone);
+  denRow.appendChild(denInput);
   denArea.appendChild(divOp);
   denArea.appendChild(denLabel);
   denArea.appendChild(denRow);
+  // 분모 제외 필드 (검색 입력 + 칩 존)
+  const denExclWrap = document.createElement('div');
+  denExclWrap.style.cssText = 'display:flex;align-items:flex-start;gap:6px;margin-top:4px;flex-wrap:wrap;';
+  denExclWrap.appendChild(exclLabel);
+  const denExclInner = document.createElement('div');
+  denExclInner.style.flex = '1';
+  denExclInner.appendChild(denExclSearchRow);
+  denExclInner.appendChild(denExclZone);
+  denExclWrap.appendChild(denExclInner);
+  denArea.appendChild(denExclWrap);
 
   // × 배율 (ratio only)
   const mulArea = document.createElement('div');
@@ -1311,17 +1380,13 @@ function buildFormulaBuilder(card, rule, isMin, isSum, isRolling) {
   const srcLabel = document.createElement('div');
   srcLabel.className = 'fb-area-label';
   srcLabel.textContent = '원본 필드 (raw data)';
-  const srcSelect = document.createElement('select');
-  srcSelect.className = 'fb-den-select rule-field-rolling-src';
-  let srcOptHtml = `<option value="">— 원본 필드 선택 —</option>`;
-  if (State.fieldKeys.length) {
-    srcOptHtml += State.fieldKeys.map(k =>
-      `<option value="${esc(k)}"${rule.rolling_avg === k ? ' selected' : ''}>${esc(k)}</option>`
-    ).join('');
-  } else if (rule.rolling_avg) {
-    srcOptHtml += `<option value="${esc(rule.rolling_avg)}" selected>${esc(rule.rolling_avg)}</option>`;
-  }
-  srcSelect.innerHTML = srcOptHtml;
+  const srcInput = document.createElement('input');
+  srcInput.type = 'text';
+  srcInput.className = 'fb-den-select rule-field-rolling-src';
+  srcInput.setAttribute('list', 'dl-raw-fields');
+  srcInput.placeholder = '원본 필드 검색…';
+  srcInput.value = rule.rolling_avg || '';
+  srcInput.addEventListener('input', setDirty);
   const yearsLabel = document.createElement('div');
   yearsLabel.className = 'fb-area-label';
   yearsLabel.style.marginTop = '10px';
@@ -1340,7 +1405,7 @@ function buildFormulaBuilder(card, rule, isMin, isSum, isRolling) {
   yearsRow.appendChild(yearsInput);
   yearsRow.appendChild(yearsUnit);
   rollingArea.appendChild(srcLabel);
-  rollingArea.appendChild(srcSelect);
+  rollingArea.appendChild(srcInput);
   rollingArea.appendChild(yearsLabel);
   rollingArea.appendChild(yearsRow);
   panel.appendChild(rollingArea);
@@ -1389,7 +1454,7 @@ function makeExclRow(field, vals) {
   const div = document.createElement('div');
   div.className = 'excl-row';
   div.innerHTML = `
-    <input class="form-input excl-field" type="text" value="${esc(field)}" placeholder="필드명 (예: 계열)" oninput="setDirty()">
+    <input class="form-input excl-field" type="text" list="dl-raw-fields" value="${esc(field)}" placeholder="필드명 (예: 계열)" oninput="setDirty()">
     <input class="form-input excl-vals" type="text" value="${esc(vals)}" placeholder="제외값 (쉼표 구분)" oninput="setDirty()">
     <button class="btn btn-danger btn-sm" onclick="this.closest('.excl-row').remove();setDirty()">−</button>
   `;
@@ -1487,6 +1552,7 @@ function applyRule(btn) {
   badge.className = 'rule-type-badge ' + (isRolling ? 'rolling' : (isMin ? 'min' : (isSum ? 'sum' : 'std')));
 
   setDirty();
+  refreshDatalistOptions();
   const msg = card.querySelector('.apply-msg');
   if (msg) { msg.textContent = '적용됨 ✓'; setTimeout(() => { msg.textContent = ''; }, 2000); }
 }
@@ -1660,15 +1726,8 @@ function buildManifestCard(item, indicatorKey, indicatorLabel) {
     <div class="manifest-card-body">
       <!-- 소스 파일 -->
       <div class="form-group" style="margin-bottom:12px;">
-        <label>소스 파일 (data/*.json 파일명, 여러 개 가능)</label>
-        <div class="mf-sources-list" style="display:flex;flex-direction:column;gap:4px;margin-bottom:4px;">
-          ${sources.map(s => `
-            <div style="display:flex;gap:4px;">
-              <input class="form-input mf-source-item" type="text" value="${esc(s)}"
-                placeholder="예: 대학_4-다. 신입생 충원 현황_학과별자료" oninput="setDirty()" style="flex:1;">
-              <button class="btn btn-danger btn-sm" onclick="removeSourceRow(this)" style="white-space:nowrap;">−</button>
-            </div>`).join('')}
-        </div>
+        <label>소스 파일 (data/*.json, 여러 개 가능)</label>
+        <div class="mf-sources-list" style="display:flex;flex-direction:column;gap:4px;margin-bottom:4px;"></div>
         <button class="btn btn-secondary btn-sm" onclick="addSourceRow(this)">+ 소스 추가</button>
       </div>
       <!-- 표시 컬럼 -->
@@ -1693,6 +1752,22 @@ function buildManifestCard(item, indicatorKey, indicatorLabel) {
       </div>
     </div>
   `;
+
+  // 소스 파일 select 요소를 DOM으로 삽입
+  const sourcesList = card.querySelector('.mf-sources-list');
+  for (const s of sources) {
+    const div = document.createElement('div');
+    div.style.cssText = 'display:flex;gap:4px;';
+    div.appendChild(makeSourceSelectEl(s));
+    const rmBtn = document.createElement('button');
+    rmBtn.className = 'btn btn-danger btn-sm';
+    rmBtn.style.whiteSpace = 'nowrap';
+    rmBtn.textContent = '−';
+    rmBtn.setAttribute('onclick', 'removeSourceRow(this)');
+    div.appendChild(rmBtn);
+    sourcesList.appendChild(div);
+  }
+
   return card;
 }
 
@@ -1713,16 +1788,42 @@ function deleteColRow(btn) {
   btn.closest('tr').remove(); setDirty();
 }
 
+function makeSourceSelectEl(val) {
+  const sel = document.createElement('select');
+  sel.className = 'form-input mf-source-item';
+  sel.style.flex = '1';
+  sel.addEventListener('change', setDirty);
+  const emptyOpt = document.createElement('option');
+  emptyOpt.value = ''; emptyOpt.textContent = '— 소스 파일 선택 —';
+  sel.appendChild(emptyOpt);
+  for (const f of State.dataFiles) {
+    const opt = document.createElement('option');
+    opt.value = f; opt.textContent = f;
+    if (f === val) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  // 기존 값이 목록에 없을 경우 추가
+  if (val && !State.dataFiles.includes(val)) {
+    const opt = document.createElement('option');
+    opt.value = val; opt.textContent = val; opt.selected = true;
+    sel.insertBefore(opt, sel.children[1]);
+  }
+  return sel;
+}
+
 function addSourceRow(btn) {
   const list = btn.closest('.form-group').querySelector('.mf-sources-list');
   const div = document.createElement('div');
   div.style.cssText = 'display:flex;gap:4px;';
-  div.innerHTML = `
-    <input class="form-input mf-source-item" type="text"
-      placeholder="예: 대학_4-다. 신입생 충원 현황_학과별자료" oninput="setDirty()" style="flex:1;">
-    <button class="btn btn-danger btn-sm" onclick="removeSourceRow(this)" style="white-space:nowrap;">−</button>`;
+  div.appendChild(makeSourceSelectEl(''));
+  const rmBtn = document.createElement('button');
+  rmBtn.className = 'btn btn-danger btn-sm';
+  rmBtn.style.whiteSpace = 'nowrap';
+  rmBtn.textContent = '−';
+  rmBtn.setAttribute('onclick', 'removeSourceRow(this)');
+  div.appendChild(rmBtn);
   list.appendChild(div);
-  div.querySelector('input').focus();
+  div.querySelector('select').focus();
   setDirty();
 }
 
