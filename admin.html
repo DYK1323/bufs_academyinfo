@@ -461,7 +461,7 @@ body { padding-bottom: 60px; }
 <div class="tab-nav" id="tab-nav" style="display:none;">
   <button class="tab-btn active" onclick="switchTab('기준대학', this)">기준대학 매핑</button>
   <button class="tab-btn" onclick="switchTab('calc', this)">산식 관리</button>
-  <button class="tab-btn" onclick="switchTab('manifest', this)">공시항목</button>
+  <button class="tab-btn" onclick="switchTab('manifest', this); renderManifest(manifestData)">공시항목</button>
   <button class="tab-btn" onclick="switchTab('data', this); DataViewer.init()">데이터 조회</button>
   <button class="tab-btn" onclick="switchTab('cache', this); CacheManager.init()">캐시 관리</button>
 </div>
