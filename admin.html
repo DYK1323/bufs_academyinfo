@@ -2256,14 +2256,16 @@ const CacheManager = {
               if (!mergedRaw.has(mapKey)) {
                 mergedRaw.set(mapKey, {
                   기준대학명: row.기준대학명, 기준연도: year,
+                  // 주 소스(첫 번째 기록) 의 공시연도를 캐시 출력 연도로 사용
+                  공시연도: row.공시연도 ?? year,
                   지역: row.지역, 설립구분: row.설립구분,
                   대학구분: row.대학구분, 수도권여부: row.수도권여부,
                 });
               }
-              // raw 필드 병합 (산식 키 제외)
+              // raw 필드 병합 (산식 키 및 메타 키 제외 — 공시연도는 주 소스 값 유지)
               const target = mergedRaw.get(mapKey);
               for (const [k, v] of Object.entries(row)) {
-                if (['기준대학명','기준연도','지역','설립구분','대학구분','수도권여부'].includes(k)) continue;
+                if (['기준대학명','기준연도','공시연도','지역','설립구분','대학구분','수도권여부'].includes(k)) continue;
                 if (target[k] === undefined) target[k] = v;
               }
             }
@@ -2279,7 +2281,7 @@ const CacheManager = {
         const withRatios = this._applyCalc(rawRow, calcRules);
         // visible 지표만 남기기
         const out = {
-          기준대학명: rawRow.기준대학명, 기준연도: rawRow.기준연도,
+          기준대학명: rawRow.기준대학명, 기준연도: rawRow.공시연도 ?? rawRow.기준연도,
           지역: rawRow.지역, 설립구분: rawRow.설립구분,
           대학구분: rawRow.대학구분, 수도권여부: rawRow.수도권여부,
         };
@@ -2430,8 +2432,8 @@ const CacheManager = {
   /** raw 합산 전용 (산식 적용 없음) — 단일 연도, 대학별 수치 합산만 수행 */
   _aggregateRaw(rows, targetYear, baseUnivMap) {
     const METRO = new Set(['서울', '경기', '인천']);
-    // 공시연도 우선, 없으면 기준연도 fallback (구버전 레코드 호환)
-    const getYear = r => parseInt(r['공시연도'] ?? r['기준연도'] ?? r['기준년도'], 10);
+    // 기준연도 우선 — join 키와 일치시키기 위함 (공시연도는 소스마다 달라 join 키로 부적합)
+    const getYear = r => parseInt(r['기준연도'] ?? r['기준년도'] ?? r['공시연도'], 10);
     const yearRows = rows.filter(r => getYear(r) === targetYear);
 
     const groups = new Map();
@@ -2445,6 +2447,9 @@ const CacheManager = {
     const result = [];
     for (const [univName, univRows] of groups) {
       const summed = { 기준대학명: univName };
+      // 공시연도 캡처 — 캐시 출력 연도로 사용 (소스마다 공시연도가 다를 수 있음)
+      const rawPubYear = parseInt(univRows[0]['공시연도'] ?? univRows[0]['기준연도'] ?? univRows[0]['기준년도'], 10);
+      summed['공시연도'] = isNaN(rawPubYear) ? targetYear : rawPubYear;
       const first = univRows[0];
       for (const field of Object.keys(first)) {
         if (['공시연도','기준연도','기준년도','대학명','학교'].includes(field)) continue;
