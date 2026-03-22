@@ -2514,7 +2514,7 @@ const CacheManager = {
 
     const groups = new Map();
     for (const row of yearRows) {
-      const raw = row['대학명'] || row['학교'] || row['학교명'] || '(미확인)';
+      const raw = (row['대학명'] || row['학교'] || row['학교명'] || '(미확인)').trim();
       const key = baseUnivMap.get(raw)?.['기준대학명'] || raw;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(row);
