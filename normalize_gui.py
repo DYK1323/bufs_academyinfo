@@ -210,7 +210,8 @@ def pub_year_from_filename(filename: str) -> int | None:
 
 def parse_학교_field(df: "pd.DataFrame") -> "pd.DataFrame":
     """
-    '학교' 컬럼을 파싱하여 '대학명', '본분교', '캠퍼스' 컬럼을 추가한다.
+    '학교' 또는 '학교명' 컬럼을 파싱하여 '대학명', '본분교', '캠퍼스' 컬럼을 추가한다.
+    '학교' 우선, 없으면 '학교명' 사용 (학점교류 현황 등 학교명 필드를 쓰는 항목 대응).
 
     학교 필드 규칙:
       {대학명} _제N캠퍼스  →  본분교=본교, 캠퍼스=제N캠퍼스
@@ -218,7 +219,11 @@ def parse_학교_field(df: "pd.DataFrame") -> "pd.DataFrame":
       {대학명}             →  본분교=본교, 캠퍼스=
     구분자: ' _' (공백 + 언더스코어)
     """
-    if '학교' not in df.columns:
+    if '학교' in df.columns:
+        src_col = '학교'
+    elif '학교명' in df.columns:
+        src_col = '학교명'
+    else:
         return df
 
     def _parse(val: str):
@@ -233,8 +238,8 @@ def parse_학교_field(df: "pd.DataFrame") -> "pd.DataFrame":
             return 대학명, '분교', ''
         return 대학명, '본교', suffix   # 제N캠퍼스 등
 
-    parsed = df['학교'].apply(_parse)
-    idx = df.columns.get_loc('학교') + 1   # '학교' 컬럼 바로 뒤에 삽입
+    parsed = df[src_col].apply(_parse)
+    idx = df.columns.get_loc(src_col) + 1   # 소스 컬럼 바로 뒤에 삽입
     df.insert(idx,     '대학명', [r[0] for r in parsed])
     df.insert(idx + 1, '본분교', [r[1] for r in parsed])
     df.insert(idx + 2, '캠퍼스', [r[2] for r in parsed])
