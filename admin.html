@@ -2233,8 +2233,9 @@ const CacheManager = {
         }
         this._log(`  → ${rows.length.toLocaleString()}행 로드됨`);
 
-        // 공시연도 우선, 없으면 기준연도 fallback (구버전 레코드 호환)
-        const getYear = r => parseInt(r['공시연도'] ?? r['기준연도'] ?? r['기준년도'], 10);
+        // 기준연도 우선 — 복수 소스 join 시 학년도 기준으로 맞추기 위함
+        // (공시연도는 항목마다 달라 join 키로 부적합)
+        const getYear = r => parseInt(r['기준연도'] ?? r['기준년도'] ?? r['공시연도'], 10);
         const years = [...new Set(rows.map(getYear).filter(y => !isNaN(y)))].sort();
         this._log(`  → 연도: ${years.join(', ')}`);
 
