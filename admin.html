@@ -366,6 +366,16 @@ select.cell-input { appearance: none; -webkit-appearance: none; cursor: pointer;
 /* 하단 바 높이만큼 패딩 */
 body { padding-bottom: 60px; }
 
+/* ── 초안 복원 바 ── */
+#restore-banner {
+  display: none;
+  position: fixed; bottom: 52px; left: 0; right: 0; z-index: 39;
+  background: #fef3c7; border-top: 1px solid #fde68a;
+  padding: 8px 24px;
+  align-items: center; gap: 12px; flex-wrap: wrap;
+}
+#restore-banner.show { display: flex; }
+
 /* ── 데이터 조회 탭 ── */
 .dv-top { display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; margin-bottom:14px; }
 .dv-item-wrap { position:relative; flex:0 0 260px; }
@@ -640,6 +650,14 @@ body { padding-bottom: 60px; }
 <datalist id="dl-all-fields"></datalist>
 <datalist id="dl-data-files"></datalist>
 
+<!-- ── 초안 복원 바 ── -->
+<div id="restore-banner">
+  <span style="font-size:18px;">💾</span>
+  <span id="restore-msg" style="flex:1;font-size:13px;color:#92400e;font-weight:500;"></span>
+  <button class="btn btn-secondary btn-sm" onclick="doRestoreDraft()">복원하기</button>
+  <button class="btn btn-secondary btn-sm" onclick="doDismissDraft()">무시</button>
+</div>
+
 <!-- ── 저장 바 ── -->
 <div class="save-bar">
   <span class="status-msg" id="status-msg">GitHub에 연결하면 저장할 수 있습니다.</span>
@@ -728,11 +746,65 @@ const State = {
   dataFiles: [],   // data/ 폴더 내 항목 JSON 파일명 목록 (연결 시 로드)
 };
 
+/* ══════════════════════════════════════════
+   로컬 초안 자동저장
+══════════════════════════════════════════ */
+const DRAFT_KEY = 'admin_draft_v2';
+let _draftTimer = null;
+
+function saveDraft() {
+  if (!State.connected) return;
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      ts: new Date().toISOString(),
+      repo: localStorage.getItem('gh_repo') || '',
+      calc: calcData,
+      manifest: manifestData,
+      기준대학: collectMappingData(),
+    }));
+  } catch (e) { /* quota 초과 등 무시 */ }
+}
+
+function loadDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const draft = JSON.parse(raw);
+    const repo = localStorage.getItem('gh_repo') || '';
+    if (draft.repo && draft.repo !== repo) return null;
+    return draft;
+  } catch { return null; }
+}
+
+function clearDraft() {
+  localStorage.removeItem(DRAFT_KEY);
+  document.getElementById('restore-banner').classList.remove('show');
+}
+
+function doRestoreDraft() {
+  const draft = loadDraft();
+  if (!draft) return;
+  renderMappingTable(draft.기준대학 || []);
+  renderCalcRules(draft.calc || {});
+  renderManifest(draft.manifest || []);
+  clearDraft();
+  setDirty();
+  const ts = new Date(draft.ts).toLocaleString('ko-KR');
+  showBanner('banner-기준대학', 'success', `초안 복원 완료 (${ts})`);
+}
+
+function doDismissDraft() {
+  clearDraft();
+}
+
 function setDirty() {
   State.dirty = true;
   const el = document.getElementById('status-msg');
   el.textContent = '저장되지 않은 변경사항이 있습니다.';
   el.className = 'status-msg dirty';
+  // 2초 debounce 후 localStorage 초안 저장
+  clearTimeout(_draftTimer);
+  _draftTimer = setTimeout(saveDraft, 2000);
 }
 function setClean(msg) {
   State.dirty = false;
@@ -762,6 +834,8 @@ function switchTab(name, btn) {
   const noSaveBar = name === 'data' || name === 'cache';
   const saveBar = document.querySelector('.save-bar');
   if (saveBar) saveBar.style.display = noSaveBar ? 'none' : '';
+  const restoreBanner = document.getElementById('restore-banner');
+  if (restoreBanner) restoreBanner.style.bottom = noSaveBar ? '0' : '';
   document.body.style.paddingBottom = noSaveBar ? '0' : '';
 }
 
@@ -789,6 +863,15 @@ async function ghConnect() {
     document.getElementById('tab-nav').style.display = '';
     document.getElementById('tab-기준대학').style.display = '';
     setClean('연결 완료 — 데이터를 불러왔습니다.');
+
+    // 저장되지 않은 초안 확인
+    const draft = loadDraft();
+    if (draft) {
+      const ts = new Date(draft.ts).toLocaleString('ko-KR');
+      document.getElementById('restore-msg').textContent =
+        `저장하지 않은 초안이 있습니다 (${ts}). 복원하시겠습니까?`;
+      document.getElementById('restore-banner').classList.add('show');
+    }
   } catch (e) {
     statusEl.textContent = `● 오류: ${e.message}`;
     statusEl.className = 'error';
@@ -852,6 +935,7 @@ async function saveAll() {
     const curManifest = await GH.getFile('data/manifest.json');
     State.sha.manifest = await GH.putFile('data/manifest.json', newDataManifest, curManifest.sha, msg);
 
+    clearDraft();
     setClean(`저장 완료 — ${now}`);
   } catch (e) {
     alert(`저장 실패: ${e.message}`);
@@ -866,6 +950,7 @@ function confirmReset() {
     renderMappingTable(State.original.기준대학);
     renderCalcRules(State.original.calc);
     renderManifest(State.original.manifest);
+    clearDraft();
     setClean();
   }
 }
