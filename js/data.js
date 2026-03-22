@@ -48,7 +48,8 @@ const DataService = {
     const result = [];
     for (const [name, univRows] of groups) {
       const merged = { 기준대학명: name };
-      const keys = Object.keys(univRows[0]).filter(k => k !== '기준연도' && k !== '기준대학명' && k !== '대학명');
+      const SKIP = new Set(['기준연도', '기준대학명', '대학명']);
+      const keys = [...new Set(univRows.flatMap(r => Object.keys(r)))].filter(k => !SKIP.has(k));
       for (const k of keys) {
         const vals = univRows.map(r => r[k]).filter(v => v != null);
         if (!vals.length) { merged[k] = null; continue; }
