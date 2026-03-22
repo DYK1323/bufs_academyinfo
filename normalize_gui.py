@@ -242,10 +242,19 @@ def parse_학교_field(df: "pd.DataFrame") -> "pd.DataFrame":
 
 
 def load_mapping() -> dict:
-    """field_mapping.json 로드. 없으면 빈 dict."""
-    if MAPPING_FILE.exists():
-        return json.loads(MAPPING_FILE.read_text(encoding="utf-8"))
-    return {}
+    """field_mapping.json 로드.
+    구조: { "__shared": {표준명: [alias...]}, "항목키": {표준명: [alias...]} }
+    구버전 flat 구조(값이 list)는 자동으로 __shared로 마이그레이션.
+    """
+    if not MAPPING_FILE.exists():
+        return {"__shared": {}}
+    data = json.loads(MAPPING_FILE.read_text(encoding="utf-8"))
+    # 구버전 감지: 최상위 값이 list → flat 구조
+    if data and any(isinstance(v, list) for v in data.values()):
+        data = {"__shared": data}
+        MAPPING_FILE.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    return data
 
 
 def save_mapping(mapping: dict):
@@ -253,18 +262,22 @@ def save_mapping(mapping: dict):
         json.dumps(mapping, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def resolve_fields(raw_headers: list, mapping: dict) -> tuple:
+def resolve_fields(raw_headers: list, mapping: dict, item_key: str) -> tuple:
     """
     raw_headers 각각을 표준 필드명으로 변환.
+    - __shared 섹션 + item_key 섹션을 합산해 alias 역방향 맵 구성
     - 기존 매핑에 있으면 → 표준명으로 변환
     - 없으면 → (new_fields 목록에 추가, 원래 이름 그대로)
     Returns:
         resolved   : 표준 필드명 리스트
         new_fields : 매핑에 없는 새 필드명 리스트
     """
-    # 역방향 맵: alias → standard
+    shared   = mapping.get("__shared", {})
+    item_sec = mapping.get(item_key, {})
+    merged   = {**shared, **item_sec}   # item_key 섹션이 shared를 덮어씀
+
     alias_to_std = {}
-    for std, aliases in mapping.items():
+    for std, aliases in merged.items():
         for alias in aliases:
             alias_to_std[alias] = std
 
@@ -273,7 +286,7 @@ def resolve_fields(raw_headers: list, mapping: dict) -> tuple:
     for h in raw_headers:
         if h in alias_to_std:
             resolved.append(alias_to_std[h])
-        elif h in mapping:               # 이미 표준명 자체
+        elif h in merged:               # 이미 표준명 자체
             resolved.append(h)
         else:
             resolved.append(h)
@@ -672,15 +685,21 @@ class App(tk.Tk):
                 df, sheet_name, header_rows, data_start = extract_df(str(filepath))
                 raw_headers = list(df.columns)
 
+                # 1-1. 항목 키 먼저 확정 (resolve_fields에 전달 필요)
+                item_key_early = item_key_from_filename(fname)
+
                 # 2. 필드 매핑 적용
-                resolved, new_fields = resolve_fields(raw_headers, mapping)
+                resolved, new_fields = resolve_fields(raw_headers, mapping, item_key_early)
 
                 # 3. 새 필드 있으면 메인 스레드에서 팝업
                 if new_fields:
                     self._log(f"  ⚠️  새 필드 {len(new_fields)}개 발견: "
                               f"{new_fields[:3]}{'...' if len(new_fields)>3 else ''}", "warn")
 
-                    existing_std = list(mapping.keys())
+                    # 팝업 후보: shared + 이 항목 섹션의 표준 필드명
+                    shared_keys   = list(mapping.get("__shared", {}).keys())
+                    item_keys_now = list(mapping.get(item_key_early, {}).keys())
+                    existing_std  = sorted(set(shared_keys + item_keys_now))
                     decisions    = self._ask_mapping(new_fields, existing_std, fname,
                                                      all_raw_headers=raw_headers)
 
@@ -690,27 +709,31 @@ class App(tk.Tk):
                         self.progress["value"] = i + 1
                         continue
 
-                    # 결정 반영
+                    # 결정 반영 — 새 필드는 항목 섹션에 저장
+                    item_sec   = mapping.setdefault(item_key_early, {})
+                    shared_sec = mapping.setdefault("__shared", {})
+
                     for field, decision in decisions.items():
                         if decision[0] == "map":
                             std = decision[1]
-                            # 매핑에 alias 추가
-                            if std not in mapping:
-                                mapping[std] = []
-                            if field not in mapping[std]:
-                                mapping[std].append(field)
-                            # resolved 업데이트
+                            # std가 속한 섹션에 alias 추가
+                            if std in shared_sec:
+                                target = shared_sec
+                            else:
+                                target = item_sec
+                                item_sec.setdefault(std, [])
+                            if field not in target[std]:
+                                target[std].append(field)
                             resolved = [std if r == field else r for r in resolved]
                             self._log(f"    매핑: '{field}' → '{std}'", "info")
 
                         elif decision[0] == "add":
-                            # 새 표준 필드로 등록
-                            if field not in mapping:
-                                mapping[field] = []
+                            # 이 항목 섹션에 새 표준 필드 등록
+                            if field not in item_sec and field not in shared_sec:
+                                item_sec[field] = []
                             self._log(f"    새 필드 추가: '{field}'", "info")
 
                         else:  # ignore
-                            # 해당 컬럼 제거
                             idx_to_drop = [j for j, h in enumerate(raw_headers) if h == field]
                             df.drop(df.columns[idx_to_drop], axis=1, inplace=True,
                                     errors="ignore")
@@ -741,7 +764,7 @@ class App(tk.Tk):
                 else:
                     self._log("  ⚠️  파일명에서 공시연도를 추출할 수 없습니다.", "warn")
 
-                item_key = item_key_from_filename(fname)
+                item_key = item_key_early   # 앞서 계산한 값 재사용
 
                 # 4-2. 데이터 검증
                 for warn_msg in validate_df(df):

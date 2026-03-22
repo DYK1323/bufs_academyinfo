@@ -772,7 +772,11 @@ async function loadAll() {
   State.original.기준대학 = JSON.parse(JSON.stringify(기준대학.content));
   State.original.calc     = JSON.parse(JSON.stringify(calc.content));
   State.original.manifest = JSON.parse(JSON.stringify(manifest.content));
-  State.fieldKeys = Object.keys(fieldMapping.content);
+  // field_mapping.json 구조: { "__shared": {}, "항목키": {} }
+  // 모든 섹션의 키를 모아 중복 제거 후 정렬
+  State.fieldKeys = [...new Set(
+    Object.values(fieldMapping.content).flatMap(sec => Object.keys(sec))
+  )].sort();
 
   renderMappingTable(기준대학.content);
   renderCalcRules(calc.content);
