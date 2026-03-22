@@ -700,7 +700,7 @@ const GH = {
       {
         method: 'PUT',
         headers: { ...this.headers(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, content: b64, sha }),
+        body: JSON.stringify(sha ? { message, content: b64, sha } : { message, content: b64 }),
       }
     );
     if (!res.ok) {
