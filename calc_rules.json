@@ -132,8 +132,8 @@
     "decimal_places": 2,
     "sort_asc": false
   },
-  "새 지표 1774183587135": {
-    "label": "",
+  "파견 교환학생 비율": {
+    "label": "파견 교환학생 비율",
     "numerator": [],
     "denominator_base": "재학생_계(C)",
     "multiply": 100,
