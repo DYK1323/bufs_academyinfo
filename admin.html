@@ -2550,8 +2550,10 @@ const CacheManager = {
       // 공시연도 캡처 — 캐시 출력 연도로 사용 (소스마다 공시연도가 다를 수 있음)
       const rawPubYear = parseInt(univRows[0]['공시연도'] ?? univRows[0]['기준연도'] ?? univRows[0]['기준년도'], 10);
       summed['공시연도'] = isNaN(rawPubYear) ? targetYear : rawPubYear;
-      // 지역 등 메타 결정 시 '본교' 행 우선 사용 (본교 기준 지역이 맞음)
-      const mainRow = univRows.find(r => r['본분교'] === '본교') || univRows[0];
+      // 지역 등 메타 결정: 캠퍼스 없는 본교 행 → 캠퍼스 있는 본교 행 → 첫 행 순으로 우선
+      const mainRow = univRows.find(r => r['본분교'] === '본교' && !r['캠퍼스'])
+                   || univRows.find(r => r['본분교'] === '본교')
+                   || univRows[0];
       const first = univRows[0];
       for (const field of Object.keys(first)) {
         if (['공시연도','기준연도','기준년도','대학명','학교'].includes(field)) continue;
