@@ -134,7 +134,9 @@
   },
   "파견 교환학생 비율": {
     "label": "파견 교환학생 비율",
-    "numerator": [],
+    "numerator": [
+      "파견인원 (자대학교 → 타대학교)"
+    ],
     "denominator_base": "재학생_계(C)",
     "multiply": 100,
     "visible": true,
