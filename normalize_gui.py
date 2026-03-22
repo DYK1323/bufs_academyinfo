@@ -55,7 +55,7 @@ _excel_mod.find_images = _patched_find_images
 # ─────────────────────────────────────────────────────
 # 설정
 # ─────────────────────────────────────────────────────
-YEAR_PATTERN     = re.compile(r"^(19|20)\d{2}$")
+YEAR_PATTERN     = re.compile(r"^(19|20)\d{2}(\s*년\s*(상|하)반기)?$")
 YEAR_IN_FILENAME = re.compile(r"^\d{4}년[_\s]*")   # 파일명 앞 연도 제거용
 SCRIPT_DIR       = Path(__file__).parent
 MAPPING_FILE     = SCRIPT_DIR / "field_mapping.json"
@@ -150,6 +150,39 @@ def extract_df(filepath: str) -> tuple:
 
     df = pd.DataFrame(data, columns=headers)
     return df, sheet_name, header_rows, data_start
+
+
+HALF_YEAR_PATTERN = re.compile(r"^((19|20)\d{2})\s*년\s*(상|하)반기")
+
+def normalize_half_year(df: "pd.DataFrame") -> "pd.DataFrame":
+    """기준연도 컬럼에 '20XX 년 상반기 / 하반기' 형식이 있으면:
+    - 하반기 행 제거 (연중 중간 집계라 불완전)
+    - 상반기 행의 기준연도를 4자리 정수로 정규화
+    해당 형식이 없으면 df를 그대로 반환.
+    """
+    if df.empty:
+        return df
+    year_col = df.columns[0]
+
+    def _match(val):
+        return HALF_YEAR_PATTERN.match(str(val).strip())
+
+    if not df[year_col].apply(_match).any():
+        return df   # 이 항목에는 반기 표기 없음
+
+    # 하반기 제거
+    mask_ha = df[year_col].apply(
+        lambda v: bool(m := HALF_YEAR_PATTERN.match(str(v).strip())) and m.group(3) == '하'
+    )
+    df = df[~mask_ha].copy()
+
+    # 상반기 → 4자리 정수
+    def _norm(val):
+        m = HALF_YEAR_PATTERN.match(str(val).strip())
+        return int(m.group(1)) if m else val
+
+    df[year_col] = df[year_col].apply(_norm)
+    return df
 
 
 def item_key_from_filename(filename: str) -> str:
@@ -283,23 +316,6 @@ def accumulate_json(item_key: str, df: pd.DataFrame):
 
     json_path.write_text(
         json.dumps(combined, ensure_ascii=False, indent=2), encoding="utf-8")
-
-    # manifest.json 갱신 — [{key, label}] 형식
-    # label은 처음 추가 시 item_key와 동일하게 설정 (이후 수동 수정)
-    manifest_path = JSON_DIR / "manifest.json"
-    manifest: list = []
-    if manifest_path.exists():
-        raw = json.loads(manifest_path.read_text(encoding="utf-8"))
-        # 구버전(문자열 배열) 자동 마이그레이션
-        manifest = [
-            e if isinstance(e, dict) else {"key": e, "label": e}
-            for e in raw
-        ]
-    if not any(e["key"] == item_key for e in manifest):
-        manifest.append({"key": item_key, "label": item_key})
-        manifest.sort(key=lambda e: e["key"])
-        manifest_path.write_text(
-            json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 
     return len(new_records), len(combined)
 
@@ -710,6 +726,13 @@ class App(tk.Tk):
 
                 # 4-1. '학교' 필드 파싱 → 대학명 / 본분교 / 캠퍼스 추가
                 df = parse_학교_field(df)
+
+                # 4-1-1. 반기 표기 정규화 (재학생 충원율 등 상/하반기 항목)
+                before = len(df)
+                df = normalize_half_year(df)
+                dropped = before - len(df)
+                if dropped:
+                    self._log(f"  ℹ️  하반기 행 {dropped}개 제거 (상반기만 보관)", "info")
 
                 # 4-2. 공시연도 삽입 (파일명 앞 연도)
                 pub_year = pub_year_from_filename(fname)
