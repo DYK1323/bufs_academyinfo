@@ -181,8 +181,8 @@
     "decimal_places": 2,
     "sort_asc": false
   },
-  "취업률": {
-    "label": "취업률",
+  "취업자": {
+    "label": "취업자",
     "numerator": [
       "취업자(B)_건강보험 직장가입자_남",
       "취업자(B)_건강보험 직장가입자_여",
@@ -197,15 +197,30 @@
       "취업자(B)_프리랜서_남",
       "취업자(B)_프리랜서_여"
     ],
-    "denominator_base": [
+    "denominator_base": "1",
+    "multiply": 1,
+    "unit": "%",
+    "decimal_places": 2,
+    "sort_asc": false
+  },
+  "졸업자": {
+    "label": "졸업자",
+    "numerator": [
       "졸업자(A)_남",
       "졸업자(A)_여"
     ],
-    "multiply": 100,
-    "denominator_exclude": [
-      "입대자(D)",
+    "denominator_base": "1",
+    "multiply": 1,
+    "unit": "%",
+    "decimal_places": 2,
+    "sort_asc": false
+  },
+  "취업제외자": {
+    "label": "취업제외자",
+    "numerator": [
       "진학자(C)_남",
       "진학자(C)_여",
+      "입대자(D)",
       "취업불가능자(E)_남",
       "취업불가능자(E)_여",
       "외국인유학생(F)_남",
@@ -213,9 +228,28 @@
       "제외인정자(G)_남",
       "제외인정자(G)_여"
     ],
-    "visible": true,
+    "denominator_base": "1",
+    "multiply": 1,
     "unit": "%",
     "decimal_places": 2,
     "sort_asc": false
+  },
+  "진학자": {
+    "label": "진학자",
+    "numerator": [
+      "진학자(C)_남",
+      "진학자(C)_여"
+    ],
+    "denominator_base": "1",
+    "multiply": 1,
+    "unit": "%",
+    "decimal_places": 2,
+    "sort_asc": false
+  },
+  "새 지표 1774271879983": {
+    "label": "",
+    "numerator": [],
+    "denominator_base": [],
+    "multiply": 100
   }
 }
