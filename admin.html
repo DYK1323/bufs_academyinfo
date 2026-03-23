@@ -655,8 +655,6 @@ body { padding-bottom: 60px; }
 </div>
 
 <!-- ── 전역 datalist ── -->
-<datalist id="dl-raw-fields"></datalist>
-<datalist id="dl-all-fields"></datalist>
 <datalist id="dl-data-files"></datalist>
 
 <!-- ── 초안 복원 바 ── -->
@@ -777,6 +775,12 @@ const GH = {
     } catch { return []; }
   },
 };
+
+/* ══════════════════════════════════════════
+   모듈 수준 상수
+══════════════════════════════════════════ */
+const OUR_UNIV = '부산외국어대학교';
+const METRO    = new Set(['서울', '경기', '인천']);
 
 /* ══════════════════════════════════════════
    앱 상태
@@ -1625,7 +1629,6 @@ function applyRule(btn) {
   const card = btn.closest('.rule-card');
   const prevKey = card.dataset.key;                                  // 원래 키
   const newKey  = card.querySelector('.rule-field-key').value.trim(); // 새 키
-  const oldKey  = newKey;  // 하위 로직 호환용
   const label   = card.querySelector('.rule-field-label').value.trim();
 
   if (!newKey) { alert('지표 필드명을 입력하세요.'); return; }
@@ -1786,33 +1789,24 @@ function collectCalcRules() {
 ══════════════════════════════════════════ */
 let manifestData = [];
 
-/* field_mapping.json + calc_rules 키로 그룹핑된 <select> 생성 */
+/* field_mapping.json(소스별 그룹) + calc_rules 키로 그룹핑된 <select> 생성 */
 function buildFieldSelect(currentVal) {
-  const keys = State.fieldKeys;
-  if (!keys.length) {
+  if (!State.fieldsBySource?.length) {
     // 아직 로드 전 fallback: 일반 텍스트 입력
     return `<input class="cell-input col-key" type="text" value="${esc(currentVal||'')}" oninput="setDirty()">`;
   }
-  // 첫 '_' 앞 텍스트로 그룹핑 (없으면 '공통')
-  const groups = new Map();
-  for (const k of keys) {
-    const idx = k.indexOf('_');
-    const grp = idx > -1 ? k.slice(0, idx) : '공통';
-    if (!groups.has(grp)) groups.set(grp, []);
-    groups.get(grp).push(k);
-  }
-  // calc_rules 키 별도 그룹
   const calcKeys = Object.keys(calcData);
-  const allKnown = [...keys, ...calcKeys];
+  const allKnown = [...State.fieldKeys, ...calcKeys];
   const isKnown = currentVal && allKnown.includes(currentVal);
   const emptyOpt = `<option value=""${!currentVal ? ' selected' : ''}>— 필드 선택 —</option>`;
   const unknownOpt = (currentVal && !isKnown)
     ? `<option value="${esc(currentVal)}" selected>${esc(currentVal)}</option>` : '';
-  const rawOptgroups = [...groups.entries()].map(([grp, ks]) => {
-    const opts = ks.map(k =>
+  // fieldsBySource 소스별 optgroup — 실제 소스명이 그룹 레이블로 표시됨
+  const rawOptgroups = State.fieldsBySource.map(({ source, fields }) => {
+    const opts = fields.map(k =>
       `<option value="${esc(k)}"${k === currentVal ? ' selected' : ''}>${esc(k)}</option>`
     ).join('');
-    return `<optgroup label="${esc(grp)}">${opts}</optgroup>`;
+    return `<optgroup label="${esc(source)}">${opts}</optgroup>`;
   }).join('');
   const calcOptgroup = calcKeys.length ? `<optgroup label="── 산식 (계산 지표)">${
     calcKeys.map(k => {
@@ -2030,7 +2024,6 @@ const DataViewer = {
   _page: 1,
   PAGE_SIZE: 50,
   META_COLS: ['기준연도','대학명','학교','설립구분','지역','학교종류','대학구분','본분교','캠퍼스','상태'],
-  OUR_UNIV: '부산외국어대학교',
 
   init() {
     if (this._items.length) return; // 이미 초기화됨
@@ -2044,7 +2037,7 @@ const DataViewer = {
       .filter(m => m.sources?.length || m.source)
       .map(m => {
         const src = m.sources?.[0] || m.source || '';
-        return { key: src, label: State.original.calcRules?.[m.indicator]?.label || m.indicator };
+        return { key: src, label: State.original.calc?.[m.indicator]?.label || m.indicator };
       });
     this._buildDropdown('');
   },
@@ -2102,8 +2095,12 @@ const DataViewer = {
 
   _buildCols() {
     if (!this._raw.length) { this._cols = []; return; }
+    // 앞뒤 100개씩 샘플링 — 연도 경계의 신규 필드를 포착하면서 전체 순회 부하 방지
+    const sample = this._raw.length <= 200
+      ? this._raw
+      : [...this._raw.slice(0, 100), ...this._raw.slice(-100)];
     const allKeys = new Set();
-    for (const r of this._raw) for (const k of Object.keys(r)) allKeys.add(k);
+    for (const r of sample) for (const k of Object.keys(r)) allKeys.add(k);
     const meta = this.META_COLS.filter(c => allKeys.has(c));
     const rest = [...allKeys].filter(c => !this.META_COLS.includes(c));
     this._cols = [...meta, ...rest];
@@ -2148,16 +2145,23 @@ const DataViewer = {
 
   _render() {
     const total = this._filtered.length;
-    document.getElementById('dv-count').textContent = `${total.toLocaleString()}행`;
+    const totalPages = Math.ceil(total / this.PAGE_SIZE) || 1;
+    this._page = Math.min(Math.max(this._page, 1), totalPages);
+    document.getElementById('dv-count').textContent = total
+      ? `${total.toLocaleString()}행 (${this._page}/${totalPages} 페이지)`
+      : '';
 
     if (!total) {
       document.getElementById('dv-body').innerHTML = '<div class="dv-empty">조건에 맞는 데이터가 없습니다.</div>';
       return;
     }
 
+    const start = (this._page - 1) * this.PAGE_SIZE;
+    const pageRows = this._filtered.slice(start, start + this.PAGE_SIZE);
+
     const thead = this._cols.map(c => `<th>${esc(c)}</th>`).join('');
-    const tbody = this._filtered.map(r => {
-      const isOur = (r['대학명'] || r['학교'] || '') === this.OUR_UNIV;
+    const tbody = pageRows.map(r => {
+      const isOur = (r['대학명'] || r['학교'] || '') === OUR_UNIV;
       const cells = this._cols.map(c => {
         const v = r[c];
         return `<td>${v == null ? '' : esc(String(v))}</td>`;
@@ -2165,13 +2169,24 @@ const DataViewer = {
       return `<tr${isOur ? ' class="dv-our"' : ''}>${cells}</tr>`;
     }).join('');
 
+    // 페이지 컨트롤 생성
+    const mkBtn = (p, label, cur) =>
+      `<button class="dv-page-btn${cur ? ' cur' : ''}" onclick="DataViewer._goPage(${p})">${label}</button>`;
+    const pageButtons = [];
+    if (this._page > 1) pageButtons.push(mkBtn(this._page - 1, '‹ 이전', false));
+    const lo = Math.max(1, this._page - 2), hi = Math.min(totalPages, this._page + 2);
+    for (let p = lo; p <= hi; p++) pageButtons.push(mkBtn(p, p, p === this._page));
+    if (this._page < totalPages) pageButtons.push(mkBtn(this._page + 1, '다음 ›', false));
+    const pager = totalPages > 1
+      ? `<div class="dv-pagination">${pageButtons.join('')}</div>` : '';
+
     document.getElementById('dv-body').innerHTML = `
       <div class="dv-table-wrap">
         <table class="dv-table">
           <thead><tr>${thead}</tr></thead>
           <tbody>${tbody}</tbody>
         </table>
-      </div>`;
+      </div>${pager}`;
     const wrap = document.querySelector('#dv-body .dv-table-wrap');
     if (wrap) {
       const top = wrap.getBoundingClientRect().top;
@@ -2215,7 +2230,7 @@ const CacheManager = {
 
   _updateStatusCard(cache) {
     const univs = new Set(cache.map(r => r.기준대학명)).size;
-    const years = [...new Set(cache.map(r => r.기준연도))].filter(Boolean).sort();
+    const years = [...new Set(cache.map(r => r.공시연도))].filter(Boolean).sort();
     document.getElementById('cache-last-updated').textContent = '저장됨';
     document.getElementById('cache-univ-count').textContent = univs + '개교';
     document.getElementById('cache-year-range').textContent = years.length ? `${years[0]}~${years[years.length-1]}년` : '-';
@@ -2409,7 +2424,6 @@ const CacheManager = {
     const ratioKeys = new Set(Object.keys(calcRules));
     const getYear = r => parseInt(r['기준연도'] ?? r['기준년도'], 10);
     const yearRows = rows.filter(r => getYear(r) === targetYear);
-    const METRO = new Set(['서울', '경기', '인천']);
 
     const groupBy = rowSet => {
       const g = new Map();
@@ -2525,7 +2539,6 @@ const CacheManager = {
 
   /** raw 합산 전용 (산식 적용 없음) — 단일 연도, 대학별 수치 합산만 수행 */
   _aggregateRaw(rows, targetYear, baseUnivMap) {
-    const METRO = new Set(['서울', '경기', '인천']);
     // 기준연도 우선 — join 키와 일치시키기 위함 (공시연도는 소스마다 달라 join 키로 부적합)
     const getYear = r => parseInt(r['기준연도'] ?? r['기준년도'] ?? r['공시연도'], 10);
     const yearRows = rows.filter(r => getYear(r) === targetYear);
@@ -2592,21 +2605,13 @@ const CacheManager = {
     };
 
     // 1단계: numerator/denominator 산식
+    // exclude_rows는 대학 단위 집계 전 원시 행에 적용해야 하므로 이 단계에서는 무시
     for (const [key, rule] of Object.entries(calcRules)) {
       if (rule.min_of || rule.rolling_avg) continue;
-      let num, den;
-      if (rule.exclude_rows) {
-        // exclude_rows는 원시 행 단위 처리가 필요해 단일 row에서는 적용 불가 — 필드 그대로 참조
-        num = (rule.numerator || []).reduce((acc, f) => acc + (res[f] ?? 0), 0);
-        const db = rule.denominator_base;
-        den = !isNaN(Number(db)) ? Number(db) : (res[db] ?? 0);
-        for (const ex of (rule.denominator_exclude || [])) den -= (res[ex] ?? 0);
-      } else {
-        num = (rule.numerator || []).reduce((acc, f) => acc + (res[f] ?? 0), 0);
-        const db = rule.denominator_base;
-        den = !isNaN(Number(db)) ? Number(db) : (res[db] ?? 0);
-        for (const ex of (rule.denominator_exclude || [])) den -= (res[ex] ?? 0);
-      }
+      const num = (rule.numerator || []).reduce((acc, f) => acc + (res[f] ?? 0), 0);
+      const db = rule.denominator_base;
+      let den = !isNaN(Number(db)) ? Number(db) : (res[db] ?? 0);
+      for (const ex of (rule.denominator_exclude || [])) den -= (res[ex] ?? 0);
       res[key] = den > 0 ? (num / den) * (rule.multiply ?? 1) : null;
     }
 
@@ -2643,7 +2648,6 @@ const CacheManager = {
       }
       const calcRules = State.original.calc || {};
       const META = ['기준대학명','기준연도','공시연도','지역','설립구분','대학구분','수도권여부'];
-      const METRO = new Set(['서울','경기','인천']);
 
       // 2. 소스 파일 로드 (rawMap 구성) + V1 수집
       const allSources = new Set(valid.flatMap(c => c.sources));
@@ -2684,9 +2688,10 @@ const CacheManager = {
         rawMap.set(source, this._aggregateRawAllYears(rows, years, baseUnivMap));
       }
 
-      // 3. 지표별 join + V2/V3 수집
+      // 3. 지표별 join + V2/V3/V4용 데이터 구성 (tempMap은 지표당 1회만 빌드)
       const tempJoinMiss = {}; // indicator → [{univName, baseYear, missing:[sourceName]}]
       const indicatorPubYears = new Map(); // indicator → Map<univName, pubYear>
+      const mergedRaw = new Map(); // 대학+공시연도 → 전체 raw 필드 (V4용)
 
       for (const item of valid) {
         tempJoinMiss[item.indicator] = [];
@@ -2717,52 +2722,7 @@ const CacheManager = {
           }
         }
 
-        // V3: 지표별 공시연도 수집 (tempMap 기반)
-        const tempMap = new Map();
-        for (const source of item.sources) {
-          const agg = rawMap.get(source);
-          if (!agg) continue;
-          for (const [baseYear, aggRows] of agg) {
-            for (const row of aggRows) {
-              const tempKey = `${row.기준대학명}__${baseYear}`;
-              if (!tempMap.has(tempKey)) {
-                tempMap.set(tempKey, {
-                  기준대학명: row.기준대학명,
-                  공시연도: row.공시연도 ?? baseYear,
-                });
-              }
-              const target = tempMap.get(tempKey);
-              for (const [k, v] of Object.entries(row)) {
-                if (META.includes(k)) continue;
-                if (target[k] === undefined) target[k] = v;
-              }
-            }
-          }
-        }
-        for (const tempRow of tempMap.values()) {
-          indicatorPubYears.get(item.indicator).set(tempRow.기준대학명, tempRow.공시연도);
-        }
-      }
-
-      // V3: cross-indicator 공시연도 불일치 탐지 (복수 소스 지표만)
-      const multiSrcIndicators = valid.filter(i => i.sources.length > 1).map(i => i.indicator);
-      const crossJoinMiss = []; // [{univName, conflicts:[{indicator, pubYear}]}]
-      if (multiSrcIndicators.length > 1) {
-        const allUnivs = new Set(
-          multiSrcIndicators.flatMap(ind => [...(indicatorPubYears.get(ind)?.keys() || [])])
-        );
-        for (const univName of allUnivs) {
-          const yearsByInd = multiSrcIndicators
-            .map(ind => ({ indicator: ind, pubYear: indicatorPubYears.get(ind)?.get(univName) }))
-            .filter(x => x.pubYear != null);
-          const uniqueYears = new Set(yearsByInd.map(x => x.pubYear));
-          if (uniqueYears.size > 1) crossJoinMiss.push({ univName, conflicts: yearsByInd });
-        }
-      }
-
-      // 4. mergedRaw 구성 후 V4 수집
-      const mergedRaw = new Map();
-      for (const item of valid) {
+        // tempMap 1회 빌드 — V3(공시연도 수집) + V4(mergedRaw 누적) 공용
         const tempMap = new Map();
         for (const source of item.sources) {
           const agg = rawMap.get(source);
@@ -2787,6 +2747,9 @@ const CacheManager = {
           }
         }
         for (const tempRow of tempMap.values()) {
+          // V3: 공시연도 기록
+          indicatorPubYears.get(item.indicator).set(tempRow.기준대학명, tempRow.공시연도);
+          // V4: mergedRaw 누적
           const mapKey = `${tempRow.기준대학명}__${tempRow.공시연도}`;
           if (!mergedRaw.has(mapKey)) {
             mergedRaw.set(mapKey, {
@@ -2800,6 +2763,22 @@ const CacheManager = {
             if (META.includes(k)) continue;
             if (target[k] === undefined) target[k] = v;
           }
+        }
+      }
+
+      // V3: cross-indicator 공시연도 불일치 탐지 (복수 소스 지표만)
+      const multiSrcIndicators = valid.filter(i => i.sources.length > 1).map(i => i.indicator);
+      const crossJoinMiss = []; // [{univName, conflicts:[{indicator, pubYear}]}]
+      if (multiSrcIndicators.length > 1) {
+        const allUnivs = new Set(
+          multiSrcIndicators.flatMap(ind => [...(indicatorPubYears.get(ind)?.keys() || [])])
+        );
+        for (const univName of allUnivs) {
+          const yearsByInd = multiSrcIndicators
+            .map(ind => ({ indicator: ind, pubYear: indicatorPubYears.get(ind)?.get(univName) }))
+            .filter(x => x.pubYear != null);
+          const uniqueYears = new Set(yearsByInd.map(x => x.pubYear));
+          if (uniqueYears.size > 1) crossJoinMiss.push({ univName, conflicts: yearsByInd });
         }
       }
 
@@ -2832,7 +2811,7 @@ const CacheManager = {
   },
 
   _renderValidationReport({ unmatchedNames, tempJoinMiss, crossJoinMiss, zeroFields, valid }) {
-    const e = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const e = esc;
 
     // 건수 집계
     const v1Count = [...unmatchedNames.values()].reduce((a, arr) => a + arr.length, 0);

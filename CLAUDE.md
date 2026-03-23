@@ -1,4 +1,29 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # 대학공시 데이터 분석 툴
+
+## 개발 환경 명령어
+
+```bash
+# 로컬 분석 페이지 테스트 (CORS 우회)
+python -m http.server 8080
+# → http://localhost:8080 에서 index.html 확인
+
+# Python 도구 의존 패키지 설치
+pip install pandas openpyxl playwright
+python -m playwright install chromium
+
+# 데이터 정제 GUI 실행
+python normalize_gui.py
+
+# 대학개황 CSV → data/대학기본정보.json 변환
+python convert_university_info.py [CSV파일명]
+
+# 공시연도 소급 삽입 (마이그레이션, 일회성)
+python migrate_pub_year.py
+```
 
 ## 프로젝트 개요
 
@@ -32,6 +57,8 @@
 ├── index.css                      # 분석 페이지 스타일 (레이아웃/컴포넌트)
 ├── admin.html                     # 관리자 페이지
 ├── normalize_gui.py               # 정제 도구 (Python/tkinter)
+├── convert_university_info.py     # 대학개황 CSV → data/대학기본정보.json 변환
+├── migrate_pub_year.py            # 공시연도 소급 삽입 (일회성 마이그레이션)
 ├── download_academyinfo.py        # 다운로드 자동화 (Playwright)
 ├── field_mapping.json             # 필드 매핑 (자동 생성/갱신)
 ├── merge_rules.json               # 캠퍼스 합산 방식 (sum/skip/master)
@@ -50,13 +77,14 @@
 │       ├── trend.js               # TrendView (추이 분석) + BumpView (순위 변동)
 │       └── benchmark.js           # BenchmarkView + scatter
 ├── data/
-│   ├── 기준대학.json              # 캠퍼스 합산 기준 + 대학 속성
+│   ├── 기준대학.json              # 캠퍼스 합산 기준 + 대학 속성 (admin.html에서 편집)
+│   ├── 대학기본정보.json          # 전국 대학 기본정보 (convert_university_info.py로 생성)
 │   ├── 학과분류.json              # 학과 계열 대/중/소 분류 (관리자 직접 관리)
 │   ├── manifest.json              # 분석 페이지 공시항목 목록 (indicator·source·columns 정의)
 │   ├── benchmark_cache.json       # 벤치마크 뷰용 사전 계산 캐시 (대학별 지표값, admin.html 생성)
 │   └── {항목키}.json              # 항목별 누적 데이터 (최근 5년 보관)
 └── docs/
-    └── spec.md                    # 기능 명세서
+    └── spec.md                    # 기능 명세서 (최신 — 루트의 spec.md는 구버전 초안)
 ```
 
 ### JS 로드 순서 (의존성)
@@ -153,6 +181,13 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 - `min_of`: 다른 산식 결과의 최솟값을 취하는 2단계 계산. 1단계 산식 완료 후 처리.
 - `rolling_avg`: 지정 필드의 최근 N년 평균을 계산하는 중간값. 다른 산식의 `numerator`에서 참조 가능. `rolling_years` 생략 시 기본값 5년. 해당 대학의 연도별 합산 후 연도 평균으로 계산됨.
 - 산식 변경 시 이 파일만 수정하면 되며 코드는 건드리지 않아도 된다.
+
+### convert_university_info.py
+
+- 대학알리미에서 받은 대학개황정보 CSV → `data/대학기본정보.json` 변환 (연 1회 실행)
+- EUC-KR 인코딩 CSV 입력, 본교 기준으로 지역·설립구분·대학구분 추출 (캠퍼스 중복 제거)
+- `설립구분` 정규화: `'국립'`·`'공립'`·`'국립대법인'` → `'국공립'` (특별법·기타는 그대로)
+- `data/기준대학.json`과 다름: `기준대학.json`은 캠퍼스 합산 매핑용, `대학기본정보.json`은 전국 대학 기본 속성
 
 ### download_academyinfo.py (Playwright)
 
