@@ -199,7 +199,7 @@
     ],
     "denominator_base": "1",
     "multiply": 1,
-    "unit": "%",
+    "unit": "명",
     "decimal_places": 2,
     "sort_asc": false
   },
@@ -211,7 +211,7 @@
     ],
     "denominator_base": "1",
     "multiply": 1,
-    "unit": "%",
+    "unit": "명",
     "decimal_places": 2,
     "sort_asc": false
   },
@@ -230,7 +230,7 @@
     ],
     "denominator_base": "1",
     "multiply": 1,
-    "unit": "%",
+    "unit": "명",
     "decimal_places": 2,
     "sort_asc": false
   },
@@ -271,7 +271,7 @@
     ],
     "denominator_base": "1",
     "multiply": 1,
-    "unit": "%",
+    "unit": "명",
     "decimal_places": 2,
     "sort_asc": false
   },
