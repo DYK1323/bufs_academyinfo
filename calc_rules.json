@@ -246,10 +246,50 @@
     "decimal_places": 2,
     "sort_asc": false
   },
-  "새 지표 1774271879983": {
-    "label": "",
-    "numerator": [],
-    "denominator_base": [],
-    "multiply": 100
+  "취업률": {
+    "label": "취업률",
+    "numerator": [
+      "취업자"
+    ],
+    "denominator_base": [
+      "졸업자"
+    ],
+    "multiply": 100,
+    "denominator_exclude": [
+      "취업제외자"
+    ],
+    "visible": true,
+    "unit": "%",
+    "decimal_places": 2,
+    "sort_asc": false
+  },
+  "해외취업자": {
+    "label": "해외취업자",
+    "numerator": [
+      "취업자(B)_해외 취업자_남",
+      "취업자(B)_해외 취업자_여"
+    ],
+    "denominator_base": "1",
+    "multiply": 1,
+    "unit": "%",
+    "decimal_places": 2,
+    "sort_asc": false
+  },
+  "해외취업률": {
+    "label": "해외취업률",
+    "numerator": [
+      "해외취업자"
+    ],
+    "denominator_base": [
+      "졸업자"
+    ],
+    "multiply": 100,
+    "denominator_exclude": [
+      "취업제외자"
+    ],
+    "visible": true,
+    "unit": "%",
+    "decimal_places": 2,
+    "sort_asc": false
   }
 }
