@@ -2319,7 +2319,7 @@ const CacheManager = {
         const years = [...new Set(rows.map(getYear).filter(y => !isNaN(y)))].sort();
         this._log(`  → 연도: ${years.join(', ')}`);
 
-        rawMap.set(source, this._aggregateRawAllYears(rows, years, baseUnivMap));
+        rawMap.set(source, this._aggregateRawAllYears(rows, years, baseUnivMap, calcRules));
       }
 
       // 5. 지표별 2단계 join → mergedRaw 구성
@@ -2536,8 +2536,9 @@ const CacheManager = {
     return result;
   },
 
-  /** raw 합산 전용 (산식 적용 없음) — 단일 연도, 대학별 수치 합산만 수행 */
-  _aggregateRaw(rows, targetYear, baseUnivMap) {
+  /** raw 합산 전용 (산식 적용 없음) — 단일 연도, 대학별 수치 합산만 수행.
+   *  calcRules 전달 시 exclude_rows 규칙의 필터링된 합산값을 __excl__{key}__{field} 형태로 함께 저장. */
+  _aggregateRaw(rows, targetYear, baseUnivMap, calcRules) {
     // 기준연도 우선 — join 키와 일치시키기 위함 (공시연도는 소스마다 달라 join 키로 부적합)
     const getYear = r => parseInt(r['기준연도'] ?? r['기준년도'] ?? r['공시연도'], 10);
     const yearRows = rows.filter(r => getYear(r) === targetYear);
@@ -2555,6 +2556,11 @@ const CacheManager = {
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(row);
     }
+
+    // exclude_rows 규칙 목록 사전 추출
+    const exclRules = calcRules
+      ? Object.entries(calcRules).filter(([, r]) => r.exclude_rows && !r.min_of && !r.rolling_avg)
+      : [];
 
     const result = [];
     for (const [univName, univRows] of groups) {
@@ -2577,40 +2583,64 @@ const CacheManager = {
       summed['설립구분'] = mainRow['설립구분'] || '미확인';
       summed['대학구분'] = mainRow['학교종류'] || '미확인';
       summed['수도권여부'] = METRO.has(지역) ? 'Y' : 'N';
+
+      // exclude_rows 규칙별 필터 적용 후 합산 — _applyCalc에서 우선 사용
+      for (const [ruleKey, rule] of exclRules) {
+        const filt = univRows.filter(r =>
+          Object.entries(rule.exclude_rows).every(([f, vs]) => !vs.includes(r[f]))
+        );
+        const needed = [
+          ...(rule.numerator || []),
+          ...(rule.denominator_base && isNaN(Number(rule.denominator_base)) ? [rule.denominator_base] : []),
+          ...(rule.denominator_exclude || []),
+        ];
+        for (const field of needed) {
+          const nums = filt.map(r => r[field]).filter(v => typeof v === 'number' && !isNaN(v));
+          summed[`__excl__${ruleKey}__${field}`] = nums.length
+            ? nums.reduce((a, b) => a + b, 0) : 0;
+        }
+      }
+
       result.push(summed);
     }
     return result;
   },
 
   /** raw 합산 전체 연도 — Map<year, aggRows[]> 반환 */
-  _aggregateRawAllYears(rows, years, baseUnivMap) {
+  _aggregateRawAllYears(rows, years, baseUnivMap, calcRules) {
     const result = new Map();
     for (const year of years) {
-      result.set(year, this._aggregateRaw(rows, year, baseUnivMap));
+      result.set(year, this._aggregateRaw(rows, year, baseUnivMap, calcRules));
     }
     return result;
   },
 
-  /** 이미 합산된 단일 row에 calc_rules 산식 적용 — 계산된 지표 포함 row 반환 */
+  /** 이미 합산된 단일 row에 calc_rules 산식 적용 — 계산된 지표 포함 row 반환.
+   *  exclude_rows 규칙은 _aggregateRaw에서 사전 계산된 __excl__ 접두사 필드를 우선 사용. */
   _applyCalc(summed, calcRules) {
     const res = { ...summed };
 
-    const sumFields = (fields) => {
-      const out = {};
-      for (const field of fields) {
-        out[field] = typeof summed[field] === 'number' ? summed[field] : 0;
-      }
-      return out;
-    };
-
     // 1단계: numerator/denominator 산식
-    // exclude_rows는 대학 단위 집계 전 원시 행에 적용해야 하므로 이 단계에서는 무시
     for (const [key, rule] of Object.entries(calcRules)) {
       if (rule.min_of || rule.rolling_avg) continue;
-      const num = (rule.numerator || []).reduce((acc, f) => acc + (res[f] ?? 0), 0);
-      const db = rule.denominator_base;
-      let den = !isNaN(Number(db)) ? Number(db) : (res[db] ?? 0);
-      for (const ex of (rule.denominator_exclude || [])) den -= (res[ex] ?? 0);
+      let num, den;
+      const hasExcl = rule.exclude_rows &&
+        res[`__excl__${key}__${(rule.numerator || [])[0]}`] !== undefined;
+      if (hasExcl) {
+        // exclude_rows 적용: _aggregateRaw에서 사전 계산된 필터링 합산값 사용
+        num = (rule.numerator || []).reduce((acc, f) =>
+          acc + (res[`__excl__${key}__${f}`] ?? res[f] ?? 0), 0);
+        const db = rule.denominator_base;
+        den = !isNaN(Number(db)) ? Number(db) :
+              (res[`__excl__${key}__${db}`] ?? res[db] ?? 0);
+        for (const ex of (rule.denominator_exclude || []))
+          den -= (res[`__excl__${key}__${ex}`] ?? res[ex] ?? 0);
+      } else {
+        num = (rule.numerator || []).reduce((acc, f) => acc + (res[f] ?? 0), 0);
+        const db = rule.denominator_base;
+        den = !isNaN(Number(db)) ? Number(db) : (res[db] ?? 0);
+        for (const ex of (rule.denominator_exclude || [])) den -= (res[ex] ?? 0);
+      }
       res[key] = den > 0 ? (num / den) * (rule.multiply ?? 1) : null;
     }
 
@@ -2684,7 +2714,7 @@ const CacheManager = {
 
         const getYear = r => parseInt(r['기준연도'] ?? r['기준년도'] ?? r['공시연도'], 10);
         const years = [...new Set(rows.map(getYear).filter(y => !isNaN(y)))].sort();
-        rawMap.set(source, this._aggregateRawAllYears(rows, years, baseUnivMap));
+        rawMap.set(source, this._aggregateRawAllYears(rows, years, baseUnivMap, calcRules));
       }
 
       // 3. 지표별 join + V2/V3/V4용 데이터 구성 (tempMap은 지표당 1회만 빌드)
