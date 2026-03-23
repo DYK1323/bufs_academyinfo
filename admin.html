@@ -2026,19 +2026,18 @@ const DataViewer = {
   META_COLS: ['기준연도','대학명','학교','설립구분','지역','학교종류','대학구분','본분교','캠퍼스','상태'],
 
   init() {
-    if (this._items.length) return; // 이미 초기화됨
-    const manifest = State.original.manifest;
-    if (!manifest || !manifest.length) {
+    if (!State.dataFiles?.length) {
       document.getElementById('dv-body').innerHTML = '<div class="dv-empty">먼저 GitHub에 연결하세요.</div>';
       return;
     }
-    // sources 배열의 첫 번째 소스를 대표 소스로 사용 (데이터 조회용)
-    this._items = manifest
-      .filter(m => m.sources?.length || m.source)
-      .map(m => {
-        const src = m.sources?.[0] || m.source || '';
-        return { key: src, label: State.original.calc?.[m.indicator]?.label || m.indicator };
-      });
+    // manifest에서 소스→지표 라벨 매핑 구성 (라벨 힌트용)
+    const sourceToLabel = new Map();
+    for (const m of (State.original.manifest || [])) {
+      const src = m.sources?.[0] || m.source || '';
+      if (src) sourceToLabel.set(src, State.original.calc?.[m.indicator]?.label || m.indicator);
+    }
+    // data/ 폴더의 모든 원시 데이터 파일을 항목으로 구성
+    this._items = State.dataFiles.map(f => ({ key: f, label: sourceToLabel.get(f) || '' }));
     this._buildDropdown('');
   },
 
