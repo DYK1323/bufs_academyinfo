@@ -329,6 +329,19 @@ def accumulate_json(item_key: str, df: pd.DataFrame):
     for col in df.select_dtypes(include="object").columns:
         df[col] = df[col].apply(lambda v: v.strip() if isinstance(v, str) else v)
 
+    # 수치형 문자열 컬럼을 숫자로 변환 (예: '0' → 0, '82.1' → 82.1)
+    # 이름 기반 비수치 컬럼은 제외하고, 나머지 object 컬럼 중 전체가 숫자로 변환 가능한 것만 적용
+    NON_NUMERIC = {"기준연도", "공시연도", "학교", "학교명", "대학명", "본분교", "캠퍼스",
+                   "학과 (모집단위)", "학과명", "지역", "설립구분", "대학구분", "계열"}
+    for col in df.select_dtypes(include="object").columns:
+        if col in NON_NUMERIC:
+            continue
+        converted = pd.to_numeric(df[col], errors="coerce")
+        if converted.notna().sum() > 0 and (df[col].isna() | (df[col] == "")).all() == False:
+            # 변환 성공한 셀만 교체 (문자열이 섞인 컬럼은 건드리지 않음)
+            if converted.notna().sum() == df[col].notna().sum():
+                df[col] = converted
+
     # 새 데이터 append
     new_records = df.where(pd.notnull(df), None).to_dict(orient="records")
     combined    = existing + new_records
