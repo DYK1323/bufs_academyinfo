@@ -1454,7 +1454,7 @@ function buildFormulaBuilder(card, rule, isMin, isSum, isRolling) {
 
   const denExclSearchRow = document.createElement('div');
   denExclSearchRow.className = 'chip-search-row';
-  denExclSearchRow.innerHTML = `<input type="text" data-fac="raw" placeholder="제외 필드 검색…"><button class="btn btn-secondary btn-sm" onclick="addChipFromSearch(this)">추가</button>`;
+  denExclSearchRow.innerHTML = `<input type="text" data-fac="all" placeholder="제외 필드 검색…"><button class="btn btn-secondary btn-sm" onclick="addChipFromSearch(this)">추가</button>`;
 
   const denExclZone = document.createElement('div');
   denExclZone.className = 'chip-zone';
