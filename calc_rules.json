@@ -1,24 +1,36 @@
 {
   "전임교원 확보율_학생정원 기준(B/Cx100)": {
     "label": "전임교원 확보율(학생정원)",
-    "visible": false,
     "numerator": [
       "전임교원 현황_학생정원 기준 전임교원(B)"
     ],
     "denominator_base": "교원 법정정원_계_학생정원 기준(C)",
-    "denominator_exclude": [],
     "multiply": 100,
+    "exclude_rows": {
+      "계열": [
+        "의학계열"
+      ]
+    },
+    "unit": "%",
+    "decimal_places": 2,
+    "sort_asc": false,
     "used_in": []
   },
   "전임교원 확보율_재학생 기준(B`/C`x100)": {
     "label": "전임교원 확보율(재학생)",
-    "visible": false,
     "numerator": [
       "전임교원 현황_재학생 기준 전임교원(B`)"
     ],
     "denominator_base": "교원 법정정원_계_재학생 기준(C`)",
-    "denominator_exclude": [],
     "multiply": 100,
+    "exclude_rows": {
+      "계열": [
+        "의학계열"
+      ]
+    },
+    "unit": "%",
+    "decimal_places": 2,
+    "sort_asc": false,
     "used_in": []
   },
   "전임교원 확보율": {
