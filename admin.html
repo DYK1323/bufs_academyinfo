@@ -1436,16 +1436,17 @@ function buildFormulaBuilder(card, rule, isMin, isSum, isRolling) {
   denLabel.className = 'fb-area-label';
   denLabel.textContent = '분모';
 
-  const denRow = document.createElement('div');
-  denRow.className = 'fb-den-row';
-
-  const denInput = document.createElement('input');
-  denInput.type = 'text';
-  denInput.className = 'fb-den-select rule-field-den-base';
-  denInput.setAttribute('data-fac', 'all');
-  denInput.placeholder = '분모 필드 검색…';
-  denInput.value = rule.denominator_base || '';
-  denInput.addEventListener('input', setDirty);
+  const denSearchRow = document.createElement('div');
+  denSearchRow.className = 'chip-search-row';
+  denSearchRow.innerHTML = `<input type="text" data-fac="all" placeholder="필드 검색 후 추가…"><button class="btn btn-secondary btn-sm" onclick="addChipFromSearch(this)">추가</button>`;
+  const denZone = document.createElement('div');
+  denZone.className = 'chip-zone';
+  denZone.dataset.area = 'den';
+  denZone.dataset.placeholder = '+ 필드 추가';
+  const denBases = Array.isArray(rule.denominator_base) ? rule.denominator_base
+    : (rule.denominator_base && rule.denominator_base !== '1' ? [rule.denominator_base] : []);
+  denBases.forEach(f => denZone.appendChild(makeChip(f)));
+  denZone.addEventListener('click', () => setActiveChipZone(denZone));
 
   const exclLabel = document.createElement('span');
   exclLabel.style.cssText = 'font-size:12px;color:var(--text-muted);white-space:nowrap;flex-shrink:0;';
@@ -1463,10 +1464,10 @@ function buildFormulaBuilder(card, rule, isMin, isSum, isRolling) {
   (rule.denominator_exclude || []).forEach(f => denExclZone.appendChild(makeChip(f)));
   denExclZone.addEventListener('click', () => setActiveChipZone(denExclZone));
 
-  denRow.appendChild(denInput);
   denArea.appendChild(divOp);
   denArea.appendChild(denLabel);
-  denArea.appendChild(denRow);
+  denArea.appendChild(denSearchRow);
+  denArea.appendChild(denZone);
   // 분모 제외 필드 (검색 입력 + 칩 존)
   const denExclWrap = document.createElement('div');
   denExclWrap.style.cssText = 'display:flex;align-items:flex-start;gap:6px;margin-top:4px;flex-wrap:wrap;';
@@ -1650,7 +1651,7 @@ function applyRule(btn) {
     rule = { label, numerator, denominator_base: '1', multiply: 1 };
   } else {
     const numerator = [...card.querySelectorAll('.chip-zone[data-area="num"] .field-chip')].map(c => c.dataset.value);
-    const denBase = card.querySelector('.rule-field-den-base')?.value.trim() || '';
+    const denBase = [...card.querySelectorAll('.chip-zone[data-area="den"] .field-chip')].map(c => c.dataset.value);
     const denExcl = [...card.querySelectorAll('.chip-zone[data-area="den-excl"] .field-chip')].map(c => c.dataset.value);
     const mulRadio = card.querySelector('.fb-mul-radio:checked');
     let multiply = 100;
@@ -1759,7 +1760,7 @@ function addCalcRule() {
     close();
     const key = `새 지표 ${Date.now()}`;
     let rule;
-    if (type === 'ratio')       rule = { label: '', numerator: [], denominator_base: '', multiply: 100 };
+    if (type === 'ratio')       rule = { label: '', numerator: [], denominator_base: [], multiply: 100 };
     else if (type === 'sum')    rule = { label: '', numerator: [], denominator_base: '1', multiply: 1 };
     else if (type === 'rolling') rule = { label: '', rolling_avg: '', rolling_years: 5 };
     else                        rule = { label: '', min_of: [] };
@@ -2488,18 +2489,17 @@ const CacheManager = {
       for (const [key, rule] of Object.entries(calcRules)) {
         if (rule.min_of || rule.rolling_avg) continue;
         let num, den;
+        const dbs = Array.isArray(rule.denominator_base) ? rule.denominator_base : (rule.denominator_base ? [rule.denominator_base] : []);
         if (rule.exclude_rows && rawRows) {
           const filt = rawRows.filter(r => Object.entries(rule.exclude_rows).every(([f, vs]) => !vs.includes(r[f])));
-          const needed = [...(rule.numerator || []), rule.denominator_base, ...(rule.denominator_exclude || [])];
+          const needed = [...(rule.numerator || []), ...dbs, ...(rule.denominator_exclude || [])];
           const fs = sumFields(filt, needed);
           num = (rule.numerator || []).reduce((acc, f) => acc + (fs[f] ?? res[f] ?? 0), 0);
-          const db = rule.denominator_base;
-          den = !isNaN(Number(db)) ? Number(db) : (fs[db] ?? res[db] ?? 0);
+          den = dbs.reduce((acc, db) => acc + (!isNaN(Number(db)) ? Number(db) : (fs[db] ?? res[db] ?? 0)), 0);
           for (const ex of (rule.denominator_exclude || [])) den -= (fs[ex] ?? res[ex] ?? 0);
         } else {
           num = (rule.numerator || []).reduce((acc, f) => acc + (res[f] ?? summed[f] ?? 0), 0);
-          const db = rule.denominator_base;
-          den = !isNaN(Number(db)) ? Number(db) : (res[db] ?? summed[db] ?? 0);
+          den = dbs.reduce((acc, db) => acc + (!isNaN(Number(db)) ? Number(db) : (res[db] ?? summed[db] ?? 0)), 0);
           for (const ex of (rule.denominator_exclude || [])) den -= (res[ex] ?? summed[ex] ?? 0);
         }
         res[key] = den > 0 ? (num / den) * (rule.multiply ?? 1) : null;
@@ -2591,7 +2591,9 @@ const CacheManager = {
         );
         const needed = [
           ...(rule.numerator || []),
-          ...(rule.denominator_base && isNaN(Number(rule.denominator_base)) ? [rule.denominator_base] : []),
+          ...(Array.isArray(rule.denominator_base)
+            ? rule.denominator_base.filter(f => isNaN(Number(f)))
+            : (rule.denominator_base && isNaN(Number(rule.denominator_base)) ? [rule.denominator_base] : [])),
           ...(rule.denominator_exclude || []),
         ];
         for (const field of needed) {
@@ -2626,19 +2628,18 @@ const CacheManager = {
       let num, den;
       const hasExcl = rule.exclude_rows &&
         res[`__excl__${key}__${(rule.numerator || [])[0]}`] !== undefined;
+      const dbs = Array.isArray(rule.denominator_base) ? rule.denominator_base : (rule.denominator_base ? [rule.denominator_base] : []);
       if (hasExcl) {
         // exclude_rows 적용: _aggregateRaw에서 사전 계산된 필터링 합산값 사용
         num = (rule.numerator || []).reduce((acc, f) =>
           acc + (res[`__excl__${key}__${f}`] ?? res[f] ?? 0), 0);
-        const db = rule.denominator_base;
-        den = !isNaN(Number(db)) ? Number(db) :
-              (res[`__excl__${key}__${db}`] ?? res[db] ?? 0);
+        den = dbs.reduce((acc, db) => acc + (!isNaN(Number(db)) ? Number(db) :
+              (res[`__excl__${key}__${db}`] ?? res[db] ?? 0)), 0);
         for (const ex of (rule.denominator_exclude || []))
           den -= (res[`__excl__${key}__${ex}`] ?? res[ex] ?? 0);
       } else {
         num = (rule.numerator || []).reduce((acc, f) => acc + (res[f] ?? 0), 0);
-        const db = rule.denominator_base;
-        den = !isNaN(Number(db)) ? Number(db) : (res[db] ?? 0);
+        den = dbs.reduce((acc, db) => acc + (!isNaN(Number(db)) ? Number(db) : (res[db] ?? 0)), 0);
         for (const ex of (rule.denominator_exclude || [])) den -= (res[ex] ?? 0);
       }
       res[key] = den > 0 ? (num / den) * (rule.multiply ?? 1) : null;
@@ -2823,9 +2824,10 @@ const CacheManager = {
               zeroFields[item.indicator].push({ univName: rawRow.기준대학명, pubYear: rawRow.공시연도, field: f, role: 'numerator' });
             }
           }
-          const db = rule.denominator_base;
-          if (db && isNaN(Number(db)) && rawRow[db] == null) {
-            zeroFields[item.indicator].push({ univName: rawRow.기준대학명, pubYear: rawRow.공시연도, field: db, role: 'denominator' });
+          const dbs = Array.isArray(rule.denominator_base) ? rule.denominator_base : (rule.denominator_base ? [rule.denominator_base] : []);
+          for (const db of dbs.filter(d => isNaN(Number(d)))) {
+            if (rawRow[db] == null)
+              zeroFields[item.indicator].push({ univName: rawRow.기준대학명, pubYear: rawRow.공시연도, field: db, role: 'denominator' });
           }
         }
       }
