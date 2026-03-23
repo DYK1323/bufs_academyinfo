@@ -53,7 +53,13 @@ const DataService = {
       for (const k of keys) {
         const vals = univRows.map(r => r[k]).filter(v => v != null);
         if (!vals.length) { merged[k] = null; continue; }
-        merged[k] = typeof vals[0] === 'number' ? vals.reduce((a, b) => a + b, 0) : vals[0];
+        if (typeof vals[0] === 'number') {
+          merged[k] = vals.reduce((a, b) => a + b, 0);
+        } else if (vals[0] !== '' && !isNaN(Number(vals[0]))) {
+          merged[k] = vals.reduce((a, b) => Number(a) + Number(b), 0);
+        } else {
+          merged[k] = vals[0];
+        }
       }
       result.push(merged);
     }
