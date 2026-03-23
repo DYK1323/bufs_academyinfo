@@ -2316,7 +2316,7 @@ const CacheManager = {
 
         // 기준연도 우선 — 복수 소스 join 시 학년도 기준으로 맞추기 위함
         // (공시연도는 항목마다 달라 join 키로 부적합)
-        const getYear = r => parseInt(r['기준연도'] ?? r['기준년도'] ?? r['공시연도'], 10);
+        const getYear = r => parseInt(r['기준연도'] ?? r['기준년도'] ?? r['연도'] ?? r['공시연도'], 10);
         const years = [...new Set(rows.map(getYear).filter(y => !isNaN(y)))].sort();
         this._log(`  → 연도: ${years.join(', ')}`);
 
@@ -2422,7 +2422,7 @@ const CacheManager = {
   // aggregateByUniversity 인라인 (index.js와 동일한 핵심 로직)
   _aggregate(rows, targetYear, calcRules, baseUnivMap) {
     const ratioKeys = new Set(Object.keys(calcRules));
-    const getYear = r => parseInt(r['기준연도'] ?? r['기준년도'], 10);
+    const getYear = r => parseInt(r['기준연도'] ?? r['기준년도'] ?? r['연도'], 10);
     const yearRows = rows.filter(r => getYear(r) === targetYear);
 
     const groupBy = rowSet => {
@@ -2540,7 +2540,7 @@ const CacheManager = {
    *  calcRules 전달 시 exclude_rows 규칙의 필터링된 합산값을 __excl__{key}__{field} 형태로 함께 저장. */
   _aggregateRaw(rows, targetYear, baseUnivMap, calcRules) {
     // 기준연도 우선 — join 키와 일치시키기 위함 (공시연도는 소스마다 달라 join 키로 부적합)
-    const getYear = r => parseInt(r['기준연도'] ?? r['기준년도'] ?? r['공시연도'], 10);
+    const getYear = r => parseInt(r['기준연도'] ?? r['기준년도'] ?? r['연도'] ?? r['공시연도'], 10);
     const yearRows = rows.filter(r => getYear(r) === targetYear);
 
     const groups = new Map();
@@ -2713,7 +2713,7 @@ const CacheManager = {
           if (suggested) unmatchedNames.get(source).push({ raw, suggested });
         }
 
-        const getYear = r => parseInt(r['기준연도'] ?? r['기준년도'] ?? r['공시연도'], 10);
+        const getYear = r => parseInt(r['기준연도'] ?? r['기준년도'] ?? r['연도'] ?? r['공시연도'], 10);
         const years = [...new Set(rows.map(getYear).filter(y => !isNaN(y)))].sort();
         rawMap.set(source, this._aggregateRawAllYears(rows, years, baseUnivMap, calcRules));
       }
