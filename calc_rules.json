@@ -291,5 +291,23 @@
     "unit": "%",
     "decimal_places": 2,
     "sort_asc": false
+  },
+  "졸업생 진로 성과": {
+    "label": "졸업생 진로 성과",
+    "numerator": [
+      "취업자",
+      "진학자"
+    ],
+    "denominator_base": [
+      "졸업자",
+      "진학자"
+    ],
+    "multiply": 100,
+    "denominator_exclude": [
+      "취업제외자"
+    ],
+    "unit": "%",
+    "decimal_places": 2,
+    "sort_asc": false
   }
 }
