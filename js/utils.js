@@ -169,3 +169,27 @@ const BenchmarkUtils = {
     if (dl) dl.innerHTML = names.map(n => `<option value="${n}">`).join('');
   },
 };
+
+/**
+ * 대학 단위로 합산된 row에 calc_rules 산식을 적용해 중간값·비율 지표를 추가한다.
+ * exclude_rows 필터링은 dept-level 데이터가 없으므로 생략 (benchmark 값이 덮어쓰므로 무해).
+ * rolling_avg는 다년도 데이터가 필요해 null로 처리.
+ */
+function applyCalcToRow(summed, calcRules) {
+  const res = { ...summed };
+  for (const [key, rule] of Object.entries(calcRules)) {
+    if (rule.min_of || rule.rolling_avg) continue;
+    const dbs = Array.isArray(rule.denominator_base) ? rule.denominator_base
+      : (rule.denominator_base ? [rule.denominator_base] : []);
+    const num = (rule.numerator || []).reduce((acc, f) => acc + (res[f] ?? 0), 0);
+    let den = dbs.reduce((acc, db) => acc + (!isNaN(Number(db)) ? Number(db) : (res[db] ?? 0)), 0);
+    for (const ex of (rule.denominator_exclude || [])) den -= (res[ex] ?? 0);
+    res[key] = den > 0 ? (num / den) * (rule.multiply ?? 1) : null;
+  }
+  for (const [key, rule] of Object.entries(calcRules)) {
+    if (!rule.min_of) continue;
+    const vals = rule.min_of.map(k => res[k]).filter(v => v != null && !isNaN(v));
+    res[key] = vals.length ? Math.min(...vals) : null;
+  }
+  return res;
+}
