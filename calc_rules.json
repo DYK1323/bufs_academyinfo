@@ -242,8 +242,8 @@
     ],
     "denominator_base": "1",
     "multiply": 1,
-    "unit": "%",
-    "decimal_places": 2,
+    "unit": "명",
+    "decimal_places": 0,
     "sort_asc": false
   },
   "취업률": {
