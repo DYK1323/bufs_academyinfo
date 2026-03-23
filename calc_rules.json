@@ -180,5 +180,76 @@
     "unit": "%",
     "decimal_places": 2,
     "sort_asc": false
+  },
+  "취업자": {
+    "label": "취업자",
+    "numerator": [
+      "취업자(B)_건강보험 직장가입자_남",
+      "취업자(B)_건강보험 직장가입자_여",
+      "취업자(B)_해외 취업자_남",
+      "취업자(B)_해외 취업자_여",
+      "취업자(B)_농림어업 종사자_남",
+      "취업자(B)_농림어업 종사자_여",
+      "취업자(B)_개인창작 활동 종사자_남",
+      "취업자(B)_개인창작 활동 종사자_여",
+      "취업자(B)_1인 창(사)업자_남",
+      "취업자(B)_1인 창(사)업자_여",
+      "취업자(B)_프리랜서_남",
+      "취업자(B)_프리랜서_여"
+    ],
+    "denominator_base": "1",
+    "multiply": 1,
+    "unit": "%",
+    "decimal_places": 2,
+    "sort_asc": false
+  },
+  "졸업자": {
+    "label": "졸업자",
+    "numerator": [
+      "졸업자(A)_남",
+      "졸업자(A)_여"
+    ],
+    "denominator_base": "1",
+    "multiply": 1,
+    "unit": "%",
+    "decimal_places": 2,
+    "sort_asc": false
+  },
+  "취업제외자": {
+    "label": "취업제외자",
+    "numerator": [
+      "진학자(C)_남",
+      "진학자(C)_여",
+      "입대자(D)",
+      "취업불가능자(E)_남",
+      "취업불가능자(E)_여",
+      "외국인유학생(F)_남",
+      "외국인유학생(F)_여",
+      "제외인정자(G)_남",
+      "제외인정자(G)_여"
+    ],
+    "denominator_base": "1",
+    "multiply": 1,
+    "unit": "%",
+    "decimal_places": 2,
+    "sort_asc": false
+  },
+  "진학자": {
+    "label": "진학자",
+    "numerator": [
+      "진학자(C)_남",
+      "진학자(C)_여"
+    ],
+    "denominator_base": "1",
+    "multiply": 1,
+    "unit": "%",
+    "decimal_places": 2,
+    "sort_asc": false
+  },
+  "새 지표 1774271879983": {
+    "label": "",
+    "numerator": [],
+    "denominator_base": [],
+    "multiply": 100
   }
 }

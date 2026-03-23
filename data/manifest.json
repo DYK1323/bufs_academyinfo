@@ -214,5 +214,10 @@
         "label": "장학금 지급률"
       }
     ]
+  },
+  {
+    "indicator": "취업률",
+    "sources": [],
+    "columns": []
   }
 ]
