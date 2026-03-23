@@ -167,5 +167,18 @@
     "unit": "%",
     "decimal_places": 2,
     "sort_asc": false
+  },
+  "장학금 지급률": {
+    "label": "장학금 지급률",
+    "numerator": [
+      "장학금현황_교외_사설 및 기타",
+      "장학금현황_교내(C 포함)_소계"
+    ],
+    "denominator_base": "학부_등록금 수입총액",
+    "multiply": 100,
+    "visible": true,
+    "unit": "%",
+    "decimal_places": 2,
+    "sort_asc": false
   }
 }
