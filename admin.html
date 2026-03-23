@@ -1413,7 +1413,7 @@ function buildFormulaBuilder(card, rule, isMin, isSum, isRolling) {
   numLabel.textContent = '분자';
   const numSearchRow = document.createElement('div');
   numSearchRow.className = 'chip-search-row';
-  numSearchRow.innerHTML = `<input type="text" data-fac="raw" placeholder="필드 검색 후 추가…"><button class="btn btn-secondary btn-sm" onclick="addChipFromSearch(this)">추가</button>`;
+  numSearchRow.innerHTML = `<input type="text" data-fac="all" placeholder="필드 검색 후 추가…"><button class="btn btn-secondary btn-sm" onclick="addChipFromSearch(this)">추가</button>`;
   const numZone = document.createElement('div');
   numZone.className = 'chip-zone';
   numZone.dataset.area = 'num';
