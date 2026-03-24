@@ -26,10 +26,7 @@ const getCustomColors = () => [
 const TrendView = {
   _chart: null,
   _lastSeries: [],
-  _baseFilter(r) {
-    const 국공립계열 = ['국공립','국립','공립','국립대법인'];
-    return (국공립계열.includes(r.설립구분) || r.설립구분 === '사립') && ['대학교','산업대학'].includes(r.대학구분);
-  },
+  _baseFilter(r) { return BenchmarkUtils.baseFilter(r); },
   _groupAvg(univRows, rankKey, extraFilter) {
     const rows = univRows.filter(r => this._baseFilter(r) && extraFilter(r));
     const vals = rows.map(r => r[rankKey]).filter(v => v != null && !isNaN(v));
