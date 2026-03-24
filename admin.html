@@ -2340,19 +2340,20 @@ const CacheManager = {
         rawMap.set(source, this._aggregateRawAllYears(rows, years, baseUnivMap, calcRules));
       }
 
-      // 5. 지표별 2단계 join → mergedRaw 구성
-      //    1단계: 지표 내 복수 소스를 기준연도 기준으로 join (tempMap)
-      //    2단계: tempMap 결과를 공시연도 기준 mergedRaw로 합산
-      //    mergedRaw: 대학+공시연도 → { 기준대학명, 공시연도, 메타, ...raw필드들 }
+      // 5. 지표별 독립 계산 → mergedMap에 지표값만 저장
+      //    지표마다 자체 tempMap을 구성해 산식을 독립적으로 계산한 뒤,
+      //    결과 지표값만 mergedMap에 기록한다.
+      //    이렇게 하면 "파견교환학생(기준연도=2024)+재학생충원율(기준연도=2025)"처럼
+      //    같은 필드명이 다른 연도 소스에서 들어와 값이 덮어쓰이는 문제를 방지한다.
       const META = ['기준대학명','기준연도','공시연도','지역','설립구분','대학구분','수도권여부'];
-      const mergedRaw = new Map();
+      const mergedMap = new Map();
 
       for (const item of valid) {
         // 1단계: 이 지표의 소스들을 기준연도 기준으로 join
         // ※ sources[0]만 새 tempKey를 생성할 수 있음.
         //   sources[1+]는 이미 존재하는 key에만 데이터를 추가.
         //   이를 통해 "교환학생(기준연도=2024)+재학생(기준연도=2025)" 처럼
-        //   기준연도가 다른 소스끼리 2단계에서 잘못 병합되는 문제를 방지.
+        //   기준연도가 다른 소스끼리 잘못 병합되는 문제를 방지.
         const tempMap = new Map(); // 대학+기준연도 → row
         for (const source of item.sources) {
           const isPrimary = source === item.sources[0];
@@ -2380,42 +2381,24 @@ const CacheManager = {
           }
         }
 
-        // 2단계: 기준연도 기준 tempMap → 공시연도 기준 mergedRaw로 합산
+        // 2단계: 이 지표만 산식 계산 → mergedMap에 지표값 저장
+        this._log(`\n⚙️ [${item.indicator}] 산식 적용 중…`);
         for (const tempRow of tempMap.values()) {
+          const withCalc = this._applyCalc(tempRow, calcRules);
           const pubYear = tempRow.공시연도;
           const mapKey  = `${tempRow.기준대학명}__${pubYear}`;
-          if (!mergedRaw.has(mapKey)) {
-            mergedRaw.set(mapKey, {
+          if (!mergedMap.has(mapKey)) {
+            mergedMap.set(mapKey, {
               기준대학명: tempRow.기준대학명, 공시연도: pubYear,
               지역: tempRow.지역, 설립구분: tempRow.설립구분,
               대학구분: tempRow.대학구분, 수도권여부: tempRow.수도권여부,
             });
           }
-          const target = mergedRaw.get(mapKey);
-          for (const [k, v] of Object.entries(tempRow)) {
-            if (META.includes(k)) continue;
-            if (target[k] === undefined) target[k] = v;
-          }
+          const target = mergedMap.get(mapKey);
+          if (target[item.indicator] === undefined && withCalc[item.indicator] != null)
+            target[item.indicator] = withCalc[item.indicator];
         }
-        this._log(`  [${item.indicator}] 병합 완료`);
-      }
-
-      // 6. 모든 raw 필드가 모인 후 산식 일괄 적용
-      this._log('\n⚙️ 산식 적용 중…');
-      const mergedMap = new Map();
-      for (const [mapKey, rawRow] of mergedRaw) {
-        const withRatios = this._applyCalc(rawRow, calcRules);
-        // visible 지표만 남기기
-        const out = {
-          기준대학명: rawRow.기준대학명,
-          공시연도: rawRow.공시연도,
-          지역: rawRow.지역, 설립구분: rawRow.설립구분,
-          대학구분: rawRow.대학구분, 수도권여부: rawRow.수도권여부,
-        };
-        for (const item of valid) {
-          if (withRatios[item.indicator] !== undefined) out[item.indicator] = withRatios[item.indicator];
-        }
-        mergedMap.set(mapKey, out);
+        this._log(`  → 완료`);
       }
 
       const cacheData = [...mergedMap.values()].sort((a, b) => {
