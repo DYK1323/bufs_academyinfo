@@ -1,53 +1,5 @@
 {
-  "전임교원 확보율_학생정원 기준(B/Cx100)": {
-    "label": "전임교원 확보율(학생정원)",
-    "numerator": [
-      "전임교원 현황_학생정원 기준 전임교원(B)"
-    ],
-    "denominator_base": "교원 법정정원_계_학생정원 기준(C)",
-    "multiply": 100,
-    "exclude_rows": {
-      "계열": [
-        "의학계열"
-      ]
-    },
-    "unit": "%",
-    "decimal_places": 2,
-    "sort_asc": false,
-    "used_in": []
-  },
-  "전임교원 확보율_재학생 기준(B`/C`x100)": {
-    "label": "전임교원 확보율(재학생)",
-    "numerator": [
-      "전임교원 현황_재학생 기준 전임교원(B`)"
-    ],
-    "denominator_base": "교원 법정정원_계_재학생 기준(C`)",
-    "multiply": 100,
-    "exclude_rows": {
-      "계열": [
-        "의학계열"
-      ]
-    },
-    "unit": "%",
-    "decimal_places": 2,
-    "sort_asc": false,
-    "used_in": []
-  },
-  "전임교원 확보율": {
-    "label": "전임교원 확보율",
-    "visible": true,
-    "sort_asc": false,
-    "unit": "%",
-    "decimal_places": 2,
-    "min_of": [
-      "전임교원 확보율_학생정원 기준(B/Cx100)",
-      "전임교원 확보율_재학생 기준(B`/C`x100)"
-    ],
-    "used_in": [
-      "대학_6-나-(1). 전임교원 1인당 학생 수 및 전임교원 확보율_학과별자료"
-    ]
-  },
-  "정원내 입학자": {
+    "정원내 입학자": {
     "label": "정원내 입학자",
     "visible": false,
     "numerator": [
@@ -142,6 +94,54 @@
     "multiply": 100,
     "used_in": [
       "대학_4-사. 중도탈락 학생 현황_학교별자료"
+    ]
+  },
+  "전임교원 확보율_학생정원 기준(B/Cx100)": {
+    "label": "전임교원 확보율(학생정원)",
+    "numerator": [
+      "전임교원 현황_학생정원 기준 전임교원(B)"
+    ],
+    "denominator_base": "교원 법정정원_계_학생정원 기준(C)",
+    "multiply": 100,
+    "exclude_rows": {
+      "계열": [
+        "의학계열"
+      ]
+    },
+    "unit": "%",
+    "decimal_places": 2,
+    "sort_asc": false,
+    "used_in": []
+  },
+  "전임교원 확보율_재학생 기준(B`/C`x100)": {
+    "label": "전임교원 확보율(재학생)",
+    "numerator": [
+      "전임교원 현황_재학생 기준 전임교원(B`)"
+    ],
+    "denominator_base": "교원 법정정원_계_재학생 기준(C`)",
+    "multiply": 100,
+    "exclude_rows": {
+      "계열": [
+        "의학계열"
+      ]
+    },
+    "unit": "%",
+    "decimal_places": 2,
+    "sort_asc": false,
+    "used_in": []
+  },
+  "전임교원 확보율": {
+    "label": "전임교원 확보율",
+    "visible": true,
+    "sort_asc": false,
+    "unit": "%",
+    "decimal_places": 2,
+    "min_of": [
+      "전임교원 확보율_학생정원 기준(B/Cx100)",
+      "전임교원 확보율_재학생 기준(B`/C`x100)"
+    ],
+    "used_in": [
+      "대학_6-나-(1). 전임교원 1인당 학생 수 및 전임교원 확보율_학과별자료"
     ]
   },
   "장학금 지급률": {
