@@ -2697,8 +2697,11 @@ const CacheManager = {
       const allSources = new Set(valid.flatMap(c => c.sources));
       const splitFilesMap = new Map();
       for (const item of valid) {
-        if (item.split_files) {
+        if (!item.split_files) continue;
+        if (Array.isArray(item.split_files)) {
           for (const src of item.sources) splitFilesMap.set(src, item.split_files);
+        } else {
+          for (const [src, files] of Object.entries(item.split_files)) splitFilesMap.set(src, files);
         }
       }
       const rawMap = new Map();
