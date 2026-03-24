@@ -2349,14 +2349,20 @@ const CacheManager = {
 
       for (const item of valid) {
         // 1단계: 이 지표의 소스들을 기준연도 기준으로 join
+        // ※ sources[0]만 새 tempKey를 생성할 수 있음.
+        //   sources[1+]는 이미 존재하는 key에만 데이터를 추가.
+        //   이를 통해 "교환학생(기준연도=2024)+재학생(기준연도=2025)" 처럼
+        //   기준연도가 다른 소스끼리 2단계에서 잘못 병합되는 문제를 방지.
         const tempMap = new Map(); // 대학+기준연도 → row
         for (const source of item.sources) {
+          const isPrimary = source === item.sources[0];
           const agg = rawMap.get(source);
           if (!agg) continue;
           for (const [baseYear, aggRows] of agg) {
             for (const row of aggRows) {
               const tempKey = `${row.기준대학명}__${baseYear}`;
               if (!tempMap.has(tempKey)) {
+                if (!isPrimary) continue; // sources[1+]는 새 key 생성 금지
                 tempMap.set(tempKey, {
                   기준대학명: row.기준대학명, 기준연도: baseYear,
                   공시연도: row.공시연도 ?? baseYear,  // 첫 소스의 공시연도
@@ -2787,14 +2793,17 @@ const CacheManager = {
         }
 
         // tempMap 1회 빌드 — V3(공시연도 수집) + V4(mergedRaw 누적) 공용
+        // sources[0]만 새 key 생성 — sources[1+]는 기존 key에만 데이터 추가
         const tempMap = new Map();
         for (const source of item.sources) {
+          const isPrimary = source === item.sources[0];
           const agg = rawMap.get(source);
           if (!agg) continue;
           for (const [baseYear, aggRows] of agg) {
             for (const row of aggRows) {
               const tempKey = `${row.기준대학명}__${baseYear}`;
               if (!tempMap.has(tempKey)) {
+                if (!isPrimary) continue; // sources[1+]는 새 key 생성 금지
                 tempMap.set(tempKey, {
                   기준대학명: row.기준대학명, 기준연도: baseYear,
                   공시연도: row.공시연도 ?? baseYear,
