@@ -2301,8 +2301,13 @@ const CacheManager = {
       const allSources = new Set(valid.flatMap(c => c.sources));
       const splitFilesMap = new Map(); // source → [split file keys]
       for (const item of valid) {
-        if (item.split_files) {
+        if (!item.split_files) continue;
+        if (Array.isArray(item.split_files)) {
+          // 배열: 단일 소스 대체 (하위 호환)
           for (const src of item.sources) splitFilesMap.set(src, item.split_files);
+        } else {
+          // dict: {source: [files]} 형태
+          for (const [src, files] of Object.entries(item.split_files)) splitFilesMap.set(src, files);
         }
       }
 

@@ -81,7 +81,12 @@ const FilterManager = {
     AppState.raw.currentManifestItem = manifestItem;
     const sources = manifestItem?.sources || [];
     const splitFiles = manifestItem?.split_files || null;
-    const fetchKeys = splitFiles || sources;
+    // split_files: 배열(단일소스) 또는 {source: [files]}(복수소스)
+    const fetchKeys = sources.flatMap(s => {
+      if (!splitFiles) return [s];
+      if (Array.isArray(splitFiles)) return splitFiles; // 배열: 첫 소스 대체
+      return splitFiles[s] || [s]; // dict: 소스별 분리 파일
+    });
     const fetched = await Promise.all(fetchKeys.map(s => DataService.fetchItemData(s)));
     AppState.raw.항목데이터 = fetched.flat();
     this._reAggregate();

@@ -323,19 +323,43 @@ def _split_file_name(item_key: str, pub_year: int, window: int) -> str:
 
 
 def _update_manifest_split_files(item_key: str, split_file: str) -> None:
-    """manifest.json에서 item_key를 소스로 쓰는 항목에 split_file을 추가(없을 때만)."""
+    """manifest.json에서 item_key를 소스로 쓰는 항목에 split_file을 추가(없을 때만).
+
+    split_files 형태:
+    - 단일 소스 항목: 배열 (하위 호환)
+    - 복수 소스 항목: {source: [files]} dict
+    """
     manifest_path = JSON_DIR / "manifest.json"
     if not manifest_path.exists():
         return
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     changed = False
     for item in manifest:
-        if item_key in item.get("sources", []):
-            sf_list = item.setdefault("split_files", [])
+        if item_key not in item.get("sources", []):
+            continue
+        sf = item.get("split_files")
+        single_source = len(item["sources"]) == 1
+
+        if single_source:
+            # 배열 형태 유지 (하위 호환)
+            if not isinstance(sf, list):
+                item["split_files"] = []
+                sf = item["split_files"]
+            if split_file not in sf:
+                sf.append(split_file)
+                item["split_files"] = sorted(sf)
+                changed = True
+        else:
+            # dict 형태 {source: [files]}
+            if not isinstance(sf, dict):
+                item["split_files"] = {}
+                sf = item["split_files"]
+            sf_list = sf.setdefault(item_key, [])
             if split_file not in sf_list:
                 sf_list.append(split_file)
-                item["split_files"] = sorted(sf_list)
+                sf[item_key] = sorted(sf_list)
                 changed = True
+
     if changed:
         manifest_path.write_text(
             json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
