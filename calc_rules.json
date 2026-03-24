@@ -309,5 +309,47 @@
     "unit": "%",
     "decimal_places": 2,
     "sort_asc": false
+  },
+  "외국인 유학생 비율": {
+    "label": "외국인 유학생 비율",
+    "numerator": [
+      "학위과정 (대학)_소계(A)"
+    ],
+    "denominator_base": [
+      "재적학생(D=A+B+C)_계_정원내",
+      "재적학생(D=A+B+C)_계_정원외"
+    ],
+    "multiply": 100,
+    "visible": true,
+    "unit": "%",
+    "decimal_places": 2,
+    "sort_asc": false
+  },
+  "외국인 전임교원 비율": {
+    "label": "외국인 전임교원 비율",
+    "numerator": [
+      "전임교원_계_남",
+      "전임교원_계_여"
+    ],
+    "denominator_base": [
+      "전임교원1인당 학생수_학생정원 기준(A/B)"
+    ],
+    "multiply": 100,
+    "visible": true,
+    "unit": "%",
+    "decimal_places": 2,
+    "sort_asc": false
+  },
+  "재적학생": {
+    "label": "재적학생",
+    "numerator": [
+      "재적학생(D=A+B+C)_계_정원내",
+      "재적학생(D=A+B+C)_계_정원외"
+    ],
+    "denominator_base": "1",
+    "multiply": 1,
+    "unit": "명",
+    "decimal_places": 0,
+    "sort_asc": false
   }
 }
