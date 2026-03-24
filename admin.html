@@ -2296,23 +2296,34 @@ const CacheManager = {
       // 2. calc_rules
       const calcRules = State.original.calc || {};
 
-      // 3. 고유 소스 파일 목록 수집 (중복 제거)
+      // 3. 고유 소스 파일 목록 수집 (중복 제거) + split_files 맵 구성
       const allSources = new Set(valid.flatMap(c => c.sources));
+      const splitFilesMap = new Map(); // source → [split file keys]
+      for (const item of valid) {
+        if (item.split_files) {
+          for (const src of item.sources) splitFilesMap.set(src, item.split_files);
+        }
+      }
 
       // 4. 소스 파일별 fetch → raw 합산만 수행 (산식 적용 없음)
       //    rawMap: source → Map<year, aggRows[]>
       const rawMap = new Map();
       for (const source of allSources) {
         this._log(`\n📥 ${source} 로드 중…`);
-        let rows;
-        try {
-          rows = await DataViewer._fetchLarge(`data/${source}.json`);
-          if (!Array.isArray(rows)) throw new Error('배열 형식이 아닙니다');
-        } catch (e) {
-          this._log(`  ⚠️ 로드 실패: ${e.message}`);
-          continue;
+        const filesToLoad = splitFilesMap.get(source) || [source];
+        let rows = [];
+        for (const fileKey of filesToLoad) {
+          try {
+            const part = await DataViewer._fetchLarge(`data/${fileKey}.json`);
+            if (!Array.isArray(part)) throw new Error('배열 형식이 아닙니다');
+            rows = rows.concat(part);
+            if (filesToLoad.length > 1) this._log(`  → ${fileKey}: ${part.length.toLocaleString()}행`);
+          } catch (e) {
+            this._log(`  ⚠️ 로드 실패: ${fileKey} — ${e.message}`);
+          }
         }
-        this._log(`  → ${rows.length.toLocaleString()}행 로드됨`);
+        if (!rows.length) continue;
+        this._log(`  → 합계 ${rows.length.toLocaleString()}행 로드됨`);
 
         // 기준연도 우선 — 복수 소스 join 시 학년도 기준으로 맞추기 위함
         // (공시연도는 항목마다 달라 join 키로 부적합)
@@ -2681,6 +2692,12 @@ const CacheManager = {
 
       // 2. 소스 파일 로드 (rawMap 구성) + V1 수집
       const allSources = new Set(valid.flatMap(c => c.sources));
+      const splitFilesMap = new Map();
+      for (const item of valid) {
+        if (item.split_files) {
+          for (const src of item.sources) splitFilesMap.set(src, item.split_files);
+        }
+      }
       const rawMap = new Map();
       // V1: 기준대학.json에 있어야 하는데 공백 차이 등으로 매칭 실패한 near-miss만 수집
       // (기준대학.json 자체에 없는 이름은 정상 — 변경/합산 없는 대학은 등록 안 됨)
@@ -2690,11 +2707,16 @@ const CacheManager = {
 
       for (const source of allSources) {
         unmatchedNames.set(source, []);
-        let rows;
-        try {
-          rows = await DataViewer._fetchLarge(`data/${source}.json`);
-          if (!Array.isArray(rows)) throw new Error('배열 아님');
-        } catch { continue; }
+        const filesToLoad = splitFilesMap.get(source) || [source];
+        let rows = [];
+        for (const fileKey of filesToLoad) {
+          try {
+            const part = await DataViewer._fetchLarge(`data/${fileKey}.json`);
+            if (!Array.isArray(part)) throw new Error('배열 아님');
+            rows = rows.concat(part);
+          } catch { continue; }
+        }
+        if (!rows.length) continue;
 
         // V1: 정확한 매칭 실패 + 공백 제거 후 매칭 성공 = near-miss (수정 필요)
         const seenRaw = new Set();
