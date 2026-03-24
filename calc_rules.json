@@ -286,7 +286,7 @@
     "decimal_places": 2,
     "sort_asc": false
   },
-    "파견 교환학생 비율": {
+  "파견 교환학생 비율": {
     "label": "파견 교환학생 비율",
     "numerator": [
       "파견인원 (자대학교 → 타대학교)"
