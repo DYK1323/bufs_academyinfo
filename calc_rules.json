@@ -85,36 +85,6 @@
       "대학_4-다. 신입생 충원 현황_학과별자료"
     ]
   },
-  "중도탈락률(재학생)": {
-    "label": "재학생 중도탈락률",
-    "visible": true,
-    "sort_asc": true,
-    "unit": "%",
-    "decimal_places": 2,
-    "numerator": [
-      "사유별 중도탈락 학생_계(B)"
-    ],
-    "denominator_base": "재적학생 (A)",
-    "multiply": 100,
-    "used_in": [
-      "대학_4-사. 중도탈락 학생 현황_학교별자료"
-    ]
-  },
-  "중도탈락률(신입생)": {
-    "label": "신입생 중도탈락률",
-    "visible": true,
-    "sort_asc": true,
-    "unit": "%",
-    "decimal_places": 2,
-    "numerator": [
-      "사유별 중도탈락 학생(신입생)_계(B`)"
-    ],
-    "denominator_base": "재적학생 (신입생) (A`)",
-    "multiply": 100,
-    "used_in": [
-      "대학_4-사. 중도탈락 학생 현황_학교별자료"
-    ]
-  },
   "재학생 충원율": {
     "label": "정원내 재학생 충원율",
     "numerator": [
@@ -144,29 +114,35 @@
     "decimal_places": 2,
     "sort_asc": false
   },
-  "파견 교환학생 비율": {
-    "label": "파견 교환학생 비율",
-    "numerator": [
-      "파견인원 (자대학교 → 타대학교)"
-    ],
-    "denominator_base": "재학생_계(C)",
-    "multiply": 100,
+  "중도탈락률(재학생)": {
+    "label": "재학생 중도탈락률",
     "visible": true,
+    "sort_asc": true,
     "unit": "%",
     "decimal_places": 2,
-    "sort_asc": false
+    "numerator": [
+      "사유별 중도탈락 학생_계(B)"
+    ],
+    "denominator_base": "재적학생 (A)",
+    "multiply": 100,
+    "used_in": [
+      "대학_4-사. 중도탈락 학생 현황_학교별자료"
+    ]
   },
-  "유치 교환학생 비율": {
-    "label": "유치 교환학생 비율",
-    "numerator": [
-      "유치인원 (타대학교 → 자대학교)"
-    ],
-    "denominator_base": "재학생_계(C)",
-    "multiply": 100,
+  "중도탈락률(신입생)": {
+    "label": "신입생 중도탈락률",
     "visible": true,
+    "sort_asc": true,
     "unit": "%",
     "decimal_places": 2,
-    "sort_asc": false
+    "numerator": [
+      "사유별 중도탈락 학생(신입생)_계(B`)"
+    ],
+    "denominator_base": "재적학생 (신입생) (A`)",
+    "multiply": 100,
+    "used_in": [
+      "대학_4-사. 중도탈락 학생 현황_학교별자료"
+    ]
   },
   "장학금 지급률": {
     "label": "장학금 지급률",
@@ -306,6 +282,30 @@
     "denominator_exclude": [
       "취업제외자"
     ],
+    "unit": "%",
+    "decimal_places": 2,
+    "sort_asc": false
+  },
+    "파견 교환학생 비율": {
+    "label": "파견 교환학생 비율",
+    "numerator": [
+      "파견인원 (자대학교 → 타대학교)"
+    ],
+    "denominator_base": "재학생_계(C)",
+    "multiply": 100,
+    "visible": true,
+    "unit": "%",
+    "decimal_places": 2,
+    "sort_asc": false
+  },
+  "유치 교환학생 비율": {
+    "label": "유치 교환학생 비율",
+    "numerator": [
+      "유치인원 (타대학교 → 자대학교)"
+    ],
+    "denominator_base": "재학생_계(C)",
+    "multiply": 100,
+    "visible": true,
     "unit": "%",
     "decimal_places": 2,
     "sort_asc": false
