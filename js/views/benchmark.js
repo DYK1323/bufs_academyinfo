@@ -58,8 +58,15 @@ const BenchmarkView = {
   render() {
     const cache = AppState.raw.benchmarkCache || [];
     if (!cache.length) return;
-    const indicators = BenchmarkUtils.getIndicators(cache[0]);
-    const ourRow = cache.find(r => r.기준대학명 === OUR_UNIV);
+
+    // 선택 연도로 필터 — 없으면 캐시 최신 연도 사용
+    const selectedYear = AppState.filters.연도;
+    const years = [...new Set(cache.map(r => r.공시연도))].sort((a, b) => b - a);
+    const year = selectedYear && years.includes(selectedYear) ? selectedYear : years[0];
+    const yearCache = cache.filter(r => r.공시연도 === year);
+
+    const indicators = BenchmarkUtils.getIndicators(yearCache[0] || cache[0]);
+    const ourRow = yearCache.find(r => r.기준대학명 === OUR_UNIV);
     if (!ourRow) return;
 
     // calc_rules에서 indicator_id → sort_asc 맵
@@ -67,8 +74,8 @@ const BenchmarkView = {
       Object.entries(AppState.raw.calcRules).map(([id, r]) => [id, r.sort_asc === true])
     );
 
-    this._renderCompTable(indicators, ourRow, cache, sortAscMap);
-    this._renderGapChart(indicators, ourRow, cache, sortAscMap);
+    this._renderCompTable(indicators, ourRow, yearCache, sortAscMap);
+    this._renderGapChart(indicators, ourRow, yearCache, sortAscMap);
   },
 
   _renderCompTable(indicators, ourRow, cache, sortAscMap = new Map()) {
