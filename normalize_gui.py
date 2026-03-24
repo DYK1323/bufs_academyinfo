@@ -419,8 +419,12 @@ def accumulate_json(item_key: str, df: pd.DataFrame):
     # 연도 제한 없이 전체 누적 보관
     # (표시 범위는 분석 페이지에서 제어)
 
-    json_path.write_text(
-        json.dumps(combined, ensure_ascii=False, indent=2), encoding="utf-8")
+    # NaN이 슬립스루되는 경우 대비 — JSON 직렬화 후 NaN → null 교체
+    json_str = json.dumps(combined, ensure_ascii=False, indent=2)
+    if 'NaN' in json_str:
+        import re as _re
+        json_str = _re.sub(r'\bNaN\b', 'null', json_str)
+    json_path.write_text(json_str, encoding="utf-8")
 
     # split_config 기반 분리 파일이면 manifest split_files 자동 갱신
     if split_file:
