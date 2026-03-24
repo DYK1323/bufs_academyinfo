@@ -304,15 +304,63 @@ def resolve_fields(raw_headers: list, mapping: dict, item_key: str) -> tuple:
 # JSON 누적
 # ─────────────────────────────────────────────────────
 
+SPLIT_CONFIG_FILE = SCRIPT_DIR / "split_config.json"
+_BASE_YEAR = 2021   # 5년 보관 최솟값 (분리 파일명 계산 기준)
+
+
+def _load_split_config() -> dict:
+    """split_config.json 로드 — {source_key: window_years}"""
+    if not SPLIT_CONFIG_FILE.exists():
+        return {}
+    return json.loads(SPLIT_CONFIG_FILE.read_text(encoding="utf-8"))
+
+
+def _split_file_name(item_key: str, pub_year: int, window: int) -> str:
+    """window 크기 기준으로 pub_year가 속하는 파일명(확장자 제외) 계산."""
+    start = (((pub_year - _BASE_YEAR) // window) * window) + _BASE_YEAR
+    end = start + window - 1
+    return f"{item_key}_{start}-{end}"
+
+
+def _update_manifest_split_files(item_key: str, split_file: str) -> None:
+    """manifest.json에서 item_key를 소스로 쓰는 항목에 split_file을 추가(없을 때만)."""
+    manifest_path = JSON_DIR / "manifest.json"
+    if not manifest_path.exists():
+        return
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    changed = False
+    for item in manifest:
+        if item_key in item.get("sources", []):
+            sf_list = item.setdefault("split_files", [])
+            if split_file not in sf_list:
+                sf_list.append(split_file)
+                item["split_files"] = sorted(sf_list)
+                changed = True
+    if changed:
+        manifest_path.write_text(
+            json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def _get_split_file_for_year(item_key: str, pub_year: int) -> str | None:
-    """manifest.json의 split_files에서 pub_year가 속하는 파일명을 반환. 없으면 None."""
+    """pub_year가 속하는 분리 파일명을 반환. 분리 불필요하면 None.
+
+    우선순위:
+    1. split_config.json에 window가 정의된 경우 → 자동 계산
+    2. manifest.json의 split_files에 범위가 명시된 경우 → 매칭 반환
+    """
+    # 1. split_config.json 기반 (자동)
+    split_config = _load_split_config()
+    if item_key in split_config:
+        window = split_config[item_key]
+        return _split_file_name(item_key, pub_year, window)
+
+    # 2. manifest.json의 split_files 기반 (수동 명시, 하위 호환)
     manifest_path = JSON_DIR / "manifest.json"
     if not manifest_path.exists():
         return None
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     for item in manifest:
         if item_key in item.get("sources", []) and "split_files" in item:
-            # 파일명 끝의 "_YYYY-YYYY" 패턴으로 연도 범위 판단
             for sf in item["split_files"]:
                 m = re.search(r"_(\d{4})-(\d{4})$", sf)
                 if m and int(m.group(1)) <= pub_year <= int(m.group(2)):
@@ -324,13 +372,12 @@ def accumulate_json(item_key: str, df: pd.DataFrame):
     """항목별 JSON 파일에 df 데이터를 연도 기준으로 누적."""
     JSON_DIR.mkdir(parents=True, exist_ok=True)
 
-    # split_files 대상 여부 확인 (공시연도별로 다른 파일에 저장)
+    # split_config 대상 여부 확인 (공시연도별로 다른 파일에 저장)
     pub_years = df["공시연도"].dropna().unique().tolist() if "공시연도" in df.columns else []
+    split_file = None
     if pub_years:
         split_file = _get_split_file_for_year(item_key, int(pub_years[0]))
-        json_path = JSON_DIR / f"{split_file}.json" if split_file else JSON_DIR / f"{item_key}.json"
-    else:
-        json_path = JSON_DIR / f"{item_key}.json"
+    json_path = JSON_DIR / f"{split_file}.json" if split_file else JSON_DIR / f"{item_key}.json"
 
     # 기존 데이터 로드
     existing = []
@@ -374,6 +421,10 @@ def accumulate_json(item_key: str, df: pd.DataFrame):
 
     json_path.write_text(
         json.dumps(combined, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    # split_config 기반 분리 파일이면 manifest split_files 자동 갱신
+    if split_file:
+        _update_manifest_split_files(item_key, split_file)
 
     return len(new_records), len(combined)
 
