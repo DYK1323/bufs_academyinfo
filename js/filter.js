@@ -80,7 +80,9 @@ const FilterManager = {
     const manifestItem = AppState.raw.manifest.find(m => m.indicator === indicatorKey) || null;
     AppState.raw.currentManifestItem = manifestItem;
     const sources = manifestItem?.sources || [];
-    const fetched = await Promise.all(sources.map(s => DataService.fetchItemData(s)));
+    const splitFiles = manifestItem?.split_files || null;
+    const fetchKeys = splitFiles || sources;
+    const fetched = await Promise.all(fetchKeys.map(s => DataService.fetchItemData(s)));
     AppState.raw.항목데이터 = fetched.flat();
     this._reAggregate();
   },

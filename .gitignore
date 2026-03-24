@@ -16,3 +16,6 @@ __pycache__/
 Thumbs.db
 
 PAT.txt
+
+# 100MB 초과 원본 (split_files로 대체됨)
+data/대학_5-다. 졸업생의 취업 현황_학과별자료.json

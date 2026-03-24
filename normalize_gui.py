@@ -304,10 +304,33 @@ def resolve_fields(raw_headers: list, mapping: dict, item_key: str) -> tuple:
 # JSON 누적
 # ─────────────────────────────────────────────────────
 
+def _get_split_file_for_year(item_key: str, pub_year: int) -> str | None:
+    """manifest.json의 split_files에서 pub_year가 속하는 파일명을 반환. 없으면 None."""
+    manifest_path = JSON_DIR / "manifest.json"
+    if not manifest_path.exists():
+        return None
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    for item in manifest:
+        if item_key in item.get("sources", []) and "split_files" in item:
+            # 파일명 끝의 "_YYYY-YYYY" 패턴으로 연도 범위 판단
+            for sf in item["split_files"]:
+                m = re.search(r"_(\d{4})-(\d{4})$", sf)
+                if m and int(m.group(1)) <= pub_year <= int(m.group(2)):
+                    return sf
+    return None
+
+
 def accumulate_json(item_key: str, df: pd.DataFrame):
     """항목별 JSON 파일에 df 데이터를 연도 기준으로 누적."""
     JSON_DIR.mkdir(parents=True, exist_ok=True)
-    json_path = JSON_DIR / f"{item_key}.json"
+
+    # split_files 대상 여부 확인 (공시연도별로 다른 파일에 저장)
+    pub_years = df["공시연도"].dropna().unique().tolist() if "공시연도" in df.columns else []
+    if pub_years:
+        split_file = _get_split_file_for_year(item_key, int(pub_years[0]))
+        json_path = JSON_DIR / f"{split_file}.json" if split_file else JSON_DIR / f"{item_key}.json"
+    else:
+        json_path = JSON_DIR / f"{item_key}.json"
 
     # 기존 데이터 로드
     existing = []
