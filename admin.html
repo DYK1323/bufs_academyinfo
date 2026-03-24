@@ -2363,9 +2363,10 @@ const CacheManager = {
               const tempKey = `${row.기준대학명}__${baseYear}`;
               if (!tempMap.has(tempKey)) {
                 if (!isPrimary) continue; // sources[1+]는 새 key 생성 금지
+                if (row.공시연도 == null) throw new Error(`공시연도 미설정: 대학="${row.기준대학명}", 기준연도=${baseYear}`);
                 tempMap.set(tempKey, {
                   기준대학명: row.기준대학명, 기준연도: baseYear,
-                  공시연도: row.공시연도 ?? baseYear,  // 첫 소스의 공시연도
+                  공시연도: row.공시연도,
                   지역: row.지역, 설립구분: row.설립구분,
                   대학구분: row.대학구분, 수도권여부: row.수도권여부,
                 });
@@ -2591,8 +2592,9 @@ const CacheManager = {
     for (const [univName, univRows] of groups) {
       const summed = { 기준대학명: univName };
       // 공시연도 캡처 — 캐시 출력 연도로 사용 (소스마다 공시연도가 다를 수 있음)
-      const rawPubYear = parseInt(univRows[0]['공시연도'] ?? univRows[0]['기준연도'] ?? univRows[0]['기준년도'], 10);
-      summed['공시연도'] = isNaN(rawPubYear) ? targetYear : rawPubYear;
+      const rawPubYear = parseInt(univRows[0]['공시연도'], 10);
+      if (isNaN(rawPubYear)) throw new Error(`공시연도 누락: 대학="${univName}", 기준연도=${targetYear}`);
+      summed['공시연도'] = rawPubYear;
       // 지역 등 메타 결정: 캠퍼스 없는 본교 행 → 캠퍼스 있는 본교 행 → 첫 행 순으로 우선
       const mainRow = univRows.find(r => r['본분교'] === '본교' && !r['캠퍼스'])
                    || univRows.find(r => r['본분교'] === '본교')
@@ -2804,9 +2806,10 @@ const CacheManager = {
               const tempKey = `${row.기준대학명}__${baseYear}`;
               if (!tempMap.has(tempKey)) {
                 if (!isPrimary) continue; // sources[1+]는 새 key 생성 금지
+                if (row.공시연도 == null) throw new Error(`공시연도 미설정: 대학="${row.기준대학명}", 기준연도=${baseYear}`);
                 tempMap.set(tempKey, {
                   기준대학명: row.기준대학명, 기준연도: baseYear,
-                  공시연도: row.공시연도 ?? baseYear,
+                  공시연도: row.공시연도,
                   지역: row.지역, 설립구분: row.설립구분,
                   대학구분: row.대학구분, 수도권여부: row.수도권여부,
                 });
