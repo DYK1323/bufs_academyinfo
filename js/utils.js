@@ -182,7 +182,10 @@ function applyCalcToRow(summed, calcRules) {
     if (rule.min_of || rule.rolling_avg) continue;
     const dbs = Array.isArray(rule.denominator_base) ? rule.denominator_base
       : (rule.denominator_base ? [rule.denominator_base] : []);
-    const num = (rule.numerator || []).reduce((acc, f) => acc + (res[f] ?? 0), 0);
+    const numFields = rule.numerator || [];
+    // 분자 필드가 하나라도 없으면(undefined/null) 기준연도 데이터 미존재 → null
+    if (numFields.some(f => res[f] == null)) { res[key] = null; continue; }
+    const num = numFields.reduce((acc, f) => acc + (res[f] ?? 0), 0);
     let den = dbs.reduce((acc, db) => acc + (!isNaN(Number(db)) ? Number(db) : (res[db] ?? 0)), 0);
     for (const ex of (rule.denominator_exclude || [])) den -= (res[ex] ?? 0);
     res[key] = den > 0 ? (num / den) * (rule.multiply ?? 1) : null;

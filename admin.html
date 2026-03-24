@@ -2515,7 +2515,9 @@ const CacheManager = {
           den = dbs.reduce((acc, db) => acc + (!isNaN(Number(db)) ? Number(db) : (fs[db] ?? res[db] ?? 0)), 0);
           for (const ex of (rule.denominator_exclude || [])) den -= (fs[ex] ?? res[ex] ?? 0);
         } else {
-          num = (rule.numerator || []).reduce((acc, f) => acc + (res[f] ?? summed[f] ?? 0), 0);
+          const _numF = rule.numerator || [];
+          if (_numF.some(f => (res[f] ?? summed[f]) == null)) { res[key] = null; continue; }
+          num = _numF.reduce((acc, f) => acc + (res[f] ?? summed[f] ?? 0), 0);
           den = dbs.reduce((acc, db) => acc + (!isNaN(Number(db)) ? Number(db) : (res[db] ?? summed[db] ?? 0)), 0);
           for (const ex of (rule.denominator_exclude || [])) den -= (res[ex] ?? summed[ex] ?? 0);
         }
@@ -2656,7 +2658,10 @@ const CacheManager = {
         for (const ex of (rule.denominator_exclude || []))
           den -= (res[`__excl__${key}__${ex}`] ?? res[ex] ?? 0);
       } else {
-        num = (rule.numerator || []).reduce((acc, f) => acc + (res[f] ?? 0), 0);
+        const numFields2 = rule.numerator || [];
+        // 분자 필드가 하나라도 없으면(undefined/null) 기준연도 데이터 미존재 → null
+        if (numFields2.some(f => res[f] == null)) { res[key] = null; continue; }
+        num = numFields2.reduce((acc, f) => acc + (res[f] ?? 0), 0);
         den = dbs.reduce((acc, db) => acc + (!isNaN(Number(db)) ? Number(db) : (res[db] ?? 0)), 0);
         for (const ex of (rule.denominator_exclude || [])) den -= (res[ex] ?? 0);
       }
