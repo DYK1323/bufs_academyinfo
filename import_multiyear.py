@@ -221,8 +221,8 @@ class App(tk.Tk):
             self._log(f"\n📋 최종 컬럼: {list(df.columns)}")
 
             # 9. JSON 누적
-            기준연도_목록 = sorted(df['기준연도'].dropna().unique()) if '기준연도' in df.columns else []
-            공시연도_목록 = sorted(df['공시연도'].dropna().unique()) if '공시연도' in df.columns else []
+            기준연도_목록 = sorted(pd.to_numeric(df['기준연도'], errors='coerce').dropna().unique().astype(int)) if '기준연도' in df.columns else []
+            공시연도_목록 = sorted(pd.to_numeric(df['공시연도'], errors='coerce').dropna().unique().astype(int)) if '공시연도' in df.columns else []
             self._log(f"   기준연도 목록: {기준연도_목록}")
             self._log(f"   공시연도 목록: {공시연도_목록}")
             self._log(f"   레코드: {len(df):,}행")
