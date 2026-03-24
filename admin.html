@@ -2597,8 +2597,9 @@ const CacheManager = {
       }
       const 지역 = mainRow['지역'] || '미확인';
       summed['지역'] = 지역;
-      summed['설립구분'] = mainRow['설립구분'] || '미확인';
-      summed['대학구분'] = mainRow['학교종류'] || '미확인';
+      const _rawSetup = mainRow['설립구분'] || '미확인';
+      summed['설립구분'] = ['국립', '공립', '국립대법인'].includes(_rawSetup) ? '국공립' : _rawSetup;
+      summed['대학구분'] = mainRow['학교종류'] || mainRow['대학구분'] || '미확인';
       summed['수도권여부'] = METRO.has(지역) ? 'Y' : 'N';
 
       // exclude_rows 규칙별 필터 적용 후 합산 — _applyCalc에서 우선 사용

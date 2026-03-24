@@ -132,8 +132,9 @@ const FilterUtils = {
 const BENCHMARK_META_KEYS = new Set(['기준대학명', '공시연도', '지역', '설립구분', '대학구분', '수도권여부']);
 
 const BenchmarkUtils = {
-  /** benchmarkCache의 기본 대학 필터: 국공립/사립 + 대학교/산업대학 */
-  baseFilter: r => ['국공립', '사립'].includes(r.설립구분) && ['대학교', '산업대학'].includes(r.대학구분),
+  /** benchmarkCache의 기본 대학 필터: 국공립/사립 + 대학교/산업대학
+   *  설립구분은 캐시에 '국립'/'공립'/'국립대법인' 형태로 저장될 수 있으므로 모두 허용 */
+  baseFilter: r => ['국공립', '국립', '공립', '국립대법인', '사립'].includes(r.설립구분) && ['대학교', '산업대학'].includes(r.대학구분),
 
   /** 캐시 레코드에서 지표 키 목록 추출 */
   getIndicators(sample) {
