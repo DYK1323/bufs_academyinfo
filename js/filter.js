@@ -137,27 +137,28 @@ const FilterManager = {
   },
   _sortAndRender() {
     const { filtered, sortKey, sortDir, rankKey } = AppState.computed;
+    // 지표값이 있는 행만 순위 부여 — null이면 순위 없음
+    const withData = rankKey ? filtered.filter(r => r[rankKey] != null) : filtered;
     if (rankKey) {
       const sortAsc = AppState.raw.calcRules[rankKey]?.sort_asc === true;
-      const forRank = [...filtered].sort((a, b) => {
-        const av = a[rankKey] ?? (sortAsc ? Infinity : -Infinity);
-        const bv = b[rankKey] ?? (sortAsc ? Infinity : -Infinity);
+      const forRank = [...withData].sort((a, b) => {
+        const av = a[rankKey]; const bv = b[rankKey];
         return typeof av === 'string'
           ? (sortAsc ? av.localeCompare(bv, 'ko') : bv.localeCompare(av, 'ko'))
           : (sortAsc ? av - bv : bv - av);
       });
       forRank.forEach((row, i) => { row._rank = i + 1; });
     } else {
-      filtered.forEach((row, i) => { row._rank = i + 1; });
+      withData.forEach((row, i) => { row._rank = i + 1; });
     }
     if (sortKey) {
-      AppState.computed.sorted = [...filtered].sort((a, b) => {
+      AppState.computed.sorted = [...withData].sort((a, b) => {
         const av = a[sortKey] ?? -Infinity; const bv = b[sortKey] ?? -Infinity;
         if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv, 'ko') : bv.localeCompare(av, 'ko');
         return sortDir === 'asc' ? av - bv : bv - av;
       });
     } else {
-      AppState.computed.sorted = [...filtered];
+      AppState.computed.sorted = [...withData];
     }
     RankingView.render();
     if (document.getElementById('simulator-view')?.classList.contains('visible')) SimulatorView.activate();
