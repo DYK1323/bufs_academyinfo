@@ -147,7 +147,11 @@ const FilterManager = {
           ? (sortAsc ? av.localeCompare(bv, 'ko') : bv.localeCompare(av, 'ko'))
           : (sortAsc ? av - bv : bv - av);
       });
-      forRank.forEach((row, i) => { row._rank = i + 1; });
+      forRank.forEach((row, i) => {
+        row._rank = (i > 0 && forRank[i][rankKey] === forRank[i - 1][rankKey])
+          ? forRank[i - 1]._rank
+          : i + 1;
+      });
     } else {
       withData.forEach((row, i) => { row._rank = i + 1; });
     }

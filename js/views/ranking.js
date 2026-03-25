@@ -174,7 +174,12 @@ const ThreatView = {
         return sortAsc ? av - bv : bv - av;
       });
       const rMap = new Map();
-      sorted.forEach((r, i) => rMap.set(r.기준대학명, i + 1));
+      sorted.forEach((r, i) => {
+        const rank = (i > 0 && sorted[i][rankKey] === sorted[i - 1][rankKey])
+          ? rMap.get(sorted[i - 1].기준대학명)
+          : i + 1;
+        rMap.set(r.기준대학명, rank);
+      });
       rankMaps.set(year, rMap);
     }
     this._rankMaps = rankMaps;
