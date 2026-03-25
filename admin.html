@@ -2388,6 +2388,9 @@ const CacheManager = {
                 });
               }
               const target = tempMap.get(tempKey);
+              // left_join: 공시연도는 sources[0](주 소스, non-primary) 기준으로 갱신
+              // (캐시 공시연도는 항상 첫 번째 소스 기준 — CLAUDE.md 참조)
+              if (leftJoin && !isPrimary) target.공시연도 = row.공시연도;
               for (const [k, v] of Object.entries(row)) {
                 if (META.includes(k)) continue;
                 if (target[k] === undefined) target[k] = v;
@@ -2819,6 +2822,7 @@ const CacheManager = {
                 });
               }
               const target = tempMap.get(tempKey);
+              if (leftJoin && !isPrimary) target.공시연도 = row.공시연도;
               for (const [k, v] of Object.entries(row)) {
                 if (META.includes(k)) continue;
                 if (target[k] === undefined) target[k] = v;
