@@ -1353,6 +1353,13 @@ function buildRuleCard(key, rule) {
         <option value="asc"${rule.sort_asc === true ? ' selected' : ''}>오름차순 (낮을수록 1위)</option>
       </select>
     </div>
+    <div class="form-group" style="flex:0 0 auto;min-width:120px;">
+      <label>Left join</label>
+      <label style="display:flex;align-items:center;gap:6px;height:34px;cursor:pointer;" title="sources[1](분모 소스) 기준으로 join — 분자 소스에 없는 대학도 0%로 포함. 복수 소스 지표에만 유효.">
+        <input type="checkbox" class="rule-field-leftjoin"${rule.left_join ? ' checked' : ''} onchange="setDirty()">
+        <span style="font-size:12.5px;">분모 기준 join</span>
+      </label>
+    </div>
   `;
   body.appendChild(displayRow);
 
@@ -1675,10 +1682,12 @@ function applyRule(btn) {
   const unit = card.querySelector('.rule-field-unit')?.value.trim() ?? '%';
   const decimalPlaces = parseInt(card.querySelector('.rule-field-decimal')?.value, 10);
   const sortAsc = card.querySelector('.rule-field-sortasc')?.value === 'asc';
+  const leftJoin = card.querySelector('.rule-field-leftjoin')?.checked ?? false;
   if (visible) rule.visible = true; else delete rule.visible;
   rule.unit = unit;
   rule.decimal_places = isNaN(decimalPlaces) ? 2 : decimalPlaces;
   rule.sort_asc = sortAsc;
+  if (leftJoin) rule.left_join = true; else delete rule.left_join;
 
   // used_in 보존
   const existingUsedIn = calcData[prevKey]?.used_in;
@@ -2350,20 +2359,24 @@ const CacheManager = {
 
       for (const item of valid) {
         // 1단계: 이 지표의 소스들을 기준연도 기준으로 join
-        // ※ sources[0]만 새 tempKey를 생성할 수 있음.
+        // ※ 기본(inner join): sources[0]만 새 tempKey를 생성할 수 있음.
         //   sources[1+]는 이미 존재하는 key에만 데이터를 추가.
-        //   이를 통해 "교환학생(기준연도=2024)+재학생(기준연도=2025)" 처럼
-        //   기준연도가 다른 소스끼리 잘못 병합되는 문제를 방지.
+        //   이를 통해 기준연도가 다른 소스끼리 잘못 병합되는 문제를 방지.
+        // ※ left_join(calc_rules): sources[1]이 primary — 분모 소스 기준으로 key를 생성하고
+        //   sources[0]은 해당 key가 있을 때만 데이터를 추가(없으면 numerator=null→0 처리).
+        //   공시 안 한 대학도 분모가 있으면 0%로 집계됨.
+        const leftJoin = !!(calcRules[item.indicator]?.left_join) && item.sources.length > 1;
+        const primarySource = leftJoin ? item.sources[1] : item.sources[0];
         const tempMap = new Map(); // 대학+기준연도 → row
         for (const source of item.sources) {
-          const isPrimary = source === item.sources[0];
+          const isPrimary = source === primarySource;
           const agg = rawMap.get(source);
           if (!agg) continue;
           for (const [baseYear, aggRows] of agg) {
             for (const row of aggRows) {
               const tempKey = `${row.기준대학명}__${baseYear}`;
               if (!tempMap.has(tempKey)) {
-                if (!isPrimary) continue; // sources[1+]는 새 key 생성 금지
+                if (!isPrimary) continue; // non-primary는 새 key 생성 금지
                 if (row.공시연도 == null) throw new Error(`공시연도 미설정: 대학="${row.기준대학명}", 기준연도=${baseYear}`);
                 tempMap.set(tempKey, {
                   기준대학명: row.기준대학명, 기준연도: baseYear,
@@ -2781,10 +2794,12 @@ const CacheManager = {
         }
 
         // tempMap 1회 빌드 — V3(공시연도 수집) + V4(mergedRaw 누적) 공용
-        // sources[0]만 새 key 생성 — sources[1+]는 기존 key에만 데이터 추가
+        // 기본: sources[0]만 새 key 생성. left_join: sources[1]이 primary
+        const leftJoin = !!(calcRules[item.indicator]?.left_join) && item.sources.length > 1;
+        const primarySource = leftJoin ? item.sources[1] : item.sources[0];
         const tempMap = new Map();
         for (const source of item.sources) {
-          const isPrimary = source === item.sources[0];
+          const isPrimary = source === primarySource;
           const agg = rawMap.get(source);
           if (!agg) continue;
           for (const [baseYear, aggRows] of agg) {

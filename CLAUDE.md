@@ -180,6 +180,7 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 - `exclude_rows`: 산식 계산 전 특정 행 제외 (예: 의학계열 제외). 대학 단위 합산 전 원시 행에 적용.
 - `min_of`: 다른 산식 결과의 최솟값을 취하는 2단계 계산. 1단계 산식 완료 후 처리.
 - `rolling_avg`: 지정 필드의 최근 N년 평균을 계산하는 중간값. 다른 산식의 `numerator`에서 참조 가능. `rolling_years` 생략 시 기본값 5년. 해당 대학의 연도별 합산 후 연도 평균으로 계산됨.
+- `left_join`: `true`이면 캐시 생성 시 `sources[1]`(분모 소스)을 primary로 사용 — 분모가 있는 모든 대학을 포함하고 `sources[0]`(분자 소스)에 데이터가 없으면 numerator=null→0 처리. 공시 안 한 대학도 0%로 집계됨. 단일 소스 지표에는 무시됨. (예: 파견/유치 교환학생 비율 — 교환학생을 아예 공시 안 한 대학도 0%로 포함)
 - 산식 변경 시 이 파일만 수정하면 되며 코드는 건드리지 않아도 된다.
 
 ### convert_university_info.py
