@@ -118,7 +118,7 @@ const FilterUtils = {
                   : new Set(['대학교', '산업대학']);
     if (허용구분 && r.대학구분 && r.대학구분 !== '미확인' && !허용구분.has(r.대학구분)) return false;
     if (f.설립Quick === '사립' && r.설립구분 !== '사립') return false;
-    if (f.특별법제외 && ['특별법국립', '특별법법인', '기타'].includes(r.설립구분)) return false;
+    if (f.특별법제외 && ['특별법국립', '특별법법인', '특별법', '기타'].includes(r.설립구분)) return false;
     if (f.지역그룹 === '비수도권' && METRO.has(r.지역)) return false;
     if (f.지역그룹 === '동남권' && !DONGNAM.has(r.지역)) return false;
     if (f.지역그룹 === '부산' && r.지역 !== '부산') return false;

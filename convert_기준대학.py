@@ -16,10 +16,8 @@ Excel 컬럼 (0-indexed):
 기준대학여부='기준' 항목: 지역·설립구분·대학구분 포함
 별칭·구 교명 항목:        대학명→기준대학명 매핑만
 
-설립구분 정규화:
-    국립 / 공립 / 국립대법인 / 특별법국립 → 국공립
-    특별법법인 → 특별법
-    사립 → 사립 (그대로)
+설립구분: Excel 원값 그대로 저장 (정규화 없음)
+    국공립 묶음 및 특별법 처리는 admin.html / index.html JS에서 수행
 """
 
 import sys
@@ -41,19 +39,7 @@ COL_학제 = 8     # 학제 (대학교/산업대학/…)
 COL_지역 = 9     # 지역
 COL_설립 = 10    # 설립구분
 
-국공립_원값 = {'국립', '공립', '국립대법인', '특별법국립'}
-
 OUTPUT_PATH = Path(__file__).parent / 'data' / '기준대학.json'
-
-
-def normalize_설립(raw: str | None) -> str | None:
-    if not raw:
-        return None
-    if raw in 국공립_원값:
-        return '국공립'
-    if raw == '특별법법인':
-        return '특별법'
-    return raw  # 사립, 기타 그대로
 
 
 def load_excel(xlsx_path: str) -> list[dict]:
@@ -77,7 +63,7 @@ def load_excel(xlsx_path: str) -> list[dict]:
 
         if row[COL_기준여부] == '기준':
             지역 = (row[COL_지역] or '').strip() or None
-            설립 = normalize_설립(row[COL_설립])
+            설립 = (row[COL_설립] or '').strip() or None
             학제 = (row[COL_학제] or '').strip() or None
 
             # 공시명 ≠ 기준대학명이면 별도 매핑 항목 추가 (예: 가야대학교(김해) → 가야대학교)
