@@ -2874,6 +2874,7 @@ const CacheManager = {
   },
 
   _renderValidationReport({ unmatchedNames, tempJoinMiss, crossJoinMiss, zeroFields, valid }) {
+    this._lastZeroFields = zeroFields; // CSV 다운로드용 보관
     const e = esc;
 
     // 건수 집계
@@ -2973,11 +2974,12 @@ const CacheManager = {
     if (v4Count === 0) {
       html += '<p style="color:#16a34a;margin:6px 0;">모든 산식 필드가 존재합니다.</p>';
     } else {
+      html += `<button class="btn btn-secondary btn-sm" style="margin-bottom:8px;" onclick="CacheManager._downloadV4Csv()">⬇ CSV 다운로드</button>`;
       html += `<table style="${tableStyle}"><thead><tr><th style="${thStyle}">지표</th><th style="${thStyle}">대학명</th><th style="${thStyle}">공시연도</th><th style="${thStyle}">누락 필드</th><th style="${thStyle}">역할</th></tr></thead><tbody>`;
       let shown = 0;
       outer: for (const [indicator, misses] of Object.entries(zeroFields)) {
         for (const m of misses) {
-          if (shown >= 50) { html += `<tr><td colspan="5" style="${tdStyle}color:var(--text-muted);">이하 생략…</td></tr>`; break outer; }
+          if (shown >= 50) { html += `<tr><td colspan="5" style="${tdStyle}color:var(--text-muted);">이하 생략… (전체 ${v4Count}건 — CSV 다운로드로 확인)</td></tr>`; break outer; }
           html += `<tr><td style="${tdStyle}">${e(indicator)}</td><td style="${tdStyle}">${e(m.univName)}</td><td style="${tdStyle}">${e(m.pubYear)}</td><td style="${tdStyle}">${e(m.field)}</td><td style="${tdStyle}">${e(m.role)}</td></tr>`;
           shown++;
         }
@@ -2987,6 +2989,23 @@ const CacheManager = {
     html += '</div></details>';
 
     document.getElementById('cache-validation-report').innerHTML = html;
+  },
+
+  _downloadV4Csv() {
+    const data = this._lastZeroFields;
+    if (!data) return;
+    const rows = [['지표', '대학명', '공시연도', '누락 필드', '역할']];
+    for (const [indicator, misses] of Object.entries(data)) {
+      for (const m of misses) {
+        rows.push([indicator, m.univName, m.pubYear, m.field, m.role]);
+      }
+    }
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'v4_missing_fields.csv';
+    a.click();
   },
 };
 
