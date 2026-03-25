@@ -56,7 +56,10 @@ const DataService = {
         if (typeof vals[0] === 'number') {
           merged[k] = vals.reduce((a, b) => a + b, 0);
         } else if (vals[0] !== '' && !isNaN(Number(vals[0]))) {
-          merged[k] = vals.reduce((a, b) => Number(a) + Number(b), 0);
+          merged[k] = vals.reduce((a, b) => {
+            const nb = Number(b);
+            return a + (isNaN(nb) ? 0 : nb);
+          }, 0);
         } else {
           merged[k] = vals[0];
         }
