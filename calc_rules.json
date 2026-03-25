@@ -325,7 +325,8 @@
     "visible": true,
     "unit": "%",
     "decimal_places": 2,
-    "sort_asc": false
+    "sort_asc": false,
+    "left_join": true
   },
   "외국인 전임교원 비율": {
     "label": "외국인 전임교원 비율",
