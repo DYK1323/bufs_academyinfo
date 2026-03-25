@@ -340,7 +340,8 @@
     "visible": true,
     "unit": "%",
     "decimal_places": 2,
-    "sort_asc": false
+    "sort_asc": false,
+    "left_join": true
   },
   "재적학생": {
     "label": "재적학생",
