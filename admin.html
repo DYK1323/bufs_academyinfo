@@ -2368,7 +2368,9 @@ const CacheManager = {
         const leftJoin = !!(calcRules[item.indicator]?.left_join) && item.sources.length > 1;
         const primarySource = leftJoin ? item.sources[1] : item.sources[0];
         const tempMap = new Map(); // 대학+기준연도 → row
-        for (const source of item.sources) {
+        // primary 소스를 먼저 순회해야 non-primary가 기존 key에 데이터를 추가할 수 있음
+        const orderedSources = [primarySource, ...item.sources.filter(s => s !== primarySource)];
+        for (const source of orderedSources) {
           const isPrimary = source === primarySource;
           const agg = rawMap.get(source);
           if (!agg) continue;
@@ -2798,7 +2800,8 @@ const CacheManager = {
         const leftJoin = !!(calcRules[item.indicator]?.left_join) && item.sources.length > 1;
         const primarySource = leftJoin ? item.sources[1] : item.sources[0];
         const tempMap = new Map();
-        for (const source of item.sources) {
+        const orderedSources = [primarySource, ...item.sources.filter(s => s !== primarySource)];
+        for (const source of orderedSources) {
           const isPrimary = source === primarySource;
           const agg = rawMap.get(source);
           if (!agg) continue;
