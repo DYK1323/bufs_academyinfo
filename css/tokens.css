@@ -35,6 +35,11 @@
   --up-color:   #16a34a;
   --down-color: #dc2626;
 
+  /* ── 공지 배너 ── */
+  --notice-bg:     #eff6ff;
+  --notice-border: #93c5fd;
+  --notice-text:   #1e40af;
+
   /* ── 경고 배너 (CORS) ── */
   --warning-bg:       #fffbeb;
   --warning-border:   #fcd34d;

@@ -406,6 +406,15 @@ html, body {
   min-width: 0;
 }
 
+/* ── 공지 배너 */
+#notice-banner {
+  background: var(--notice-bg);
+  border-bottom: 1px solid var(--notice-border);
+  padding: 8px 24px;
+  font-size: 12.5px;
+  color: var(--notice-text);
+}
+
 /* ── CORS 경고 배너 */
 #cors-warning {
   display: none;
