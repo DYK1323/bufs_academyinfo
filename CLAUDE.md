@@ -184,6 +184,9 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 - `min_of`: 다른 산식 결과의 최솟값을 취하는 2단계 계산. 1단계 산식 완료 후 처리.
 - `rolling_avg`: 지정 필드의 최근 N년 평균을 계산하는 중간값. 다른 산식의 `numerator`에서 참조 가능. `rolling_years` 생략 시 기본값 5년. 해당 대학의 연도별 합산 후 연도 평균으로 계산됨.
 - `left_join`: `true`이면 캐시 생성 시 `sources[1]`(분모 소스)을 primary로 사용 — 분모가 있는 모든 대학을 포함하고 `sources[0]`(분자 소스)에 데이터가 없으면 numerator=null→0 처리. 공시 안 한 대학도 0%로 집계됨. 단일 소스 지표에는 무시됨. (예: 파견/유치 교환학생 비율 — 교환학생을 아예 공시 안 한 대학도 0%로 포함)
+  - **⚠ IMPORTANT**: `left_join`이어도 소스 간 join 키는 **`기준연도`** 기준이다 (`공시연도` 기준으로 바꾸면 안 됨). sources[1](재학생, 공시연도=2024/기준연도=2024)과 sources[0](교환학생, 공시연도=2025/기준연도=2024)은 `기준연도=2024`로 join한다.
+  - **⚠ IMPORTANT**: `left_join` 시 코드는 **primary(sources[1])를 먼저 순회**해 tempMap key를 생성하고, 이후 non-primary(sources[0])가 기존 key에 데이터를 추가한다. 소스를 `item.sources` 순서 그대로 순회하면 non-primary가 먼저 처리되어 skip되므로, 반드시 `orderedSources = [primarySource, ...나머지]`로 정렬 후 순회해야 한다.
+  - **⚠ IMPORTANT**: 캐시에 저장되는 `공시연도`는 **항상 sources[0](주 소스)의 공시연도** 기준이다. `left_join`에서 sources[1]이 primary여서 tempRow를 먼저 생성하더라도, sources[0] 데이터가 병합될 때 `target.공시연도 = sources[0].공시연도`로 덮어써야 한다. 그래야 연도 선택기에 올바른 연도(2025)가 표시된다.
 - 산식 변경 시 이 파일만 수정하면 되며 코드는 건드리지 않아도 된다.
 
 ### convert_university_info.py
@@ -294,13 +297,13 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 - `visible` 지표 × manifest sources 기준으로 집계 대상 자동 구성
 - 버튼 2개: **⚡ 캐시 생성 및 저장** (기존) / **🔍 데이터 검증** (저장 없이 join 품질 리포트)
 - 대학별 · 연도별 원시 집계 → calc_rules 산식 적용 → `benchmark_cache.json` 생성·저장
-- **연도 처리 방식 (중요) — 지표별 독립 계산**:
+- **연도 처리 방식 — 지표별 독립 계산**:
   - **지표마다 독립된 `tempMap`** 을 구성해 산식을 계산한 뒤, **지표값(결과)만** `mergedMap`에 저장한다. raw 필드를 지표 간에 공유하지 않는다.
   - **왜**: 소스파일에 같은 이름의 필드(예: `재학생_계(C)`)가 있을 때, 다른 지표에서 먼저 다른 연도의 값이 들어오면 올바른 값으로 덮어쓸 수 없는 문제가 있었음. (예: 재학생 충원율 기준연도=2025의 재학생=62가 먼저 들어가, 파견교환학생 기준연도=2024의 재학생=99가 무시됨)
-  - **1단계 (지표 내 소스 join)**: `tempMap` 키 = `대학명__기준연도` — 소스마다 `공시연도`가 달라도 같은 `기준연도`끼리 묶음. 이때 주 소스(sources[0])의 `공시연도`를 tempRow에 보존. `sources[1+]`는 이미 존재하는 키에만 데이터 추가 (새 키 생성 금지).
-  - **2단계 (지표값 저장)**: `tempRow`에 `_applyCalc` 적용 → `mergedMap` 키 = `대학명__공시연도`에 해당 지표값만 저장.
+  - **⚠ IMPORTANT — 1단계 (지표 내 소스 join)**: `tempMap` 키 = `대학명__기준연도` — **소스마다 `공시연도`가 달라도 `기준연도` 기준으로 묶는다.** `공시연도` 기준으로 join하면 공시연도가 다른 소스끼리 매칭이 안 돼 분자·분모가 분리된다. primary(기본: sources[0], left_join: sources[1])만 새 key를 생성하고, non-primary는 기존 key에만 데이터 추가.
+  - **⚠ IMPORTANT — 2단계 (캐시 저장)**: `mergedMap` 키 = `대학명__공시연도` — **캐시는 `공시연도` 기준**으로 저장한다. 저장되는 `공시연도`는 항상 **sources[0](주 소스)의 공시연도**. `left_join`에서 sources[1]이 tempRow를 먼저 생성해도, sources[0] 데이터 병합 시 `target.공시연도`를 sources[0] 기준으로 덮어써야 연도 선택기에 올바른 연도가 표시된다.
   - **캐시 출력 연도**: `공시연도` 필드로 저장. `기준연도`는 캐시에 포함하지 않음.
-  - 예) 파견 교환학생(공시연도 2025/기준연도 2024) + 재학생 현황(공시연도 2024/기준연도 2024) → 기준연도 2024로 1단계 join → tempRow에서 파견비율 계산 → mergedMap 공시연도=2025에 저장
+  - 예) 파견 교환학생(sources[0], 공시연도=2025/기준연도=2024) + 재학생 현황(sources[1], 공시연도=2024/기준연도=2024) → **기준연도=2024**로 1단계 join → 파견비율 계산 → mergedMap에 **공시연도=2025**로 저장
 - **대학명 인식**: `row['대학명'] || row['학교'] || row['학교명'] || '(미확인)'` — `학교명` 필드 사용 항목(예: 학점교류 현황)도 정상 인식
 - **`GH.getFileSha(path)`**: SHA만 가져오는 전용 메서드 (benchmark_cache.json 같은 대용량 파일도 content 디코딩 없이 안전하게 SHA 취득) — 1MB 초과 시 Git Trees API fallback
 
