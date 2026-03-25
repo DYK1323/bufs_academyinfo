@@ -629,7 +629,7 @@ html, body {
 /* ══════════════════════════════════════════════
    순위 테이블 — 수평 라인 전용
 ══════════════════════════════════════════════ */
-#ranking-table-wrap { overflow-x: auto; }
+#ranking-table-wrap { overflow-x: auto; overflow-y: auto; max-height: calc(100vh - 260px); }
 #ranking-table {
   width: 100%; min-width: 640px; border-collapse: collapse; font-size: 13px;
 }
