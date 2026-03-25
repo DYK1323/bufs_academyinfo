@@ -512,10 +512,13 @@ body { padding-bottom: 60px; }
         <table id="mapping-table">
           <thead>
             <tr>
-              <th style="width:35%">대학명 <span style="font-weight:400;opacity:.6">(학교 필드값)</span></th>
-              <th style="width:35%">기준대학명 <span style="font-weight:400;opacity:.6">(합산 대표명)</span></th>
-              <th style="width:20%">비고</th>
-              <th style="width:10%"></th>
+              <th style="width:24%">대학명 <span style="font-weight:400;opacity:.6">(학교 필드값)</span></th>
+              <th style="width:24%">기준대학명 <span style="font-weight:400;opacity:.6">(합산 대표명)</span></th>
+              <th style="width:9%">지역</th>
+              <th style="width:10%">설립구분</th>
+              <th style="width:11%">대학구분</th>
+              <th style="width:14%">비고</th>
+              <th style="width:8%"></th>
             </tr>
           </thead>
           <tbody id="table-body"></tbody>
@@ -1015,17 +1018,32 @@ window.addEventListener('beforeunload', e => {
 function renderMappingTable(rows) {
   const tbody = document.getElementById('table-body');
   tbody.innerHTML = '';
-  for (const row of rows) appendRow(row['대학명']||'', row['기준대학명']||'', row['비고']||'');
+  for (const row of rows)
+    appendRow(row['대학명']||'', row['기준대학명']||'',
+              row['지역']||'', row['설립구분']||'', row['대학구분']||'', row['비고']||'');
   updateCount();
   showEmptyHint();
 }
 
-function appendRow(univName='', baseName='', note='') {
+const _설립구분_옵션 = ['', '국공립', '사립', '특별법'];
+const _대학구분_옵션 = ['', '대학교', '산업대학', '교육대학', '기능대학', '사이버대학(대학)', '방송통신대학', '기타'];
+
+function _makeSelect(옵션목록, 현재값) {
+  const opts = 옵션목록.map(v =>
+    `<option value="${esc(v)}"${v === 현재값 ? ' selected' : ''}>${v || '(없음)'}</option>`
+  ).join('');
+  return `<select class="cell-input" style="padding:2px 4px;" onchange="setDirty()">${opts}</select>`;
+}
+
+function appendRow(univName='', baseName='', 지역='', 설립구분='', 대학구분='', note='') {
   const tbody = document.getElementById('table-body');
   const tr = document.createElement('tr');
   tr.innerHTML = `
     <td><input class="cell-input" type="text" value="${esc(univName)}" placeholder="예: 연세대학교(미래캠퍼스)" oninput="setDirty()"></td>
     <td><input class="cell-input" type="text" value="${esc(baseName)}" placeholder="예: 연세대학교" oninput="setDirty()"></td>
+    <td><input class="cell-input" type="text" value="${esc(지역)}" placeholder="서울" style="width:60px;" oninput="setDirty()"></td>
+    <td>${_makeSelect(_설립구분_옵션, 설립구분)}</td>
+    <td>${_makeSelect(_대학구분_옵션, 대학구분)}</td>
     <td><input class="cell-input" type="text" value="${esc(note)}" placeholder="교명변경(2023)" oninput="setDirty()"></td>
     <td class="td-actions"><button class="btn btn-danger btn-sm" onclick="deleteRow(this)">삭제</button></td>
   `;
@@ -1068,13 +1086,20 @@ function collectMappingData() {
   const rows = document.getElementById('table-body').querySelectorAll('tr');
   const data = [];
   for (const tr of rows) {
-    const inputs = tr.querySelectorAll('input');
+    const inputs   = tr.querySelectorAll('input');
+    const selects  = tr.querySelectorAll('select');
     const univName = inputs[0].value.trim();
     const baseName = inputs[1].value.trim();
-    const note     = inputs[2].value.trim();
+    const 지역     = inputs[2].value.trim();
+    const 설립구분 = selects[0]?.value.trim() || '';
+    const 대학구분 = selects[1]?.value.trim() || '';
+    const note     = inputs[3].value.trim();
     if (!univName || !baseName) continue;
     const entry = { '대학명': univName, '기준대학명': baseName };
-    if (note) entry['비고'] = note;
+    if (지역)     entry['지역']     = 지역;
+    if (설립구분) entry['설립구분'] = 설립구분;
+    if (대학구분) entry['대학구분'] = 대학구분;
+    if (note)     entry['비고']     = note;
     data.push(entry);
   }
   return data;
@@ -2579,7 +2604,10 @@ const CacheManager = {
         const trimmed = suffixMatch[1].trim();
         if (baseUnivMap.has(trimmed)) raw = trimmed;
       }
-      const key = baseUnivMap.get(raw)?.['기준대학명'] || raw;
+      // 기준대학.json 화이트리스트 — 미등록 대학은 캐시에서 제외
+      const baseEntry = baseUnivMap.get(raw);
+      if (!baseEntry) continue;
+      const key = baseEntry['기준대학명'];
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(row);
     }
@@ -2606,11 +2634,13 @@ const CacheManager = {
         const nums = univRows.map(r => r[field]).filter(v => typeof v === 'number' && !isNaN(v));
         summed[field] = nums.length ? nums.reduce((a, b) => a + b, 0) : first[field];
       }
-      const 지역 = mainRow['지역'] || '미확인';
+      // 메타: 기준대학.json 자기매핑 항목 우선, raw 데이터 fallback
+      const masterEntry = baseUnivMap.get(univName);
+      const 지역 = masterEntry?.지역 || mainRow['지역'] || '미확인';
       summed['지역'] = 지역;
-      const _rawSetup = mainRow['설립구분'] || '미확인';
+      const _rawSetup = masterEntry?.설립구분 || mainRow['설립구분'] || '미확인';
       summed['설립구분'] = ['국립', '공립', '국립대법인'].includes(_rawSetup) ? '국공립' : _rawSetup;
-      summed['대학구분'] = mainRow['학교종류'] || mainRow['대학구분'] || '미확인';
+      summed['대학구분'] = masterEntry?.대학구분 || mainRow['학교종류'] || mainRow['대학구분'] || '미확인';
       summed['수도권여부'] = METRO.has(지역) ? 'Y' : 'N';
 
       // exclude_rows 규칙별 필터 적용 후 합산 — _applyCalc에서 우선 사용
@@ -2723,14 +2753,15 @@ const CacheManager = {
         }
       }
       const rawMap = new Map();
-      // V1: 기준대학.json에 있어야 하는데 공백 차이 등으로 매칭 실패한 near-miss만 수집
-      // (기준대학.json 자체에 없는 이름은 정상 — 변경/합산 없는 대학은 등록 안 됨)
-      const baseKeyNormMap = new Map(); // 공백제거 소문자 → 원래 key
+      // V1: 미매칭 대학명 수집 — near-miss(공백 차이)와 완전 미등록 분리
+      const baseKeyNormMap = new Map(); // 공백제거 → 원래 key
       for (const key of baseUnivMap.keys()) baseKeyNormMap.set(key.replace(/\s/g, ''), key);
-      const unmatchedNames = new Map(); // source → Array<{raw, suggested}>
+      const nearMissNames = new Map();  // source → [{raw, suggested}]
+      const fullyMissNames = new Map(); // source → [raw]  (캐시에서 제외되는 대학)
 
       for (const source of allSources) {
-        unmatchedNames.set(source, []);
+        nearMissNames.set(source, []);
+        fullyMissNames.set(source, []);
         const filesToLoad = splitFilesMap.get(source) || [source];
         let rows = [];
         for (const fileKey of filesToLoad) {
@@ -2742,21 +2773,21 @@ const CacheManager = {
         }
         if (!rows.length) continue;
 
-        // V1: 정확한 매칭 실패 + 공백 제거 후 매칭 성공 = near-miss (수정 필요)
+        // V1: 정확한 매칭 실패한 대학명 분류
         const seenRaw = new Set();
         for (const row of rows) {
           let raw = (row['대학명'] || row['학교'] || row['학교명'] || '').trim();
           if (!raw || seenRaw.has(raw)) continue;
-          // suffix 제거 후 매칭 가능하면 near-miss가 아님 (정상 처리됨)
-          if (baseUnivMap.has(raw)) continue;
+          if (baseUnivMap.has(raw)) continue; // 정확 매칭 — 정상
           const suffixMatch = raw.match(/^(.+?)\s+_\S/);
           if (suffixMatch) {
             const trimmed = suffixMatch[1].trim();
-            if (baseUnivMap.has(trimmed)) continue; // suffix 제거 후 매칭 성공 — 정상
+            if (baseUnivMap.has(trimmed)) continue; // suffix 제거 후 매칭 — 정상
           }
           seenRaw.add(raw);
           const suggested = baseKeyNormMap.get(raw.replace(/\s/g, ''));
-          if (suggested) unmatchedNames.get(source).push({ raw, suggested });
+          if (suggested) nearMissNames.get(source).push({ raw, suggested });
+          else           fullyMissNames.get(source).push(raw); // 완전 미등록 → 캐시 제외
         }
 
         const getYear = r => parseInt(r['기준연도'] ?? r['기준년도'] ?? r['연도'], 10);
@@ -2886,7 +2917,7 @@ const CacheManager = {
         }
       }
 
-      this._renderValidationReport({ unmatchedNames, tempJoinMiss, crossJoinMiss, zeroFields, valid });
+      this._renderValidationReport({ nearMissNames, fullyMissNames, tempJoinMiss, crossJoinMiss, zeroFields, valid });
     } catch (e) {
       document.getElementById('cache-validation-summary').textContent = `❌ 오류: ${e.message}`;
     } finally {
@@ -2895,12 +2926,14 @@ const CacheManager = {
     }
   },
 
-  _renderValidationReport({ unmatchedNames, tempJoinMiss, crossJoinMiss, zeroFields, valid }) {
+  _renderValidationReport({ nearMissNames, fullyMissNames, tempJoinMiss, crossJoinMiss, zeroFields, valid }) {
     this._lastZeroFields = zeroFields; // CSV 다운로드용 보관
     const e = esc;
 
     // 건수 집계
-    const v1Count = [...unmatchedNames.values()].reduce((a, arr) => a + arr.length, 0);
+    const v1aCount = [...nearMissNames.values()].reduce((a, arr) => a + arr.length, 0);
+    const v1bCount = [...fullyMissNames.values()].reduce((a, arr) => a + arr.length, 0);
+    const v1Count  = v1aCount + v1bCount;
     const v2Count = Object.values(tempJoinMiss).reduce((a, arr) => a + arr.length, 0);
     const v3Count = crossJoinMiss.length;
     const v4Count = Object.values(zeroFields).reduce((a, arr) => a + arr.length, 0);
@@ -2912,7 +2945,8 @@ const CacheManager = {
       summaryEl.innerHTML = '<span style="color:#16a34a;font-weight:600;">✅ 이슈 없음 — 모든 join이 정상입니다.</span>';
     } else {
       const parts = [];
-      if (v1Count) parts.push(`V1: 대학명 미매칭 ${v1Count}건`);
+      if (v1aCount) parts.push(`V1-A: near-miss ${v1aCount}건`);
+      if (v1bCount) parts.push(`V1-B: 완전 미등록 ${v1bCount}건 (캐시 제외)`);
       if (v2Count) parts.push(`V2: 1단계 join 실패 ${v2Count}건`);
       if (v3Count) parts.push(`V3: 공시연도 불일치 ${v3Count}건`);
       if (v4Count) parts.push(`V4: 산식 필드 누락 ${v4Count}건`);
@@ -2928,19 +2962,39 @@ const CacheManager = {
 
     let html = '';
 
-    // V1
-    const v1Open = v1Count > 0 ? ' open' : '';
-    const v1Icon = v1Count > 0 ? '<span style="color:#ef4444;">❌</span>' : '<span style="color:#16a34a;">✅</span>';
-    html += `<details${v1Open} style="${sectionStyle}"><summary style="${summaryStyle}">${v1Icon} [V1] 기준대학 near-miss (공백 차이로 매칭 누락) <span style="color:#ef4444;">${v1Count > 0 ? v1Count+'건' : ''}</span></summary><div style="${bodyStyle}">`;
-    if (v1Count === 0) {
-      html += '<p style="color:#16a34a;margin:6px 0;">기준대학.json 매핑이 누락된 near-miss 없음.</p>';
+    // V1-A: Near-miss (공백 차이)
+    const v1aOpen = v1aCount > 0 ? ' open' : '';
+    const v1aIcon = v1aCount > 0 ? '<span style="color:#ef4444;">❌</span>' : '<span style="color:#16a34a;">✅</span>';
+    html += `<details${v1aOpen} style="${sectionStyle}"><summary style="${summaryStyle}">${v1aIcon} [V1-A] 기준대학 near-miss (공백 차이로 매칭 누락) <span style="color:#ef4444;">${v1aCount > 0 ? v1aCount+'건' : ''}</span></summary><div style="${bodyStyle}">`;
+    if (v1aCount === 0) {
+      html += '<p style="color:#16a34a;margin:6px 0;">공백 차이로 인한 near-miss 없음.</p>';
     } else {
       html += '<p style="font-size:12px;color:var(--text-muted);margin:6px 0 8px;">기준대학.json에 등록된 이름과 공백 차이로 매칭이 누락된 케이스입니다. 소스 파일 재정규화 또는 기준대학.json에 별칭 추가가 필요합니다.</p>';
       html += `<table style="${tableStyle}"><thead><tr><th style="${thStyle}">소스 파일</th><th style="${thStyle}">원시 대학명 (raw)</th><th style="${thStyle}">기준대학.json 예상 키</th></tr></thead><tbody>`;
-      for (const [source, misses] of unmatchedNames) {
+      for (const [source, misses] of nearMissNames) {
         if (!misses.length) continue;
         for (const { raw, suggested } of misses) {
-          html += `<tr><td style="${tdStyle}">${e(source)}</td><td style="${tdStyle}">${e(raw)}</td><td style="${tdStyle}color:#d97706;">${e(suggested)}</td></tr>`;
+          html += `<tr><td style="${tdStyle}">${e(source)}</td><td style="${tdStyle}">${e(raw)}</td><td style="${tdStyle};color:#d97706;">${e(suggested)}</td></tr>`;
+        }
+      }
+      html += '</tbody></table>';
+    }
+    html += '</div></details>';
+
+    // V1-B: 완전 미등록 (캐시에서 제외됨)
+    const v1bOpen = v1bCount > 0 ? ' open' : '';
+    const v1bIcon = v1bCount > 0 ? '<span style="color:#ef4444;">❌</span>' : '<span style="color:#16a34a;">✅</span>';
+    html += `<details${v1bOpen} style="${sectionStyle}"><summary style="${summaryStyle}">${v1bIcon} [V1-B] 완전 미등록 대학 (캐시 제외됨) <span style="color:#ef4444;">${v1bCount > 0 ? v1bCount+'건' : ''}</span></summary><div style="${bodyStyle}">`;
+    if (v1bCount === 0) {
+      html += '<p style="color:#16a34a;margin:6px 0;">미등록 대학 없음 — 모든 대학이 기준대학.json에 등록되어 있습니다.</p>';
+    } else {
+      html += '<p style="font-size:12px;color:#ef4444;font-weight:600;margin:6px 0 4px;">캐시 생성 시 아래 대학의 데이터는 제외됩니다.</p>';
+      html += '<p style="font-size:12px;color:var(--text-muted);margin:0 0 8px;">기준대학 매핑 탭에서 해당 대학을 추가한 뒤 캐시를 재생성하세요.</p>';
+      html += `<table style="${tableStyle}"><thead><tr><th style="${thStyle}">소스 파일</th><th style="${thStyle}">미등록 대학명</th></tr></thead><tbody>`;
+      for (const [source, names] of fullyMissNames) {
+        if (!names.length) continue;
+        for (const raw of names) {
+          html += `<tr><td style="${tdStyle}">${e(source)}</td><td style="${tdStyle};color:#ef4444;font-weight:500;">${e(raw)}</td></tr>`;
         }
       }
       html += '</tbody></table>';

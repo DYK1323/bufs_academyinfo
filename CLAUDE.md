@@ -21,6 +21,9 @@ python normalize_gui.py
 # 대학개황 CSV → data/대학기본정보.json 변환
 python convert_university_info.py [CSV파일명]
 
+# 기준대학목록 Excel → data/기준대학.json 변환 (연 1회 또는 신설·폐교 발생 시)
+python convert_기준대학.py [기준대학목록_v2.xlsx]
+
 # 공시연도 소급 삽입 (마이그레이션, 일회성)
 python migrate_pub_year.py
 ```
@@ -77,7 +80,7 @@ python migrate_pub_year.py
 │       ├── trend.js               # TrendView (추이 분석) + BumpView (순위 변동)
 │       └── benchmark.js           # BenchmarkView + scatter
 ├── data/
-│   ├── 기준대학.json              # 캠퍼스 합산 기준 + 대학 속성 (admin.html에서 편집)
+│   ├── 기준대학.json              # 분석 대상 대학 화이트리스트 (convert_기준대학.py로 생성, admin.html에서 보완 편집)
 │   ├── 대학기본정보.json          # 전국 대학 기본정보 (convert_university_info.py로 생성)
 │   ├── 학과분류.json              # 학과 계열 대/중/소 분류 (관리자 직접 관리)
 │   ├── manifest.json              # 분석 페이지 공시항목 목록 (indicator·source·columns 정의)
@@ -188,7 +191,15 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 - 대학알리미에서 받은 대학개황정보 CSV → `data/대학기본정보.json` 변환 (연 1회 실행)
 - EUC-KR 인코딩 CSV 입력, 본교 기준으로 지역·설립구분·대학구분 추출 (캠퍼스 중복 제거)
 - `설립구분` 정규화: `'국립'`·`'공립'`·`'국립대법인'` → `'국공립'` (특별법·기타는 그대로)
-- `data/기준대학.json`과 다름: `기준대학.json`은 캠퍼스 합산 매핑용, `대학기본정보.json`은 전국 대학 기본 속성
+- `data/기준대학.json`과 다름: `기준대학.json`은 캠퍼스 합산 매핑+화이트리스트용, `대학기본정보.json`은 전국 대학 기본 속성
+
+### convert_기준대학.py
+
+- `기준대학목록_v2.xlsx` → `data/기준대학.json` 변환 (연 1회 또는 신설·폐교 발생 시)
+- `기준대학여부='기준'` 행에서 지역·설립구분·대학구분 추출, 기준대학명 자기매핑 항목 생성
+- 별칭·구 교명 행: 대학명→기준대학명 매핑만 출력 (메타 없음)
+- 기존 `기준대학.json`의 통폐합·구 교명 이력 중 Excel에 없는 항목 자동 보존
+- 설립구분 정규화: 국립/공립/국립대법인/특별법국립 → `국공립`, 특별법법인 → `특별법`
 
 ### download_academyinfo.py (Playwright)
 
@@ -385,19 +396,27 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 
 ### 기준대학.json
 
+분석 대상 대학 **화이트리스트** + 캠퍼스 합산 매핑. `convert_기준대학.py`로 생성, admin.html 기준대학 매핑 탭에서 보완 편집.
+
+**등록 안 된 대학명은 캐시 생성 시 제외됨** — V1-B 검증에서 경고.
+
+항목 유형 두 가지:
+
+**① 기준 항목 (대학명 = 기준대학명, 메타 포함)**
 ```json
-[
-  {
-    "대학명": "연세대학교(미래캠퍼스)",
-    "기준대학명": "연세대학교",
-    "설립구분": "사립",
-    "대학구분": "4년제",
-    "지역": "강원",
-    "수도권여부": "N",
-    "비고": ""
-  }
-]
+{"대학명": "가야대학교", "기준대학명": "가야대학교",
+ "지역": "경남", "설립구분": "사립", "대학구분": "대학교"}
 ```
+
+**② 별칭·구 교명 항목 (메타 없음)**
+```json
+{"대학명": "가야대학교(김해)", "기준대학명": "가야대학교"}
+{"대학명": "경상대학교",       "기준대학명": "경상국립대학교", "비고": "2021 / 통폐합"}
+```
+
+- `수도권여부`: JSON에 저장하지 않음 — `_aggregateRaw()`에서 METRO Set으로 자동 계산
+- `설립구분` 저장값: 국공립 / 사립 / 특별법 (raw 원값은 스크립트에서 정규화)
+- 매년 신설·폐교·이름변경 시 Excel 업데이트 후 `convert_기준대학.py` 재실행
 
 ---
 
