@@ -2589,8 +2589,9 @@ const CacheManager = {
             });
           }
           const target = mergedMap.get(mapKey);
-          if (target[item.indicator] === undefined && withCalc[item.indicator] != null)
-            target[item.indicator] = withCalc[item.indicator];
+          const val = withCalc[item.indicator];
+          if (target[item.indicator] === undefined && (val != null || calcRules[item.indicator]?.left_join))
+            target[item.indicator] = val ?? 0;
         }
         this._log(`  → 완료`);
       }
