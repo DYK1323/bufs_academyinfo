@@ -416,7 +416,7 @@
       "등록금수입(사립대)"
     ],
     "multiply": 100,
-    "visible": false,
+    "visible": true,
     "unit": "%",
     "decimal_places": 1,
     "sort_asc": false
