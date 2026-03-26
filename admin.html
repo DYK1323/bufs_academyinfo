@@ -2518,6 +2518,19 @@ const CacheManager = {
         const leftJoin = !!(calcRules[item.indicator]?.left_join) && item.sources.length > 1;
         const unionSources = !!(item.union_sources); // 소스 간 대학이 겹치지 않을 때 모두 primary
         const primarySource = leftJoin ? item.sources[1] : item.sources[0];
+          let numSrcYearMap = null;
+            if (leftJoin) {
+              numSrcYearMap = new Map();
+              const numAgg = rawMap.get(item.sources[0]);
+              if (numAgg) {
+                for (const [baseYear, aggRows] of numAgg) {
+                  if (aggRows.length > 0 && aggRows[0].공시연도 != null) {
+                    numSrcYearMap.set(baseYear, aggRows[0].공시연도);
+                  }
+                }
+              }
+            }
+
         const tempMap = new Map(); // 대학+기준연도 → row
         // primary 소스를 먼저 순회해야 non-primary가 기존 key에 데이터를 추가할 수 있음
         const orderedSources = [primarySource, ...item.sources.filter(s => s !== primarySource)];
@@ -2533,7 +2546,7 @@ const CacheManager = {
                 if (row.공시연도 == null) throw new Error(`공시연도 미설정: 대학="${row.기준대학명}", 기준연도=${baseYear}`);
                 tempMap.set(tempKey, {
                   기준대학명: row.기준대학명, 기준연도: baseYear,
-                  공시연도: row.공시연도,
+                  공시연도: numSrcYearMap?.get(baseYear) ?? row.공시연도,  // ← 수정
                   지역: row.지역, 설립구분: row.설립구분,
                   대학구분: row.대학구분, 수도권여부: row.수도권여부,
                 });
