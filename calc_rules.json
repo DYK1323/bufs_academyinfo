@@ -416,6 +416,16 @@
       "등록금수입(사립대)"
     ],
     "multiply": 100,
+    "visible": false,
+    "unit": "%",
+    "decimal_places": 1,
+    "sort_asc": false
+  },
+  "교육비환원율": {
+    "label": "교육비환원율",
+    "coalesce": {
+      "사립": "교육비환원율(사립대)"
+    },
     "visible": true,
     "unit": "%",
     "decimal_places": 1,

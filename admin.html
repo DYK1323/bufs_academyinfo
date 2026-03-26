@@ -202,7 +202,8 @@ select.cell-input { appearance: none; -webkit-appearance: none; cursor: pointer;
 .rule-type-badge.std     { background: #dbeafe; color: #1d4ed8; }
 .rule-type-badge.min     { background: #fce7f3; color: #9d174d; }
 .rule-type-badge.sum     { background: #dcfce7; color: #166534; }
-.rule-type-badge.rolling { background: #fef3c7; color: #92400e; }
+.rule-type-badge.rolling  { background: #fef3c7; color: #92400e; }
+.rule-type-badge.coalesce { background: #f0fdf4; color: #166534; }
 .rule-card-body { display: none; border-top: 1px solid #f1f5f9; }
 .rule-card.open .rule-card-body { display: block; }
 .rule-card.open .rule-card-header { background: var(--primary-light); }
@@ -1310,11 +1311,12 @@ function renderCalcRules(rules) {
 }
 
 function buildRuleCard(key, rule) {
+  const isCoalesce = !!rule.coalesce;
   const isRolling = !!rule.rolling_avg;
   const isMin = !!rule.min_of;
-  const isSum = !isMin && !isRolling && String(rule.denominator_base) === '1' && (rule.multiply ?? 1) <= 1;
-  const typeLabel = isRolling ? 'N년평균' : (isMin ? 'MIN' : (isSum ? '합계' : '비율'));
-  const typeBadgeClass = isRolling ? 'rolling' : (isMin ? 'min' : (isSum ? 'sum' : 'std'));
+  const isSum = !isCoalesce && !isMin && !isRolling && String(rule.denominator_base) === '1' && (rule.multiply ?? 1) <= 1;
+  const typeLabel = isCoalesce ? 'Coalesce' : (isRolling ? 'N년평균' : (isMin ? 'MIN' : (isSum ? '합계' : '비율')));
+  const typeBadgeClass = isCoalesce ? 'coalesce' : (isRolling ? 'rolling' : (isMin ? 'min' : (isSum ? 'sum' : 'std')));
 
   const card = document.createElement('div');
   card.className = 'rule-card';
@@ -1394,10 +1396,10 @@ function buildRuleCard(key, rule) {
   body.appendChild(displayRow);
 
   // 산식 빌더
-  body.appendChild(buildFormulaBuilder(card, rule, isMin, isSum, isRolling));
+  body.appendChild(buildFormulaBuilder(card, rule, isMin, isSum, isRolling, isCoalesce));
 
-  // 행 제외 (MIN·N년평균 제외)
-  if (!isMin && !isRolling) {
+  // 행 제외 (MIN·N년평균·Coalesce 제외)
+  if (!isMin && !isRolling && !isCoalesce) {
     const exclWrap = document.createElement('div');
     exclWrap.style.cssText = 'padding: 0 14px;';
     exclWrap.appendChild(buildExclSection(rule.exclude_rows));
@@ -1420,8 +1422,8 @@ function buildRuleCard(key, rule) {
 }
 
 
-function buildFormulaBuilder(card, rule, isMin, isSum, isRolling) {
-  const type = isRolling ? 'rolling' : (isMin ? 'min' : (isSum ? 'sum' : 'ratio'));
+function buildFormulaBuilder(card, rule, isMin, isSum, isRolling, isCoalesce) {
+  const type = isCoalesce ? 'coalesce' : (isRolling ? 'rolling' : (isMin ? 'min' : (isSum ? 'sum' : 'ratio')));
   const radioName = 'fb-type-' + Math.random().toString(36).slice(2, 8);
   const mulName   = 'fb-mul-'  + Math.random().toString(36).slice(2, 8);
 
@@ -1436,7 +1438,8 @@ function buildFormulaBuilder(card, rule, isMin, isSum, isRolling) {
     <label class="fb-type-radio-label"><input type="radio" name="${radioName}" class="fb-type-radio" value="ratio"   ${type === 'ratio'   ? 'checked' : ''}>비율 (분자÷분모)</label>
     <label class="fb-type-radio-label"><input type="radio" name="${radioName}" class="fb-type-radio" value="sum"     ${type === 'sum'     ? 'checked' : ''}>합계 (건수)</label>
     <label class="fb-type-radio-label"><input type="radio" name="${radioName}" class="fb-type-radio" value="min"     ${type === 'min'     ? 'checked' : ''}>MIN (최솟값)</label>
-    <label class="fb-type-radio-label"><input type="radio" name="${radioName}" class="fb-type-radio" value="rolling" ${type === 'rolling' ? 'checked' : ''}>N년 평균</label>
+    <label class="fb-type-radio-label"><input type="radio" name="${radioName}" class="fb-type-radio" value="rolling"  ${type === 'rolling'  ? 'checked' : ''}>N년 평균</label>
+    <label class="fb-type-radio-label"><input type="radio" name="${radioName}" class="fb-type-radio" value="coalesce" ${type === 'coalesce' ? 'checked' : ''}>Coalesce (설립구분별 지표 선택)</label>
   `;
   panel.appendChild(typeRow);
 
@@ -1623,16 +1626,40 @@ function buildFormulaBuilder(card, rule, isMin, isSum, isRolling) {
   rollingArea.appendChild(multiplyRow);
   panel.appendChild(rollingArea);
 
+  // ── Coalesce 영역
+  const coalesceArea = document.createElement('div');
+  coalesceArea.className = type !== 'coalesce' ? 'fb-hidden' : '';
+  const coalesceTitleLabel = document.createElement('div');
+  coalesceTitleLabel.className = 'fb-area-label';
+  coalesceTitleLabel.textContent = '설립구분 → 지표명 매핑';
+  const coalesceHint = document.createElement('div');
+  coalesceHint.style.cssText = 'font-size:11px;color:#64748b;margin-bottom:8px;';
+  coalesceHint.textContent = '대학의 설립구분에 따라 사용할 계산 지표를 지정합니다. 각 대학에서 해당 지표값을 그대로 가져옵니다.';
+  const coalesceRowsWrap = document.createElement('div');
+  coalesceRowsWrap.className = 'coalesce-rows-wrap';
+  Object.entries(rule.coalesce || {}).forEach(([설립, 지표]) => coalesceRowsWrap.appendChild(makeCoalesceRow(설립, 지표)));
+  const addCoalesceBtn = document.createElement('button');
+  addCoalesceBtn.className = 'btn btn-secondary btn-sm';
+  addCoalesceBtn.style.marginBottom = '10px';
+  addCoalesceBtn.textContent = '+ 매핑 추가';
+  addCoalesceBtn.addEventListener('click', () => { coalesceRowsWrap.appendChild(makeCoalesceRow('', '')); setDirty(); });
+  coalesceArea.appendChild(coalesceTitleLabel);
+  coalesceArea.appendChild(coalesceHint);
+  coalesceArea.appendChild(coalesceRowsWrap);
+  coalesceArea.appendChild(addCoalesceBtn);
+  panel.appendChild(coalesceArea);
+
   // 유형 라디오 변경 시 뷰 전환
   typeRow.querySelectorAll('.fb-type-radio').forEach(r => {
     r.addEventListener('change', () => {
-      ratioSumArea.classList.toggle('fb-hidden', r.value === 'min' || r.value === 'rolling');
+      ratioSumArea.classList.toggle('fb-hidden', r.value === 'min' || r.value === 'rolling' || r.value === 'coalesce');
       denArea.classList.toggle('fb-hidden', r.value !== 'ratio');
       mulArea.classList.toggle('fb-hidden', r.value !== 'ratio');
       minArea.classList.toggle('fb-hidden', r.value !== 'min');
       rollingArea.classList.toggle('fb-hidden', r.value !== 'rolling');
+      coalesceArea.classList.toggle('fb-hidden', r.value !== 'coalesce');
       if (r.value === 'min') setActiveChipZone(minZone);
-      else if (r.value !== 'rolling') setActiveChipZone(numZone);
+      else if (r.value !== 'rolling' && r.value !== 'coalesce') setActiveChipZone(numZone);
     });
   });
 
@@ -1674,6 +1701,38 @@ function makeExclRow(field, vals) {
   return div;
 }
 
+function makeCoalesceRow(설립구분, 지표명) {
+  const div = document.createElement('div');
+  div.className = 'coalesce-row';
+  div.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;align-items:center;';
+  const sel = document.createElement('select');
+  sel.className = 'form-input coalesce-설립구분';
+  sel.style.width = '120px';
+  sel.addEventListener('change', setDirty);
+  ['', '사립', '국공립', '특별법'].forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v; opt.textContent = v || '설립구분 선택';
+    if (v === 설립구분) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  const arrow = document.createElement('span');
+  arrow.textContent = '→';
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.className = 'form-input coalesce-지표명';
+  inp.setAttribute('data-fac', 'all');
+  inp.style.flex = '1';
+  inp.placeholder = '지표명 (calc_rules 키)';
+  inp.value = 지표명;
+  inp.addEventListener('input', setDirty);
+  const rmBtn = document.createElement('button');
+  rmBtn.className = 'btn btn-danger btn-sm';
+  rmBtn.textContent = '−';
+  rmBtn.addEventListener('click', () => { div.remove(); setDirty(); });
+  div.appendChild(sel); div.appendChild(arrow); div.appendChild(inp); div.appendChild(rmBtn);
+  return div;
+}
+
 function toggleCard(header) {
   const card = header.closest('.rule-card, .manifest-card');
   card.classList.toggle('open');
@@ -1695,7 +1754,16 @@ function applyRule(btn) {
   const type = typeRadio?.value || 'ratio';
 
   let rule;
-  if (type === 'rolling') {
+  if (type === 'coalesce') {
+    const coalesceMap = {};
+    card.querySelectorAll('.coalesce-row').forEach(row => {
+      const 설립 = row.querySelector('.coalesce-설립구분').value;
+      const 지표 = row.querySelector('.coalesce-지표명').value.trim();
+      if (설립 && 지표) coalesceMap[설립] = 지표;
+    });
+    if (!Object.keys(coalesceMap).length) { alert('설립구분 → 지표명 매핑을 하나 이상 추가하세요.'); return; }
+    rule = { label, coalesce: coalesceMap };
+  } else if (type === 'rolling') {
     const src = card.querySelector('.rule-field-rolling-src')?.value.trim() || '';
     const years = parseInt(card.querySelector('.rule-field-rolling-years')?.value) || 5;
     const rollingMul = parseFloat(card.querySelector('.rule-field-rolling-multiply')?.value);
@@ -1761,10 +1829,10 @@ function applyRule(btn) {
   }
   card.querySelector('.rule-label').textContent = label;
 
-  const isRolling = type === 'rolling', isMin = type === 'min', isSum = type === 'sum';
+  const isCoalesce = type === 'coalesce', isRolling = type === 'rolling', isMin = type === 'min', isSum = type === 'sum';
   const badge = card.querySelector('.rule-type-badge');
-  badge.textContent = isRolling ? 'N년평균' : (isMin ? 'MIN' : (isSum ? '합계' : '비율'));
-  badge.className = 'rule-type-badge ' + (isRolling ? 'rolling' : (isMin ? 'min' : (isSum ? 'sum' : 'std')));
+  badge.textContent = isCoalesce ? 'Coalesce' : (isRolling ? 'N년평균' : (isMin ? 'MIN' : (isSum ? '합계' : '비율')));
+  badge.className = 'rule-type-badge ' + (isCoalesce ? 'coalesce' : (isRolling ? 'rolling' : (isMin ? 'min' : (isSum ? 'sum' : 'std'))));
 
   setDirty();
   refreshDatalistOptions();
@@ -1809,6 +1877,10 @@ function addCalcRule() {
           <span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700;">N년평균</span>
           과거 N년 rolling 평균
         </button>
+        <button class="btn btn-secondary" style="height:44px;justify-content:flex-start;gap:10px;" id="_add-coalesce">
+          <span style="background:#f0fdf4;color:#166534;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700;">Coalesce</span>
+          설립구분별 지표 선택 합산
+        </button>
       </div>
       <button class="btn btn-secondary btn-sm" id="_add-cancel" style="margin-top:14px;width:100%;justify-content:center;">취소</button>
     </div>
@@ -1822,8 +1894,9 @@ function addCalcRule() {
     let rule;
     if (type === 'ratio')       rule = { label: '', numerator: [], denominator_base: [], multiply: 100 };
     else if (type === 'sum')    rule = { label: '', numerator: [], denominator_base: '1', multiply: 1 };
-    else if (type === 'rolling') rule = { label: '', rolling_avg: '', rolling_years: 5, multiply: 1 };
-    else                        rule = { label: '', min_of: [] };
+    else if (type === 'rolling')  rule = { label: '', rolling_avg: '', rolling_years: 5, multiply: 1 };
+    else if (type === 'coalesce') rule = { label: '', coalesce: {} };
+    else                          rule = { label: '', min_of: [] };
     calcData[key] = rule;
     const card = buildRuleCard(key, rule);
     card.classList.add('open');
@@ -1836,7 +1909,8 @@ function addCalcRule() {
   overlay.querySelector('#_add-ratio').addEventListener('click',   () => doAdd('ratio'));
   overlay.querySelector('#_add-sum').addEventListener('click',    () => doAdd('sum'));
   overlay.querySelector('#_add-min').addEventListener('click',    () => doAdd('min'));
-  overlay.querySelector('#_add-rolling').addEventListener('click', () => doAdd('rolling'));
+  overlay.querySelector('#_add-rolling').addEventListener('click',   () => doAdd('rolling'));
+  overlay.querySelector('#_add-coalesce').addEventListener('click', () => doAdd('coalesce'));
   overlay.querySelector('#_add-cancel').addEventListener('click', close);
   overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
 }
@@ -2478,6 +2552,19 @@ const CacheManager = {
         this._log(`  → 완료`);
       }
 
+      // Coalesce 후처리: 설립구분에 따라 지표값 선택 (다른 indicator 계산 완료 후 적용)
+      const coalesceRules = Object.entries(calcRules).filter(([, r]) => r.coalesce);
+      if (coalesceRules.length > 0) {
+        this._log(`\nCoalesce 후처리 (${coalesceRules.length}개 규칙)…`);
+        for (const entry of mergedMap.values()) {
+          const 설립 = entry['설립구분'];
+          for (const [key, rule] of coalesceRules) {
+            const sourceKey = rule.coalesce[설립];
+            entry[key] = sourceKey != null ? (entry[sourceKey] ?? null) : null;
+          }
+        }
+      }
+
       const cacheData = [...mergedMap.values()].sort((a, b) => {
         if (a.공시연도 !== b.공시연도) return b.공시연도 - a.공시연도;
         return a.기준대학명.localeCompare(b.기준대학명, 'ko');
@@ -2939,7 +3026,7 @@ const CacheManager = {
       const numSrcPubYears = new Map(); // indicator → Set<공시연도>
       for (const item of valid) {
         const rule = calcRules[item.indicator];
-        if (!rule || rule.min_of || rule.rolling_avg) continue;
+        if (!rule || rule.min_of || rule.rolling_avg || rule.coalesce) continue;
         const numAgg = rawMap.get(item.sources[0]);
         const availYears = new Set();
         if (numAgg) for (const rows of numAgg.values())
@@ -2955,7 +3042,7 @@ const CacheManager = {
       const zeroFields = {}; // indicator → [{univName, pubYear, field, role}]
       for (const item of valid) {
         const rule = calcRules[item.indicator];
-        if (!rule || rule.min_of || rule.rolling_avg) continue;
+        if (!rule || rule.min_of || rule.rolling_avg || rule.coalesce) continue;
         zeroFields[item.indicator] = [];
         const availYears = numSrcPubYears.get(item.indicator);
         for (const [mapKey, rawRow] of mergedRaw) {
