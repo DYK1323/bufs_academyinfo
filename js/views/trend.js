@@ -38,7 +38,10 @@ const TrendView = {
     const cache = AppState.raw.benchmarkCache;
     const rankKey = AppState.computed.rankKey;
     if (!cache?.length || !rankKey) return;
-    const years = [...new Set(cache.filter(r => r[rankKey] != null).map(r => r.공시연도))].sort((a, b) => a - b);
+    const yr = AppState.raw.currentManifestItem?.year_range;
+    let years = [...new Set(cache.filter(r => r[rankKey] != null).map(r => r.공시연도))].sort((a, b) => a - b);
+    if (yr?.min) years = years.filter(y => y >= yr.min);
+    if (yr?.max) years = years.filter(y => y <= yr.max);
     const allYears = new Map();
     for (const year of years) {
       allYears.set(year, cache.filter(r => (r.공시연도) === year).map(r => ({ ...r, _isOurs: r.기준대학명 === OUR_UNIV })));
