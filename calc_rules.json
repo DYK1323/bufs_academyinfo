@@ -426,7 +426,6 @@
     "coalesce": {
       "사립": "교육비환원율(사립대)"
     },
-    "visible": true,
     "unit": "%",
     "decimal_places": 1,
     "sort_asc": false
