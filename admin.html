@@ -2488,6 +2488,8 @@ const CacheManager = {
       //    같은 필드명이 다른 연도 소스에서 들어와 값이 덮어쓰이는 문제를 방지한다.
       const META = ['기준대학명','기준연도','공시연도','지역','설립구분','대학구분','수도권여부'];
       const mergedMap = new Map();
+      // rolling_avg 규칙 목록 — 산식 적용 전 tempRow에 주입 (다년도 평균)
+      const rollingRules = Object.entries(calcRules).filter(([, r]) => r.rolling_avg);
 
       for (const item of valid) {
         // 1단계: 이 지표의 소스들을 기준연도 기준으로 join
@@ -2535,6 +2537,31 @@ const CacheManager = {
         // 2단계: 이 지표만 산식 계산 → mergedMap에 지표값 저장
         this._log(`\n⚙️ [${item.indicator}] 산식 적용 중…`);
         for (const tempRow of tempMap.values()) {
+          // rolling_avg 주입: rawMap 전체에서 다년도 데이터를 찾아 평균 계산 후 tempRow에 삽입
+          // (_applyCalc는 rolling_avg 규칙을 skip하므로 여기서 미리 값을 채워야 함)
+          if (rollingRules.length > 0) {
+            const univName = tempRow.기준대학명;
+            const forYear  = tempRow.기준연도;
+            for (const [key, rule] of rollingRules) {
+              const srcField = rule.rolling_avg;
+              const numYears = rule.rolling_years ?? 5;
+              const vals = [];
+              for (let y = forYear - numYears + 1; y <= forYear; y++) {
+                for (const [, yearMap] of rawMap) {
+                  const aggRows = yearMap.get(y);
+                  if (!aggRows) continue;
+                  const row = aggRows.find(r => r.기준대학명 === univName);
+                  if (row?.[srcField] != null && typeof row[srcField] === 'number') {
+                    vals.push(row[srcField]);
+                    break; // 소스 하나에서 찾으면 다음 연도로
+                  }
+                }
+              }
+              tempRow[key] = vals.length > 0
+                ? (vals.reduce((a, b) => a + b, 0) / vals.length) * (rule.multiply ?? 1)
+                : null;
+            }
+          }
           const withCalc = this._applyCalc(tempRow, calcRules);
           const pubYear = tempRow.공시연도;
           const mapKey  = `${tempRow.기준대학명}__${pubYear}`;
@@ -2719,7 +2746,7 @@ const CacheManager = {
 
     const groups = new Map();
     for (const row of yearRows) {
-      let raw = (row['대학명'] || row['학교'] || row['학교명'] || '(미확인)').trim();
+      let raw = (row['대학명'] || row['학교'] || row['학교명'] || row['기준대학명'] || '(미확인)').trim();
       // ' _캠퍼스명' suffix 제거 — 학교명 필드에 '_제2캠퍼스' 등이 붙는 경우 처리
       const suffixMatch = raw.match(/^(.+?)\s+_\S/);
       if (suffixMatch && !baseUnivMap.has(raw)) {
