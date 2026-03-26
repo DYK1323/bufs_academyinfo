@@ -174,12 +174,40 @@ const BenchmarkUtils = {
 /**
  * 대학 단위로 합산된 row에 calc_rules 산식을 적용해 중간값·비율 지표를 추가한다.
  * exclude_rows 필터링은 dept-level 데이터가 없으므로 생략 (benchmark 값이 덮어쓰므로 무해).
- * rolling_avg는 다년도 데이터가 필요해 null로 처리.
+ * allRows·year를 넘기면 rolling_avg도 계산한다 (다년도 원시 데이터 필요).
  */
-function applyCalcToRow(summed, calcRules) {
+function applyCalcToRow(summed, calcRules, allRows, year) {
   const res = { ...summed };
+
+  // rolling_avg 주입 (allRows·year 제공 시)
+  if (allRows && year != null) {
+    const univName = summed.기준대학명;
+    const baseUnivMap = AppState.raw._baseUnivMap;
+    for (const [key, rule] of Object.entries(calcRules)) {
+      if (!rule.rolling_avg) continue;
+      const srcField = rule.rolling_avg;
+      const numYears = rule.rolling_years ?? 5;
+      const vals = [];
+      for (let y = year - numYears + 1; y <= year; y++) {
+        const yRows = allRows.filter(r => {
+          const ry = parseInt(r['기준연도'] ?? r['기준년도'] ?? r['연도'], 10);
+          if (ry !== y) return false;
+          const rawName = r.기준대학명 || r.대학명;
+          const mapped = (baseUnivMap && baseUnivMap.get(rawName)) || rawName;
+          return mapped === univName;
+        });
+        if (!yRows.length) continue;
+        const nums = yRows.map(r => r[srcField]).filter(v => typeof v === 'number' && !isNaN(v));
+        if (nums.length) vals.push(nums.reduce((a, b) => a + b, 0));
+      }
+      const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+      res[key] = avg != null ? avg * (rule.multiply ?? 1) : null;
+    }
+  }
+
+  // numerator/denominator 산식 (rolling_avg·min_of 제외)
   for (const [key, rule] of Object.entries(calcRules)) {
-    if (rule.min_of || rule.rolling_avg) continue;
+    if (rule.min_of || rule.rolling_avg || rule.coalesce) continue;
     const dbs = Array.isArray(rule.denominator_base) ? rule.denominator_base
       : (rule.denominator_base ? [rule.denominator_base] : []);
     const numFields = rule.numerator || [];

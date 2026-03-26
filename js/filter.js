@@ -110,7 +110,7 @@ const FilterManager = {
       const baseYears = refRows.map(r => parseInt(r['기준연도'] ?? year, 10)).filter(n => !isNaN(n));
       const baseYear = baseYears.length > 0 ? Math.min(...baseYears) : year;
       DataService.aggregateByUniv(AppState.raw.항목데이터, baseYear, '기준연도')
-        .forEach(r => rawAggMap.set(r.기준대학명, applyCalcToRow(r, AppState.raw.calcRules)));
+        .forEach(r => rawAggMap.set(r.기준대학명, applyCalcToRow(r, AppState.raw.calcRules, AppState.raw.항목데이터, baseYear)));
     }
     // benchmark_cache(지표값·메타)와 per-item raw 컬럼 머지
     AppState.computed.aggregated = cache
