@@ -38,10 +38,7 @@ const TrendView = {
     const cache = AppState.raw.benchmarkCache;
     const rankKey = AppState.computed.rankKey;
     if (!cache?.length || !rankKey) return;
-    const yr = AppState.raw.currentManifestItem?.year_range;
-    let years = [...new Set(cache.filter(r => r[rankKey] != null).map(r => r.공시연도))].sort((a, b) => a - b);
-    if (yr?.min) years = years.filter(y => y >= yr.min);
-    if (yr?.max) years = years.filter(y => y <= yr.max);
+    const years = [...new Set(cache.filter(r => r[rankKey] != null).map(r => r.공시연도))].sort((a, b) => a - b);
     const allYears = new Map();
     for (const year of years) {
       allYears.set(year, cache.filter(r => (r.공시연도) === year).map(r => ({ ...r, _isOurs: r.기준대학명 === OUR_UNIV })));
@@ -151,7 +148,12 @@ const TrendView = {
       document.getElementById('trend-table-wrap').innerHTML = '';
       return;
     }
-    if (!AppState.trend.allYears) this.buildAllYears();
+    // rankKey가 바뀌었으면 재빌드
+    const currentRankKey = AppState.computed.rankKey;
+    if (!AppState.trend.allYears || AppState.trend._builtForKey !== currentRankKey) {
+      this.buildAllYears();
+      AppState.trend._builtForKey = currentRankKey;
+    }
     this.updateYearChecks();
     this.updateDatalist();
     this.render();
@@ -211,7 +213,12 @@ const BumpView = {
       if (chartEl) chartEl.innerHTML = '<div class="trend-empty">공시 항목을 먼저 선택하세요.</div>';
       return;
     }
-    if (!AppState.trend.allYears) TrendView.buildAllYears();
+    // rankKey가 바뀌었으면 재빌드 (TrendView와 캐시 공유)
+    const currentRankKey = AppState.computed.rankKey;
+    if (!AppState.trend.allYears || AppState.trend._builtForKey !== currentRankKey) {
+      TrendView.buildAllYears();
+      AppState.trend._builtForKey = currentRankKey;
+    }
 
     // datalist 채우기 (전체 대학명)
     BenchmarkUtils.populateDatalist('bump-univ-list',
@@ -281,14 +288,22 @@ const BumpView = {
 
     for (const year of years) {
       const agg = allYears.get(year) || [];
-      const filtered = agg.filter(r => this._filterRow(r));
+      // 순위 보기와 동일하게 FilterUtils.matchesFilters 사용
+      const filtered = agg.filter(r => FilterUtils.matchesFilters(r, AppState.filters));
       const sorted = [...filtered].sort((a, b) => {
         const av = a[rankKey] ?? (sortAsc ? Infinity : -Infinity);
         const bv = b[rankKey] ?? (sortAsc ? Infinity : -Infinity);
         return sortAsc ? av - bv : bv - av;
       });
       const rMap = new Map();
-      sorted.forEach((r, i) => { rMap.set(r.기준대학명, i + 1); univSet.add(r.기준대학명); });
+      // ThreatView와 동일한 동점자 처리
+      sorted.forEach((r, i) => {
+        const rank = (i > 0 && sorted[i][rankKey] === sorted[i - 1][rankKey])
+          ? rMap.get(sorted[i - 1].기준대학명)
+          : i + 1;
+        rMap.set(r.기준대학명, rank);
+        univSet.add(r.기준대학명);
+      });
       yearRankMaps.set(year, rMap);
     }
 
