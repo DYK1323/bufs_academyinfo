@@ -2013,6 +2013,13 @@ function buildManifestCard(item, indicatorKey, indicatorLabel) {
           <input type="checkbox" class="manifest-union-sources" ${item.union_sources ? 'checked' : ''} onchange="setDirty()">
           union_sources — 소스 파일 간 대학이 겹치지 않음 (설립구분별 분리 파일, 예: 교육비 국공립/사립)
         </label>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+          <span style="font-size:12px;color:var(--text-muted);white-space:nowrap;">공시연도 표시 범위</span>
+          <input type="number" class="manifest-year-min cell-input" placeholder="시작" value="${item.year_range?.min ?? ''}" style="width:80px;" oninput="setDirty()">
+          <span style="color:var(--text-muted);">~</span>
+          <input type="number" class="manifest-year-max cell-input" placeholder="종료" value="${item.year_range?.max ?? ''}" style="width:80px;" oninput="setDirty()">
+          <span style="font-size:11px;color:var(--text-muted);">(비우면 전체)</span>
+        </div>
       </div>
       <!-- 표시 컬럼 -->
       <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">순위 표시 컬럼</div>
@@ -2131,9 +2138,18 @@ function applyManifestCard(btn) {
   });
 
   const unionSources = card.querySelector('.manifest-union-sources')?.checked || false;
+  const minY = parseInt(card.querySelector('.manifest-year-min')?.value);
+  const maxY = parseInt(card.querySelector('.manifest-year-max')?.value);
   const idx = manifestData.findIndex(m => m.indicator === indicatorKey);
+  const existing = idx >= 0 ? manifestData[idx] : {};
   const updated = { indicator: indicatorKey, sources, columns: cols };
   if (unionSources) updated.union_sources = true;
+  if (!isNaN(minY) || !isNaN(maxY)) {
+    updated.year_range = {};
+    if (!isNaN(minY)) updated.year_range.min = minY;
+    if (!isNaN(maxY)) updated.year_range.max = maxY;
+  }
+  if (existing.split_files) updated.split_files = existing.split_files;
   if (idx >= 0) manifestData[idx] = updated;
   else manifestData.push(updated);
 

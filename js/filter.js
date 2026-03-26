@@ -72,13 +72,16 @@ const FilterManager = {
     if (!indicatorKey) { Utils.showEmptyState('no-item'); return; }
     const cache = AppState.raw.benchmarkCache;
     if (!cache?.length) { Utils.showEmptyState('fetch-error'); return; }
-    const years = [...new Set(cache.filter(r => r[indicatorKey] != null).map(r => r.공시연도))]
-      .sort((a, b) => b - a);
-    if (!years.length) { Utils.showEmptyState('no-data'); return; }
-    this.renderYearSelect(years);
     // manifest에서 이 지표에 해당하는 항목 찾아 per-item JSON 로드
     const manifestItem = AppState.raw.manifest.find(m => m.indicator === indicatorKey) || null;
     AppState.raw.currentManifestItem = manifestItem;
+    let years = [...new Set(cache.filter(r => r[indicatorKey] != null).map(r => r.공시연도))]
+      .sort((a, b) => b - a);
+    const yr = manifestItem?.year_range;
+    if (yr?.min) years = years.filter(y => y >= yr.min);
+    if (yr?.max) years = years.filter(y => y <= yr.max);
+    if (!years.length) { Utils.showEmptyState('no-data'); return; }
+    this.renderYearSelect(years);
     const sources = manifestItem?.sources || [];
     const splitFiles = manifestItem?.split_files || null;
     // split_files: 배열(단일소스) 또는 {source: [files]}(복수소스)
