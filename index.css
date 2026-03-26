@@ -641,6 +641,7 @@ html, body {
 #ranking-table-wrap { overflow-x: auto; overflow-y: auto; max-height: calc(100vh - 260px); }
 #ranking-table {
   width: 100%; min-width: 640px; border-collapse: collapse; font-size: 13px;
+  table-layout: auto;
 }
 #ranking-table thead th {
   position: sticky; top: 0; z-index: 10;
@@ -669,11 +670,11 @@ html, body {
 }
 
 #ranking-table td { padding: 10px 14px; vertical-align: middle; white-space: nowrap; }
-#ranking-table th[data-key="지역"], #ranking-table td.col-region { width: 54px; max-width: 54px; padding-left: 8px; padding-right: 8px; }
-#ranking-table th[data-key="설립구분"], #ranking-table td.col-found { width: 46px; max-width: 46px; padding-left: 8px; padding-right: 8px; }
-#ranking-table th[data-key="기준대학명"] { min-width: 180px; width: 22%; }
-.td-univ { white-space: nowrap; display: flex; align-items: center; gap: 6px; }
-.td-univ-inner { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#ranking-table th[data-key="지역"], #ranking-table td.col-region { white-space: nowrap; padding-left: 8px; padding-right: 8px; }
+#ranking-table th[data-key="설립구분"], #ranking-table td.col-found { white-space: nowrap; padding-left: 8px; padding-right: 8px; }
+#ranking-table th[data-key="기준대학명"] { min-width: 140px; }
+.td-univ { white-space: nowrap; }
+.td-univ-inner { display: inline; }
 .td-rank {
   font-size: 12px; font-weight: 700; color: var(--text-muted);
   text-align: center; min-width: 42px;
