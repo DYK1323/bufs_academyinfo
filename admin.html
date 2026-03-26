@@ -1935,6 +1935,10 @@ function buildManifestCard(item, indicatorKey, indicatorLabel) {
         <label>소스 파일 (data/*.json, 여러 개 가능)</label>
         <div class="mf-sources-list" style="display:flex;flex-direction:column;gap:4px;margin-bottom:4px;"></div>
         <button class="btn btn-secondary btn-sm" onclick="addSourceRow(this)">+ 소스 추가</button>
+        <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:var(--text-muted);cursor:pointer;">
+          <input type="checkbox" class="manifest-union-sources" ${item.union_sources ? 'checked' : ''} onchange="setDirty()">
+          union_sources — 소스 파일 간 대학이 겹치지 않음 (설립구분별 분리 파일, 예: 교육비 국공립/사립)
+        </label>
       </div>
       <!-- 표시 컬럼 -->
       <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">순위 표시 컬럼</div>
@@ -2052,8 +2056,10 @@ function applyManifestCard(btn) {
     if (k) cols.push({ key: k, label: l });
   });
 
+  const unionSources = card.querySelector('.manifest-union-sources')?.checked || false;
   const idx = manifestData.findIndex(m => m.indicator === indicatorKey);
   const updated = { indicator: indicatorKey, sources, columns: cols };
+  if (unionSources) updated.union_sources = true;
   if (idx >= 0) manifestData[idx] = updated;
   else manifestData.push(updated);
 
@@ -2276,6 +2282,7 @@ const CacheManager = {
           label:     rule.label || key,
           sources,
           split_files: mItem.split_files || null,
+          union_sources: mItem.union_sources || false,
         };
       });
   },
@@ -2417,12 +2424,13 @@ const CacheManager = {
         //   sources[0]은 해당 key가 있을 때만 데이터를 추가(없으면 numerator=null→0 처리).
         //   공시 안 한 대학도 분모가 있으면 0%로 집계됨.
         const leftJoin = !!(calcRules[item.indicator]?.left_join) && item.sources.length > 1;
+        const unionSources = !!(item.union_sources); // 소스 간 대학이 겹치지 않을 때 모두 primary
         const primarySource = leftJoin ? item.sources[1] : item.sources[0];
         const tempMap = new Map(); // 대학+기준연도 → row
         // primary 소스를 먼저 순회해야 non-primary가 기존 key에 데이터를 추가할 수 있음
         const orderedSources = [primarySource, ...item.sources.filter(s => s !== primarySource)];
         for (const source of orderedSources) {
-          const isPrimary = source === primarySource;
+          const isPrimary = unionSources || source === primarySource;
           const agg = rawMap.get(source);
           if (!agg) continue;
           for (const [baseYear, aggRows] of agg) {
@@ -2857,13 +2865,14 @@ const CacheManager = {
         }
 
         // tempMap 1회 빌드 — V3(공시연도 수집) + V4(mergedRaw 누적) 공용
-        // 기본: sources[0]만 새 key 생성. left_join: sources[1]이 primary
+        // 기본: sources[0]만 새 key 생성. left_join: sources[1]이 primary. union_sources: 모두 primary
         const leftJoin = !!(calcRules[item.indicator]?.left_join) && item.sources.length > 1;
+        const unionSources = !!(item.union_sources); // 소스 간 대학이 겹치지 않을 때 모두 primary
         const primarySource = leftJoin ? item.sources[1] : item.sources[0];
         const tempMap = new Map();
         const orderedSources = [primarySource, ...item.sources.filter(s => s !== primarySource)];
         for (const source of orderedSources) {
-          const isPrimary = source === primarySource;
+          const isPrimary = unionSources || source === primarySource;
           const agg = rawMap.get(source);
           if (!agg) continue;
           for (const [baseYear, aggRows] of agg) {
