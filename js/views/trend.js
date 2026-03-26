@@ -291,20 +291,22 @@ const BumpView = {
 
     for (const year of years) {
       const agg = allYears.get(year) || [];
-      // 순위 보기와 동일하게 FilterUtils.matchesFilters 사용
+      // FilterManager._sortAndRender와 동일한 로직
       const filtered = agg.filter(r => FilterUtils.matchesFilters(r, AppState.filters));
-      const sorted = [...filtered].sort((a, b) => {
-        const av = a[rankKey] ?? (sortAsc ? Infinity : -Infinity);
-        const bv = b[rankKey] ?? (sortAsc ? Infinity : -Infinity);
-        return sortAsc ? av - bv : bv - av;
+      // rankKey 값이 null인 행은 순위 부여 대상에서 제외 (순위 보기와 동일)
+      const withData = filtered.filter(r => r[rankKey] != null);
+      const forRank = [...withData].sort((a, b) => {
+        const av = a[rankKey]; const bv = b[rankKey];
+        return typeof av === 'string'
+          ? (sortAsc ? av.localeCompare(bv, 'ko') : bv.localeCompare(av, 'ko'))
+          : (sortAsc ? av - bv : bv - av);
       });
       const rMap = new Map();
-      // ThreatView와 동일한 동점자 처리
-      sorted.forEach((r, i) => {
-        const rank = (i > 0 && sorted[i][rankKey] === sorted[i - 1][rankKey])
-          ? rMap.get(sorted[i - 1].기준대학명)
+      forRank.forEach((r, i) => {
+        r._rank = (i > 0 && forRank[i][rankKey] === forRank[i - 1][rankKey])
+          ? forRank[i - 1]._rank
           : i + 1;
-        rMap.set(r.기준대학명, rank);
+        rMap.set(r.기준대학명, r._rank);
         univSet.add(r.기준대학명);
       });
       yearRankMaps.set(year, rMap);
