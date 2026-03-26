@@ -355,5 +355,21 @@
     "unit": "명",
     "decimal_places": 0,
     "sort_asc": false
+  },
+  "건축비(5년평균)": {
+    "label": "건축비(5년평균)",
+    "rolling_avg": "건축비_원",
+    "rolling_years": 5,
+    "unit": "원",
+    "decimal_places": 0,
+    "sort_asc": false
+  },
+  "기계기구매입비(5년평균)": {
+    "label": "기계기구매입비(5년평균)",
+    "rolling_avg": "기계기구매입비(D)",
+    "rolling_years": 5,
+    "unit": "%",
+    "decimal_places": 2,
+    "sort_asc": false
   }
 }
