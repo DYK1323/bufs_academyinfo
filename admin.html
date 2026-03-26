@@ -2542,11 +2542,18 @@ const CacheManager = {
             for (const row of aggRows) {
               const tempKey = `${row.기준대학명}__${baseYear}`;
               if (!tempMap.has(tempKey)) {
-                if (!isPrimary) continue; // non-primary는 새 key 생성 금지
-                if (row.공시연도 == null) throw new Error(`공시연도 미설정: 대학="${row.기준대학명}", 기준연도=${baseYear}`);
-                tempMap.set(tempKey, {
+                if (!isPrimary) continue;
+  
+                const pubYear = leftJoin ? numSrcYearMap?.get(baseYear) : row.공시연도;
+  
+                // left_join: 분자 소스에 해당 기준연도 없으면 제외
+                if (leftJoin && pubYear == null) continue;
+                // non-left_join: 공시연도 누락은 오류
+                if (!leftJoin && pubYear == null) throw new Error(`공시연도 미설정: 대학="${row.기준대학명}", 기준연도=${baseYear}`);
+  
+                  tempMap.set(tempKey, {
                   기준대학명: row.기준대학명, 기준연도: baseYear,
-                  공시연도: numSrcYearMap?.get(baseYear) ?? row.공시연도,  // ← 수정
+                  공시연도: pubYear,
                   지역: row.지역, 설립구분: row.설립구분,
                   대학구분: row.대학구분, 수도권여부: row.수도권여부,
                 });
