@@ -112,6 +112,7 @@ const App = {
     const univInput = document.getElementById('trend-univ-input');
     if (univInput) {
       univInput.addEventListener('change', () => {
+        if (!_assertValidUniv(univInput)) return;
         const name = univInput.value.trim();
         if (!name || AppState.trend.customUnivs.includes(name)) { univInput.value = ''; return; }
         AppState.trend.customUnivs.push(name);
@@ -128,6 +129,7 @@ const App = {
     // Bump Chart 대학 추가
     document.getElementById('bump-univ-input')?.addEventListener('change', () => {
       const input = document.getElementById('bump-univ-input');
+      if (!_assertValidUniv(input)) return;
       const name = input.value.trim();
       input.value = '';
       if (!name) return;
@@ -143,6 +145,7 @@ const App = {
     const _benchAdd = () => {
       const input = document.getElementById('bench-univ-select');
       if (!input) return;
+      if (!_assertValidUniv(input)) return;
       const name = input.value.trim();
       if (!name || AppState.benchmark.customUnivs.includes(name)) { input.value = ''; return; }
       AppState.benchmark.customUnivs.push(name);
@@ -245,6 +248,29 @@ const App = {
 /* ═══════════════════════════════════════════════════════
    전역 헬퍼 — innerHTML onclick 핸들러용 (글로벌 스코프 필요)
 ═══════════════════════════════════════════════════════ */
+
+/** datalist 연결된 input에서 입력값이 유효한 대학명인지 검증.
+ *  유효하지 않으면 input 아래에 경고 메시지를 2초간 표시하고 false 반환. */
+function _assertValidUniv(inputEl) {
+  const val = inputEl.value.trim();
+  const dlId = inputEl.getAttribute('list');
+  const dl = dlId ? document.getElementById(dlId) : null;
+  if (!dl) return true; // datalist 없으면 통과
+  const valid = Array.from(dl.options).some(opt => opt.value === val);
+  if (!valid) {
+    // 기존 경고 제거
+    const prev = inputEl.parentElement.querySelector('.univ-input-warn');
+    if (prev) prev.remove();
+    const msg = document.createElement('div');
+    msg.className = 'univ-input-warn';
+    msg.textContent = '대학을 선택하세요';
+    msg.style.cssText = 'font-size:11px;color:var(--error,#d32f2f);margin-top:3px;';
+    inputEl.after(msg);
+    setTimeout(() => msg.remove(), 2000);
+    inputEl.value = '';
+  }
+  return valid;
+}
 function removeTrendUniv(name) {
   AppState.trend.customUnivs = AppState.trend.customUnivs.filter(n => n !== name);
   const tag = document.querySelector(`#trend-univ-tags .trend-univ-tag[data-name="${name}"]`);
