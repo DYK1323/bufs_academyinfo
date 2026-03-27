@@ -44,15 +44,17 @@ const Utils = {
     return parts.join(' · ');
   },
   showLoading() {
-    const emptyEl = document.getElementById('empty-state');
+    const emptyEl   = document.getElementById('empty-state');
     const tableCard = document.getElementById('table-card');
-    const kpiBar = document.getElementById('kpi-bar');
+    const mainRow   = document.getElementById('ranking-main-row');
+    const kpiBar    = document.getElementById('kpi-bar');
     if (emptyEl) {
       emptyEl.style.display = '';
       emptyEl.innerHTML = '<div class="loading-wrap"><div class="spinner"></div><span style="font-size:13px;color:var(--sidebar-text)">데이터 불러오는 중...</span></div>';
     }
     if (tableCard) tableCard.style.display = 'none';
-    if (kpiBar) kpiBar.innerHTML = '';
+    if (mainRow)   mainRow.style.display   = 'none';
+    if (kpiBar)    kpiBar.innerHTML = '';
   },
   showEmptyState(reason) {
     const messages = {
@@ -62,16 +64,18 @@ const Utils = {
       'no-results': { icon: '🔍', title: '조건에 해당하는 대학이 없습니다', desc: '필터 조건을 조정해 보세요.' },
     };
     const m = messages[reason] || messages['no-item'];
-    const emptyEl = document.getElementById('empty-state');
+    const emptyEl   = document.getElementById('empty-state');
     const tableCard = document.getElementById('table-card');
-    const kpiBar = document.getElementById('kpi-bar');
+    const mainRow   = document.getElementById('ranking-main-row');
+    const kpiBar    = document.getElementById('kpi-bar');
+    const threatCard = document.getElementById('threat-card');
     if (emptyEl) {
       emptyEl.style.display = '';
       emptyEl.innerHTML = `<div class="empty-state"><div class="empty-icon">${m.icon}</div><div class="empty-title">${m.title}</div><div class="empty-desc">${m.desc}</div></div>`;
     }
-    if (tableCard) tableCard.style.display = 'none';
-    if (kpiBar) kpiBar.innerHTML = '';
-    const threatCard = document.getElementById('threat-card');
+    if (tableCard)  tableCard.style.display  = 'none';
+    if (mainRow)    mainRow.style.display    = 'none';
+    if (kpiBar)     kpiBar.innerHTML = '';
     if (threatCard) threatCard.style.display = 'none';
   },
   exportCSV(rows, columns, filename) {

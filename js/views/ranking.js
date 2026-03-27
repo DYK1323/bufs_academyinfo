@@ -9,7 +9,9 @@ const RankingView = {
     const emptyEl = document.getElementById('empty-state');
     const tableCard = document.getElementById('table-card');
     if (!sorted.length) { Utils.showEmptyState('no-results'); return; }
-    if (emptyEl) emptyEl.style.display = 'none';
+    const mainRow = document.getElementById('ranking-main-row');
+    if (emptyEl)   emptyEl.style.display   = 'none';
+    if (mainRow)   mainRow.style.display   = '';
     if (tableCard) tableCard.style.display = '';
     this.renderKpiBar(sorted);
     this.renderTable(sorted, currentPage);

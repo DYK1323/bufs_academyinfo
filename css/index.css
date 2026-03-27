@@ -1,17 +1,12 @@
-/* ── 전역 리셋 */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-input, select, button, textarea { outline: none; box-shadow: none; }
-input:focus, select:focus, button:focus, textarea:focus { outline: 1px solid var(--primary); outline-offset: 0; box-shadow: none; }
-select:focus { outline: 1px solid var(--primary); }
+/* index.html 전용 스타일 — 공통 리셋은 css/common.css 참조 */
 html, body {
-  height: 100%;
-  font-family: 'Pretendard', 'Malgun Gothic', sans-serif;
-  font-size: 14px;
   color: var(--text-body);
   background: var(--page-bg);
   word-break: keep-all;
   -webkit-font-smoothing: antialiased;
 }
+input:focus, select:focus, button:focus, textarea:focus { outline: 1px solid var(--primary); outline-offset: 0; box-shadow: none; }
+select:focus { outline: 1px solid var(--primary); }
 
 /* 색상 토큰은 css/tokens.css 참조 */
 /* ── 앱 쉘 */
@@ -240,6 +235,7 @@ html, body {
 .trend-univ-tag button:hover { color: var(--down-color); }
 
 /* ── 추이 분석 뷰 */
+#ranking-view { display: flex; flex-direction: column; height: 100%; }
 #ranking-view.hidden-view { display: none; }
 #trend-view { display: none; gap: 16px; }
 #trend-view.visible { display: flex; align-items: stretch; }
@@ -549,6 +545,8 @@ html, body {
 #view-container {
   flex: 1; overflow-y: auto; padding: 0;
 }
+/* ranking 활성 시 view-container 스크롤 잠금 — bump-view와 동일 패턴 */
+#view-container:has(#ranking-view:not(.hidden-view)) { overflow: hidden; }
 
 /* ── 카드 — 경계선 중심 */
 .card {
@@ -638,7 +636,7 @@ html, body {
 /* ══════════════════════════════════════════════
    순위 테이블 — 수평 라인 전용
 ══════════════════════════════════════════════ */
-#ranking-table-wrap { overflow-x: auto; overflow-y: auto; max-height: calc(100vh - 260px); }
+#ranking-table-wrap { overflow-x: auto; overflow-y: auto; flex: 1; min-height: 0; }
 #ranking-table {
   width: 100%; min-width: 640px; border-collapse: collapse; font-size: 13px;
   table-layout: auto;
@@ -718,6 +716,7 @@ html, body {
 
 /* ── 빈 상태 */
 .empty-state { padding: 60px 24px; text-align: center; }
+#empty-state { flex: 1; display: flex; align-items: center; justify-content: center; }
 .empty-icon { font-size: 36px; margin-bottom: 14px; opacity: 0.4; }
 .empty-title { font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; letter-spacing: -0.01em; }
 .empty-desc { font-size: 12.5px; color: var(--text-muted); line-height: 1.8; }
@@ -757,15 +756,20 @@ html, body {
 #ranking-main-row {
   display: flex;
   gap: 14px;
-  align-items: flex-start;
-  min-width: 0; /* 추가 */
+  align-items: stretch;
+  min-width: 0;
+  flex: 1;
+  min-height: 0;
 }
 
 #table-card {
   flex: 2 1 0;
-  min-width: 0;   /* 핵심: flex 자식이 넘치지 않도록 */
+  min-width: 0;
+  min-height: 0;
   overflow: hidden;
   max-width: 1200px;
+  display: flex;
+  flex-direction: column;
 }
 
 #threat-card {
@@ -832,8 +836,13 @@ html, body {
 }
 
 @media (max-width: 1400px) {
-  /* 모멘텀 카드 숨김 — 랭킹 테이블 우선 */
-  #threat-card { display: none; }
+  /* 좁은 화면: 좌우 → 상하 스택 */
+  #view-container:has(#ranking-view:not(.hidden-view)) { overflow-y: auto; }
+  #ranking-view { height: auto; }
+  #ranking-main-row { flex-direction: column; flex: none; }
+  #table-card  { flex: none; width: 100%; max-width: 100%; height: auto; }
+  #ranking-table-wrap { flex: none; max-height: calc(100vh - 260px); }
+  #threat-card { flex: none; min-width: 0; max-width: 100%; width: 100%; }
   .momentum-bar-wrap { display: none; }
   .momentum-cell-inner { justify-content: flex-end; }
 }

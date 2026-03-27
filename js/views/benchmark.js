@@ -160,6 +160,13 @@ const BenchmarkView = {
       return (v > 0 ? '+' : '') + v.toFixed(1) + unit;
     };
 
+    const validGaps = gaps.filter(v => v != null);
+    const minGap = validGaps.length ? Math.min(...validGaps) : 0;
+    const maxGap = validGaps.length ? Math.max(...validGaps) : 0;
+    const range  = (maxGap - minGap) || 1;
+    const xMin   = minGap < 0 ? minGap - range * 0.28 : undefined;
+    const xMax   = maxGap > 0 ? maxGap + range * 0.22 : undefined;
+
     this._gapChart.setOption({
       tooltip: {
         trigger: 'axis', axisPointer: { type: 'shadow' },
@@ -169,8 +176,8 @@ const BenchmarkView = {
           return `<b>${p.axisValue}</b><br>${p.marker}${p.seriesName}: <b>${p.value > 0 ? '+' : ''}${p.value}</b>`;
         },
       },
-      grid: { top: 10, right: 70, bottom: 10, left: 130, containLabel: false },
-      xAxis: { type: 'value', axisLabel: { formatter: v => v > 0 ? '+' + v : String(v) } },
+      grid: { top: 10, right: 80, bottom: 30, left: 10, containLabel: true },
+      xAxis: { type: 'value', min: xMin, max: xMax, axisLabel: { formatter: v => v > 0 ? '+' + v : String(v) } },
       yAxis: { type: 'category', data: labels, axisLabel: { fontSize: 11, width: 120, overflow: 'truncate' } },
       series: [{
         name: seriesLabel, type: 'bar',
