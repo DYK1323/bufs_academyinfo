@@ -128,6 +128,20 @@ const CacheManager = {
     const unionSources   = !!(item.union_sources);
     const primarySource  = leftJoin ? item.sources[1] : item.sources[0];
     const tempMap        = new Map();
+
+    // left_join: 분자 소스(sources[0])의 기준연도→공시연도 매핑을 미리 구성
+    let numSrcYearMap = null;
+    if (leftJoin) {
+      numSrcYearMap = new Map();
+      const numAgg = rawMap.get(item.sources[0]);
+      if (numAgg) {
+        for (const [baseYear, aggRows] of numAgg) {
+          if (aggRows.length > 0 && aggRows[0].공시연도 != null)
+            numSrcYearMap.set(baseYear, aggRows[0].공시연도);
+        }
+      }
+    }
+
     const orderedSources = [primarySource, ...item.sources.filter(s => s !== primarySource)];
 
     for (const source of orderedSources) {
@@ -139,10 +153,16 @@ const CacheManager = {
           const tempKey = `${row.기준대학명}__${baseYear}`;
           if (!tempMap.has(tempKey)) {
             if (!isPrimary) continue;
-            if (row.공시연도 == null) throw new Error(`공시연도 미설정: 대학="${row.기준대학명}", 기준연도=${baseYear}`);
+
+            const pubYear = leftJoin ? numSrcYearMap?.get(baseYear) : row.공시연도;
+            // left_join: 분자 소스에 해당 기준연도 없으면 제외
+            if (leftJoin && pubYear == null) continue;
+            // non-left_join: 공시연도 누락은 오류
+            if (!leftJoin && pubYear == null) throw new Error(`공시연도 미설정: 대학="${row.기준대학명}", 기준연도=${baseYear}`);
+
             tempMap.set(tempKey, {
               기준대학명: row.기준대학명, 기준연도: baseYear,
-              공시연도:   row.공시연도,
+              공시연도:   pubYear,
               지역:       row.지역,   설립구분: row.설립구분,
               대학구분:   row.대학구분, 수도권여부: row.수도권여부,
             });
