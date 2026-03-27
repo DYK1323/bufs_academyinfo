@@ -1,6 +1,26 @@
 # 변경 이력 (Changelog)
 
-> 기준일: 2026-03-20
+> 기준일: 2026-03-27
+
+---
+
+## 2026-03-27
+
+### 코드 구조 개선
+- admin.html 인라인 JS(2,400줄) → js/admin/ 9개 파일로 분리 (gh.js, state.js, app.js, fac.js, tab-mapping.js, tab-calc.js, tab-manifest.js, data-viewer.js, cache.js)
+- index.css → css/index.css 이동; admin.html 인라인 CSS → css/admin.css; 공통 리셋 → css/common.css
+
+### 버그 수정
+- CacheManager._buildTempMap: left_join 시 numSrcYearMap으로 분자 소스 공시연도 사전 매핑 — 분자 없는 기준연도 행 skip
+- ranking view 페이지네이션 항상 보임 (flex chain으로 table-wrap이 남은 공간 점유)
+- 좁은 화면에서 ranking table + momentum 상하 스택 표시
+
+### UI 개선
+- 벤치마킹 갭 분석 차트: xMin/xMax 동적 패딩(28%/22%)으로 데이터 레이블-축 레이블 겹침 해소; X축 레이블 잘림 수정 (`containLabel: true`, `bottom: 30`)
+
+---
+
+> 이전 기준일: 2026-03-20
 
 ---
 
