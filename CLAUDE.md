@@ -18,14 +18,11 @@ python -m playwright install chromium
 # 데이터 정제 GUI 실행
 python normalize_gui.py
 
-# 대학개황 CSV → data/대학기본정보.json 변환
-python convert_university_info.py [CSV파일명]
-
 # 기준대학목록 Excel → data/기준대학.json 변환 (연 1회 또는 신설·폐교 발생 시)
 python convert_기준대학.py [기준대학목록_v2.xlsx]
 
-# 공시연도 소급 삽입 (마이그레이션, 일회성)
-python migrate_pub_year.py
+# 대학개황 CSV → data/대학기본정보.json 변환 (연 1회)
+python convert_university_info.py [대학개황정보.csv]
 ```
 
 ## 프로젝트 개요
@@ -61,10 +58,8 @@ python migrate_pub_year.py
 ├── admin.html                     # 관리자 페이지
 ├── normalize_gui.py               # 정제 도구 (Python/tkinter)
 ├── convert_university_info.py     # 대학개황 CSV → data/대학기본정보.json 변환
-├── migrate_pub_year.py            # 공시연도 소급 삽입 (일회성 마이그레이션)
 ├── download_academyinfo.py        # 다운로드 자동화 (Playwright)
 ├── field_mapping.json             # 필드 매핑 (자동 생성/갱신)
-├── merge_rules.json               # 캠퍼스 합산 방식 (sum/skip/master)
 ├── calc_rules.json                # 비율 지표 산식 정의 (분석 페이지에서 사용)
 ├── css/
 │   └── tokens.css                 # CSS 디자인 토큰 (:root 변수 — index.html·admin.html 공용)
@@ -517,9 +512,6 @@ state.js → utils.js → data.js → views/ranking.js → views/simulator.js
 
 **Q. normalize_gui.py에서 "A열에서 연도값을 찾을 수 없습니다" 오류**
 → 파일의 A열 데이터가 세로 병합된 구조. `detect_data_start()`의 병합 맵 로직이 정상 동작하는지 확인.
-
-**Q. 같은 파일을 두 번 실행해도 괜찮나요?**
-→ 안전함. 같은 연도 데이터는 덮어쓰고 다른 연도는 유지됨.
 
 **Q. admin.html 저장 시 "SHA mismatch" 오류**
 → GitHub CDN 캐시 또는 병렬 PUT race condition. 현재 코드는 파일별 순차 저장(GET→PUT)으로 방지되어 있음. 재발 시 브라우저 새로고침 후 재시도.
