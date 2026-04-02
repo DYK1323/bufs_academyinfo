@@ -3,7 +3,12 @@
     "allow": [
       "Bash(grep -E '\\\\.json$')",
       "Bash(python3 -c \":*)",
-      "Bash(python -c \":*)"
+      "Bash(python -c \":*)",
+      "Bash(npx -y kordoc-mcp --version)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(node /tmp/kordoc/dist/mcp.js --help)",
+      "Bash(cygpath -w /tmp/kordoc)"
     ]
   }
 }
