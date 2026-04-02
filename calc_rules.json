@@ -459,7 +459,7 @@
     "denominator_base": [
       "전임교원(연구비수혜실적)"
     ],
-    "multiply": 100,
+    "multiply": 1,
     "visible": true,
     "unit": "천원",
     "decimal_places": 1,
