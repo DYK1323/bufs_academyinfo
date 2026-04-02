@@ -475,6 +475,7 @@
       "전임 교원_계"
     ],
     "multiply": 1,
+    "visible": true,
     "unit": "",
     "decimal_places": 3,
     "sort_asc": false
