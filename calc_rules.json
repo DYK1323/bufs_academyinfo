@@ -465,5 +465,46 @@
     "decimal_places": 1,
     "sort_asc": false,
     "left_join": true
+  },
+  "1인당 국내논문": {
+    "label": "1인당 국내논문",
+    "numerator": [
+      "논문 실적_국내_연구재단 등재지 (후보포함)_계"
+    ],
+    "denominator_base": [
+      "전임 교원_계"
+    ],
+    "multiply": 1,
+    "unit": "",
+    "decimal_places": 3,
+    "sort_asc": false
+  },
+  "1인당 SCI급 논문": {
+    "label": "1인당 SCI급 논문",
+    "numerator": [
+      "논문 실적_국제_SCI급 /SCOPUS 학술지_계"
+    ],
+    "denominator_base": [
+      "전임 교원_계"
+    ],
+    "multiply": 1,
+    "visible": true,
+    "unit": "",
+    "decimal_places": 3,
+    "sort_asc": false
+  },
+  "1인당 저·역서": {
+    "label": "1인당 저·역서",
+    "numerator": [
+      "저∙역서 실적_계"
+    ],
+    "denominator_base": [
+      "전임 교원_계"
+    ],
+    "multiply": 1,
+    "visible": true,
+    "unit": "",
+    "decimal_places": 3,
+    "sort_asc": false
   }
 }
