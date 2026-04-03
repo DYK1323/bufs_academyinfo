@@ -14,29 +14,25 @@ from pathlib import Path
 
 
 def convert(csv_path: Path, out_path: Path) -> None:
-    seen: dict[str, dict] = {}  # 학과명 → 첫 번째 매핑 유지
+    seen: dict[str, dict] = {}
 
     with open(csv_path, encoding='utf-8-sig', newline='') as f:
         reader = csv.DictReader(f)
         for row in reader:
             학과명 = row.get('학과명', '').strip()
-            대계열 = row.get('대계열', '').strip()
-            중계열 = row.get('중계열', '').strip()
+            대계열 = row.get('대계열', '').strip().removesuffix('계열')
+            학과코드 = row.get('학과코드', '').strip()
             if not 학과명 or not 대계열:
                 continue
             if 학과명 not in seen:
-                entry = {'학과명': 학과명, '대계열': 대계열}
-                if 중계열:
-                    entry['중계열'] = 중계열
-                seen[학과명] = entry
+                seen[학과명] = {'학과코드': 학과코드, '학과명': 학과명, '대계열': 대계열}
 
-    result = sorted(seen.values(), key=lambda x: (x['대계열'], x.get('중계열', ''), x['학과명']))
+    result = sorted(seen.values(), key=lambda x: (x['대계열'], x['학과명']))
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, 'w', encoding='utf-8') as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
 
-    # 대계열별 통계 출력
     from collections import Counter
     stats = Counter(r['대계열'] for r in result)
     print(f"변환 완료: 총 {len(result)}개 학과명 → {out_path}")
@@ -49,7 +45,6 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         csv_file = Path(sys.argv[1])
     else:
-        # 기본: 현재 디렉터리에서 찾기
         candidates = sorted(Path('.').glob('학과(전공)분류표*.csv'))
         if not candidates:
             print('오류: CSV 파일을 찾을 수 없습니다.')
