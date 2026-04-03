@@ -199,7 +199,7 @@
     <div id="content-row">
     <div id="trend-side-panel">
       <!-- 추이 전용: 비교 그룹 -->
-      <div class="trend-only">
+      <div class="trend-only trend-dept-shared">
         <div class="trend-section-label">비교 그룹</div>
         <label class="trend-check-item is-checked" style="--dot-color:var(--trend-national)"><input type="checkbox" data-group="전국 평균" checked><span class="chk-dot"></span>전국 평균</label>
         <label class="trend-check-item is-checked" style="--dot-color:var(--trend-private)"><input type="checkbox" data-group="전국 사립" checked><span class="chk-dot"></span>전국 사립 평균</label>
@@ -215,7 +215,7 @@
         <div id="trend-univ-tags"></div>
       </div>
       <!-- 추이 전용: Y축 범위 -->
-      <div class="trend-only">
+      <div class="trend-only trend-dept-shared">
         <div class="trend-section-label" style="margin-top:14px;">Y축 범위</div>
         <div style="display:flex;gap:6px;align-items:center;">
           <input class="trend-axis-input" id="trend-ymin" type="number" placeholder="최소">
@@ -228,8 +228,10 @@
         </div>
       </div>
       <!-- 공유: 연도 선택 -->
-      <div class="trend-section-label" style="margin-top:14px;">연도 선택</div>
-      <div id="trend-year-checks" style="max-height:168px;overflow-y:auto;"></div>
+      <div class="trend-dept-shared">
+        <div class="trend-section-label" style="margin-top:14px;">연도 선택</div>
+        <div id="trend-year-checks" style="max-height:168px;overflow-y:auto;"></div>
+      </div>
       <!-- 순위변동 전용: 대학 추가 -->
       <div class="bump-only">
         <div class="trend-section-label" style="margin-top:14px;">대학 추가</div>

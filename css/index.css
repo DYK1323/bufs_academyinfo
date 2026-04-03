@@ -368,6 +368,10 @@ select:focus { outline: 1px solid var(--primary); }
 #trend-side-panel .bump-only { display: none; }
 #trend-side-panel.bump-active .bump-only { display: flex; flex-direction: column; }
 #trend-side-panel.bump-active .trend-only { display: none; }
+/* dept 추이 분석: 대학 추가 비교 숨김, Y축·연도·비교그룹은 표시 */
+#trend-side-panel.dept-trend-active .bump-only { display: none; }
+#trend-side-panel.dept-trend-active .trend-only:not(.trend-dept-shared) { display: none; }
+#trend-side-panel.dept-trend-active .trend-dept-shared { display: flex; flex-direction: column; }
 #trend-year-checks { display: grid; grid-template-columns: 1fr; gap: 1px; }
 #trend-main { flex: 1; min-width: 0; }
 #trend-chart { width: 100%; height: 380px; }
@@ -1106,12 +1110,19 @@ select:focus { outline: 1px solid var(--primary); }
 #filter-bar.scatter-mode > *:not(.scatter-only) { display: none; }
 #filter-bar:not(.scatter-mode) .scatter-only    { display: none; }
 
-/* dept-mode: 계열 드롭다운 표시 */
+/* dept-trend-mode: 설립·지역·특별법 필터 비활성화 */
+#filter-bar.dept-trend-mode #found-quick-wrap,
+#filter-bar.dept-trend-mode #region-group,
+#filter-bar.dept-trend-mode #filter-special-excl,
+#filter-bar.dept-trend-mode #univ-type-group { pointer-events: none; opacity: 0.4; }
+
+/* dept-mode: 계열 드롭다운 표시, 지표 선택 비활성화 */
 .dept-only                            { display: none; }
 #filter-bar.dept-mode .dept-only      { display: flex; align-items: center; }
 #filter-bar.dept-mode .dept-only.filter-divider { display: block; }
 #filter-bar.dept-mode .dept-only.filter-select  { display: block; }
 #filter-bar.dept-mode .dept-only.filter-label   { display: block; }
+#filter-bar.dept-mode #filter-item    { pointer-events: none; opacity: 0.6; }
 
 /* dept-view */
 #dept-view {

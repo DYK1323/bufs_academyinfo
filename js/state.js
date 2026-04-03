@@ -79,5 +79,8 @@ const AppState = {
     deptMap: null,     // Map<학과명 → 대계열> (로드 완료 후 세팅)
     계열List: [],       // 고유 대계열 목록 (정렬)
     deptClassification: [], // 학과분류.json raw data
+    selectedYears: new Set(), // 계열별 추이 분석 선택 연도
+    yMin: null,        // 계열별 추이 Y축 최솟값
+    yMax: null,        // 계열별 추이 Y축 최댓값
   },
 };

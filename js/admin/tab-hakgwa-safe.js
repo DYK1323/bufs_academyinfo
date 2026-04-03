@@ -1,169 +1,251 @@
 'use strict';
 
-const HAKGWA_SAFE_CATEGORY_OPTIONS = [
-  '',
-  '\uC778\uBB38',
-  '\uC0AC\uD68C',
-  '\uAD50\uC721',
-  '\uACF5\uD559',
-  '\uC790\uC5F0',
-  '\uC758\uC57D',
-  '\uC608\uCCB4\uB2A5',
-];
-const HAKGWA_SAFE_RENDER_BATCH = 200;
+/* ══════════════════════════════════════════
+   탭 6: 학과분류 — 페이지네이션 오버라이드
+   (tab-hakgwa.js의 DOM-기반 렌더를 배열+페이지 방식으로 교체)
+══════════════════════════════════════════ */
 
-function getHakgwaSafeRowValue(row, preferredKeys, fallbackIndex) {
-  if (!row || typeof row !== 'object') return '';
+const HakgwaPager = {
+  _data: [],       // 전체 데이터 배열 (raw, {학과명, 대계열, 중계열, 비고})
+  _filtered: [],   // 검색 필터 적용 후
+  _page: 1,
+  PAGE_SIZE: 100,
+  _dirty: false,   // 편집 중인 행이 있으면 true
 
-  for (const key of preferredKeys) {
-    if (key in row && row[key] != null) {
-      return String(row[key]).trim();
+  // ── 데이터 초기화 (파일 로드 시) ──
+  load(rows) {
+    this._data = Array.isArray(rows) ? rows.map(r => ({
+      학과명: String(r['학과명'] || '').trim(),
+      대계열: String(r['대계열'] || '').trim(),
+      중계열: String(r['중계열'] || '').trim(),
+      비고:   String(r['비고']   || '').trim(),
+    })) : [];
+    this._page = 1;
+    this._applyFilter();
+  },
+
+  // ── 검색 필터 적용 ──
+  _applyFilter() {
+    const q = (document.getElementById('hk-search-input')?.value || '').trim().toLowerCase();
+    this._filtered = q
+      ? this._data.filter(r =>
+          r.학과명.toLowerCase().includes(q) ||
+          r.대계열.toLowerCase().includes(q) ||
+          r.중계열.toLowerCase().includes(q)
+        )
+      : this._data;
+    this._page = Math.min(this._page, Math.ceil(this._filtered.length / this.PAGE_SIZE) || 1);
+    this._render();
+    this._updateCount();
+  },
+
+  // ── 현재 페이지 DOM 렌더 ──
+  _render() {
+    const total = this._filtered.length;
+    const totalPages = Math.ceil(total / this.PAGE_SIZE) || 1;
+    const start = (this._page - 1) * this.PAGE_SIZE;
+    const pageRows = this._filtered.slice(start, start + this.PAGE_SIZE);
+
+    const tbody = document.getElementById('hk-table-body');
+    tbody.innerHTML = '';
+    const frag = document.createDocumentFragment();
+    for (const row of pageRows) {
+      frag.appendChild(_createHkRow(row.학과명, row.대계열, row.중계열, row.비고));
     }
-  }
+    tbody.appendChild(frag);
 
-  const values = Object.entries(row)
-    .filter(([key]) => !String(key).includes('\uCF54\uB4DC'))
-    .map(([, value]) => value);
+    // 페이지 컨트롤
+    const pagerEl = document.getElementById('hk-pager');
+    if (!pagerEl) return;
+    if (totalPages <= 1) { pagerEl.innerHTML = ''; return; }
 
-  return values[fallbackIndex] == null ? '' : String(values[fallbackIndex]).trim();
-}
+    const mkBtn = (p, label, cur) =>
+      `<button class="dv-page-btn${cur ? ' cur' : ''}" onclick="HakgwaPager._goPage(${p})">${label}</button>`;
+    const btns = [];
+    if (this._page > 1) btns.push(mkBtn(this._page - 1, '‹ 이전', false));
+    const lo = Math.max(1, this._page - 2), hi = Math.min(totalPages, this._page + 2);
+    for (let p = lo; p <= hi; p++) btns.push(mkBtn(p, p, p === this._page));
+    if (this._page < totalPages) btns.push(mkBtn(this._page + 1, '다음 ›', false));
+    pagerEl.innerHTML = `<div class="dv-pagination">${btns.join('')}</div>`;
+  },
 
-function buildHakgwaSafeOptions(selectedValue) {
-  return HAKGWA_SAFE_CATEGORY_OPTIONS.map(value =>
-    `<option value="${esc(value)}"${value === selectedValue ? ' selected' : ''}>${value || '(\uBBF8\uBD84\uB958)'}</option>`
-  ).join('');
-}
+  _goPage(p) {
+    // 현재 페이지 편집 내용을 _data에 반영한 뒤 이동
+    this._flushEdits();
+    this._page = p;
+    this._render();
+    document.getElementById('hk-table').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  },
 
-function createHakgwaSafeRow(name = '', category = '', subCategory = '', note = '') {
+  // ── 현재 DOM 편집 내용 → _data 에 반영 ──
+  _flushEdits() {
+    const q = (document.getElementById('hk-search-input')?.value || '').trim().toLowerCase();
+    const start = (this._page - 1) * this.PAGE_SIZE;
+    const tbody = document.getElementById('hk-table-body');
+    const trs = tbody.querySelectorAll('tr');
+    trs.forEach((tr, i) => {
+      const dataIdx = this._filtered[start + i] !== undefined
+        ? this._data.indexOf(this._filtered[start + i])
+        : -1;
+      if (dataIdx < 0) return;
+      const inputs = tr.querySelectorAll('input');
+      const sel    = tr.querySelector('select');
+      this._data[dataIdx] = {
+        학과명: inputs[0]?.value.trim() || '',
+        대계열: sel?.value.trim() || '',
+        중계열: inputs[1]?.value.trim() || '',
+        비고:   inputs[2]?.value.trim() || '',
+      };
+    });
+    // 필터 재적용 (학과명이 변경될 수 있으므로)
+    if (q) {
+      this._filtered = this._data.filter(r =>
+        r.학과명.toLowerCase().includes(q) ||
+        r.대계열.toLowerCase().includes(q) ||
+        r.중계열.toLowerCase().includes(q)
+      );
+    } else {
+      this._filtered = this._data;
+    }
+  },
+
+  // ── 행 추가 (마지막 페이지로 이동) ──
+  addRow(학과명 = '', 대계열 = '', 중계열 = '', 비고 = '') {
+    this._flushEdits();
+    this._data.push({ 학과명, 대계열, 중계열, 비고 });
+    this._applyFilter();
+    // 마지막 페이지로
+    const totalPages = Math.ceil(this._filtered.length / this.PAGE_SIZE) || 1;
+    this._page = totalPages;
+    this._render();
+    this._updateCount();
+    // 마지막 행 포커스
+    setTimeout(() => {
+      const trs = document.getElementById('hk-table-body').querySelectorAll('tr');
+      trs[trs.length - 1]?.querySelector('input')?.focus();
+    }, 0);
+  },
+
+  // ── 행 삭제 (DOM tr 기준으로 _data에서 제거) ──
+  deleteRow(btn) {
+    this._flushEdits();
+    const tr = btn.closest('tr');
+    const trs = [...document.getElementById('hk-table-body').querySelectorAll('tr')];
+    const domIdx = trs.indexOf(tr);
+    const start = (this._page - 1) * this.PAGE_SIZE;
+    const dataObj = this._filtered[start + domIdx];
+    if (dataObj) {
+      const idx = this._data.indexOf(dataObj);
+      if (idx >= 0) this._data.splice(idx, 1);
+    }
+    this._applyFilter();
+    setDirty();
+  },
+
+  // ── 검색 ──
+  filter() {
+    this._flushEdits();
+    this._page = 1;
+    this._applyFilter();
+  },
+
+  // ── 카운트 표시 ──
+  _updateCount() {
+    const q = (document.getElementById('hk-search-input')?.value || '').trim();
+    const total = this._data.length;
+    const vis   = this._filtered.length;
+    const totalPages = Math.ceil(vis / this.PAGE_SIZE) || 1;
+    const countEl = document.getElementById('hk-row-count');
+    if (!countEl) return;
+    if (q) {
+      countEl.textContent = `${vis}/${total}건 (${this._page}/${totalPages} 페이지)`;
+    } else {
+      countEl.textContent = totalPages > 1
+        ? `총 ${total}건 (${this._page}/${totalPages} 페이지)`
+        : `총 ${total}건`;
+    }
+    document.getElementById('hk-empty-hint').style.display = total === 0 ? '' : 'none';
+  },
+
+  // ── 전체 데이터 수집 (저장 시 호출) ──
+  collect() {
+    this._flushEdits();
+    return this._data
+      .filter(r => r.학과명)
+      .map(r => {
+        const entry = { '학과명': r.학과명, '대계열': r.대계열 };
+        if (r.중계열) entry['중계열'] = r.중계열;
+        if (r.비고)   entry['비고']   = r.비고;
+        return entry;
+      });
+  },
+};
+
+/* ── 행 생성 헬퍼 (내부용) ── */
+const _대계열_옵션_SAFE = ['', '인문계열', '사회계열', '교육계열', '공학계열', '자연계열', '의약계열', '예체능계열'];
+function _createHkRow(학과명 = '', 대계열 = '', 중계열 = '', 비고 = '') {
   const tr = document.createElement('tr');
+  const opts = _대계열_옵션_SAFE.map(v =>
+    `<option value="${esc(v)}"${v === 대계열 ? ' selected' : ''}>${v || '(미분류)'}</option>`
+  ).join('');
   tr.innerHTML = `
-    <td><input class="cell-input" type="text" value="${esc(name)}" placeholder="\uC608: \uACBD\uC601\uD559\uACFC" oninput="setDirty()"></td>
-    <td><select class="cell-input" style="padding:2px 4px;" onchange="setDirty()">${buildHakgwaSafeOptions(category)}</select></td>
-    <td><input class="cell-input" type="text" value="${esc(subCategory)}" placeholder="\uC608: \uACBD\uC601\u00B7\uACBD\uC81C" style="width:110px;" oninput="setDirty()"></td>
-    <td><input class="cell-input" type="text" value="${esc(note)}" placeholder="" oninput="setDirty()"></td>
-    <td class="td-actions"><button class="btn btn-danger btn-sm" onclick="deleteHakgwaRow(this)">\uC0AD\uC81C</button></td>
+    <td><input class="cell-input" type="text" value="${esc(학과명)}" placeholder="예: 경영학과" oninput="setDirty()"></td>
+    <td><select class="cell-input" style="padding:2px 4px;" onchange="setDirty()">${opts}</select></td>
+    <td><input class="cell-input" type="text" value="${esc(중계열)}" placeholder="예: 경영·경제" style="width:110px;" oninput="setDirty()"></td>
+    <td><input class="cell-input" type="text" value="${esc(비고)}" placeholder="" oninput="setDirty()"></td>
+    <td class="td-actions"><button class="btn btn-danger btn-sm" onclick="HakgwaPager.deleteRow(this)">삭제</button></td>
   `;
   return tr;
 }
 
-function waitHakgwaSafePaint() {
-  return new Promise(resolve => {
-    if (typeof requestAnimationFrame === 'function') {
-      requestAnimationFrame(() => resolve());
-      return;
-    }
-    setTimeout(resolve, 0);
-  });
-}
+/* ══════════════════════════════════════════
+   tab-hakgwa.js 전역 함수 오버라이드
+══════════════════════════════════════════ */
 
-renderHakgwaTable = async function(rows) {
-  const tbody = document.getElementById('hk-table-body');
-  tbody.innerHTML = '';
-
-  const list = Array.isArray(rows) ? rows : [];
-  for (let i = 0; i < list.length; i += HAKGWA_SAFE_RENDER_BATCH) {
-    const frag = document.createDocumentFragment();
-    for (const row of list.slice(i, i + HAKGWA_SAFE_RENDER_BATCH)) {
-      const name = getHakgwaSafeRowValue(row, ['\uD559\uACFC\uBA85'], 0);
-      const category = getHakgwaSafeRowValue(row, ['\uB300\uACC4\uC5F4'], 1);
-      const subCategory = getHakgwaSafeRowValue(row, ['\uC911\uACC4\uC5F4'], 2);
-      const note = getHakgwaSafeRowValue(row, ['\uBE44\uACE0'], 3);
-      frag.appendChild(createHakgwaSafeRow(name, category, subCategory, note));
-    }
-    tbody.appendChild(frag);
-    updateHakgwaCount();
-    showHakgwaEmptyHint();
-
-    if (i + HAKGWA_SAFE_RENDER_BATCH < list.length) {
-      await waitHakgwaSafePaint();
-    }
-  }
-
-  updateHakgwaCount();
-  showHakgwaEmptyHint();
+renderHakgwaTable = function(rows) {
+  HakgwaPager.load(rows);
 };
 
-appendHakgwaRow = function(name = '', category = '', subCategory = '', note = '') {
-  const tbody = document.getElementById('hk-table-body');
-  tbody.appendChild(createHakgwaSafeRow(name, category, subCategory, note));
-  updateHakgwaCount();
-  showHakgwaEmptyHint();
+appendHakgwaRow = function(학과명 = '', 대계열 = '', 중계열 = '', 비고 = '') {
+  HakgwaPager.addRow(학과명, 대계열, 중계열, 비고);
 };
 
 collectHakgwaData = function() {
-  const rows = document.getElementById('hk-table-body').querySelectorAll('tr');
-  const data = [];
-
-  for (const tr of rows) {
-    const inputs = tr.querySelectorAll('input');
-    const sel = tr.querySelector('select');
-    const name = inputs[0]?.value.trim() || '';
-    const category = sel?.value.trim() || '';
-    const subCategory = inputs[1]?.value.trim() || '';
-    const note = inputs[2]?.value.trim() || '';
-    if (!name) continue;
-
-    const entry = {
-      '\uD559\uACFC\uBA85': name,
-      '\uB300\uACC4\uC5F4': category,
-    };
-    if (subCategory) entry['\uC911\uACC4\uC5F4'] = subCategory;
-    if (note) entry['\uBE44\uACE0'] = note;
-    data.push(entry);
-  }
-
-  return data;
+  return HakgwaPager.collect();
 };
 
-function parseHakgwaCsv(text) {
-  text = text.replace(/^\uFEFF/, '');
-  const lines = text.split(/\r?\n/).filter(line => line.trim());
-  if (!lines.length) return [];
+filterHakgwaRows = function() {
+  HakgwaPager.filter();
+};
 
-  const headers = lines[0].split(',').map(header => header.trim());
-  const iName = headers.findIndex(header =>
-    header.includes('\uD559\uACFC\uBA85') || header === '\uD559\uACFC'
-  );
-  const iCategory = headers.findIndex(header =>
-    header === '\uB300\uACC4\uC5F4' || (header.includes('\uACC4\uC5F4') && !header.includes('\uC911') && !header.includes('\uC18C'))
-  );
-  const iSubCategory = headers.findIndex(header => header === '\uC911\uACC4\uC5F4');
+updateHakgwaCount = function() {
+  HakgwaPager._updateCount();
+};
 
-  if (iName < 0) {
-    throw new Error('\uD559\uACFC\uBA85 \uCEEC\uB7FC\uC744 \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.');
-  }
+deleteHakgwaRow = function(btn) {
+  HakgwaPager.deleteRow(btn);
+};
 
-  const result = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(',');
-    const name = (cols[iName] || '').trim();
-    if (!name) continue;
-
-    const entry = { '\uD559\uACFC\uBA85': name };
-    if (iCategory >= 0) entry['\uB300\uACC4\uC5F4'] = (cols[iCategory] || '').trim();
-    if (iSubCategory >= 0) entry['\uC911\uACC4\uC5F4'] = (cols[iSubCategory] || '').trim();
-    result.push(entry);
-  }
-
-  return result;
-}
+addHakgwaRow = function() {
+  HakgwaPager.addRow('', '', '', '');
+  setDirty();
+};
 
 onHakgwaFileLoad = function(e) {
   const file = e.target.files[0];
   if (!file) return;
-
   const reader = new FileReader();
-  reader.onload = async ev => {
+  reader.onload = ev => {
     try {
       const text = ev.target.result;
       const data = file.name.toLowerCase().endsWith('.json')
         ? JSON.parse(text)
-        : parseHakgwaCsv(text);
-      if (!data.length) throw new Error('\uB370\uC774\uD130\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.');
-      await renderHakgwaTable(data);
+        : _parseHakgwaCsv(text);
+      if (!data.length) throw new Error('데이터가 없습니다.');
+      renderHakgwaTable(data);
       setDirty();
     } catch (err) {
-      alert(`\uD30C\uC77C \uC624\uB958: ${err.message}`);
+      alert(`파일 오류: ${err.message}`);
     }
   };
   reader.readAsText(file, 'utf-8');
