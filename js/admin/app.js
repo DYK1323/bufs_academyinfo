@@ -91,13 +91,22 @@ async function loadAll() {
 }
 
 async function loadHakgwaAsync() {
-  const bannerEl = document.getElementById('banner-hakgwa');
   try {
-    const hakgwa = await GH.getFile('data/학과분류.json');
-    State.sha.hakgwa = hakgwa.sha;
-    State.original.hakgwa = hakgwa.content; // 딥카피 제거 — 대용량이라 불필요
-    renderHakgwaTable(hakgwa.content || []);
-  } catch {
+    // GitHub Pages로 직접 fetch — Base64 변환 없음
+    const res = await fetch(
+      `https://${GH.owner}.github.io/${GH.repo}/data/학과분류.json`,
+      { cache: 'no-store' }
+    );
+    if (!res.ok) throw new Error(res.status);
+    const content = await res.json();
+
+    // sha는 저장용으로만 필요 — 별도 조회
+    const sha = await GH.getFileSha('data/학과분류.json');
+
+    State.sha.hakgwa = sha;
+    State.original.hakgwa = content;
+    renderHakgwaTable(content || []);
+  } catch (e) {
     State.sha.hakgwa = null;
     State.original.hakgwa = [];
     renderHakgwaTable([]);
