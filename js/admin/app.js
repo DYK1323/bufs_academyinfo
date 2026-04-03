@@ -87,7 +87,7 @@ async function loadAll() {
   refreshDatalistOptions();
 
   // 2단계: 학과분류는 비동기로 별도 로드 (탭 진입 전에 완료되면 충분)
-  loadHakgwaAsync();
+  loadHakgwaAsyncSafe();
 }
 
 async function loadHakgwaAsync() {
@@ -119,6 +119,36 @@ async function loadHakgwaAsync() {
 /* ══════════════════════════════════════════
    저장
 ══════════════════════════════════════════ */
+async function loadHakgwaAsyncSafe() {
+  const bannerEl = document.getElementById('banner-hakgwa');
+  try {
+    if (bannerEl) {
+      bannerEl.className = 'banner info show';
+      bannerEl.textContent = '학과분류 데이터를 불러오는 중입니다...';
+    }
+
+    const file = await GH.getFile('data/학과분류.json');
+    const content = Array.isArray(file.content) ? file.content : [];
+
+    State.sha.hakgwa = file.sha;
+    State.original.hakgwa = content;
+    await renderHakgwaTable(content);
+
+    if (bannerEl) {
+      bannerEl.className = 'banner success show';
+      bannerEl.textContent = `학과분류 ${content.length.toLocaleString('ko-KR')}건을 불러왔습니다.`;
+    }
+  } catch (e) {
+    State.sha.hakgwa = null;
+    State.original.hakgwa = [];
+    await renderHakgwaTable([]);
+    if (bannerEl) {
+      bannerEl.className = 'banner error show';
+      bannerEl.textContent = `학과분류.json 로드 실패: ${e.message}`;
+    }
+  }
+}
+
 async function saveAll() {
   if (!State.connected) { alert('먼저 GitHub에 연결하세요.'); return; }
 
