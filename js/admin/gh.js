@@ -39,6 +39,7 @@ const GH = {
     );
     if (!refRes.ok) throw new Error(`ref 조회 실패 — ${refRes.status}`);
     const refData = await refRes.json();
+    const commitSha = refData.object.sha; // ← commit SHA 보관 (putFile용)
 
     const commitRes = await fetch(refData.object.url, { headers: this.headers() });
     if (!commitRes.ok) throw new Error(`commit 조회 실패 — ${commitRes.status}`);
@@ -56,11 +57,11 @@ const GH = {
 
     const blobRes = await fetch(
       `https://api.github.com/repos/${this.owner}/${this.repo}/git/blobs/${file.sha}`,
-      { headers: { ...this.headers(), Accept: 'application/vnd.github.raw+json' } }
+      { headers: { ...this.headers(), Accept: 'application/vnd.github.raw' } }
     );
     if (!blobRes.ok) throw new Error(`blob 조회 실패 — ${blobRes.status}`);
     const text = await blobRes.text();
-    return { content: JSON.parse(text), sha: file.sha };
+    return { content: JSON.parse(text), sha: commitSha };
   },
 
   /** SHA만 조회 (대용량 파일도 안전 — content 디코딩 없음). 파일 없으면 null 반환. */
