@@ -59,6 +59,12 @@ const FilterManager = {
     document.querySelectorAll('#region-group .seg-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.val === val));
     this._triggerRender();
   },
+  _showLoading() {
+    document.getElementById('loading-overlay')?.classList.add('active');
+  },
+  _hideLoading() {
+    document.getElementById('loading-overlay')?.classList.remove('active');
+  },
   async onItemChange(indicatorKey) {
     AppState.filters.항목키 = indicatorKey;
     AppState.trend.allYears = null;
@@ -72,6 +78,7 @@ const FilterManager = {
     if (!indicatorKey) { Utils.showEmptyState('no-item'); return; }
     const cache = AppState.raw.benchmarkCache;
     if (!cache?.length) { Utils.showEmptyState('fetch-error'); return; }
+    this._showLoading();
     // manifest에서 이 지표에 해당하는 항목 찾아 per-item JSON 로드
     const manifestItem = AppState.raw.manifest.find(m => m.indicator === indicatorKey) || null;
     AppState.raw.currentManifestItem = manifestItem;
@@ -80,7 +87,7 @@ const FilterManager = {
     const yr = manifestItem?.year_range;
     if (yr?.min) years = years.filter(y => y >= yr.min);
     if (yr?.max) years = years.filter(y => y <= yr.max);
-    if (!years.length) { Utils.showEmptyState('no-data'); return; }
+    if (!years.length) { this._hideLoading(); Utils.showEmptyState('no-data'); return; }
     this.renderYearSelect(years);
     const sources = manifestItem?.sources || [];
     const splitFiles = manifestItem?.split_files || null;
@@ -93,6 +100,7 @@ const FilterManager = {
     const fetched = await Promise.all(fetchKeys.map(s => DataService.fetchItemData(s)));
     AppState.raw.항목데이터 = fetched.flat();
     this._reAggregate();
+    this._hideLoading();
   },
   onYearChange(year) { AppState.filters.연도 = year; this._reAggregate(); },
   _reAggregate() {
