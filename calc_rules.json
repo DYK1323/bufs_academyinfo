@@ -469,7 +469,8 @@
     "visible": true,
     "unit": "천원",
     "decimal_places": 1,
-    "sort_asc": false
+    "sort_asc": false,
+    "left_join": true
   },
   "1인당 국내논문": {
     "label": "1인당 국내논문",
