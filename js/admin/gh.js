@@ -36,9 +36,10 @@ const GH = {
 
   /** 1MB 초과 파일: raw.githubusercontent.com에서 직접 다운로드 + commit SHA 조회 */
   async _getFileLarge(path) {
-    // raw content 다운로드 (GitHub API blob 제한 없음)
+    // raw content 다운로드 (GitHub API blob 제한 없음, private 저장소 대응 인증 포함)
     const contentRes = await fetch(
-      `https://raw.githubusercontent.com/${this.owner}/${this.repo}/main/${path}`
+      `https://raw.githubusercontent.com/${this.owner}/${this.repo}/main/${path}`,
+      { headers: { Authorization: `Bearer ${this.token}` } }
     );
     if (!contentRes.ok) throw new Error(`콘텐츠 다운로드 실패 — ${contentRes.status}`);
     const text = await contentRes.text();
