@@ -18,7 +18,7 @@ const App = {
     const switchView = (viewName) => {
       document.querySelectorAll('.nav-item[data-view], .mobile-nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === viewName));
       document.getElementById('ranking-view').classList.toggle('hidden-view', viewName !== 'ranking');
-      for (const v of ['trend', 'bump', 'simulator', 'benchmark', 'scatter']) {
+      for (const v of ['trend', 'bump', 'simulator', 'benchmark', 'scatter', 'dept']) {
         document.getElementById(`${v}-view`)?.classList.toggle('visible', viewName === v);
       }
       document.getElementById('filter-bar').classList.toggle('trend-mode', viewName === 'trend');
@@ -26,6 +26,7 @@ const App = {
       document.getElementById('filter-bar').classList.toggle('bump-mode', viewName === 'bump');
       document.getElementById('filter-bar').classList.toggle('benchmark-mode', ['benchmark'].includes(viewName));
       document.getElementById('filter-bar').classList.toggle('scatter-mode', viewName === 'scatter');
+      document.getElementById('filter-bar').classList.toggle('dept-mode', viewName === 'dept');
 
       // 공유 사이드바 표시/숨김 및 모드 전환
       const sidePanel = document.getElementById('trend-side-panel');
@@ -38,11 +39,13 @@ const App = {
       if (viewName === 'simulator') SimulatorView.activate();
       if (viewName === 'benchmark') BenchmarkView.activate();
       if (viewName === 'scatter') ScatterView.activate();
+      if (viewName === 'dept') DeptAnalysisView.activate();
       if (TrendView._chart) setTimeout(() => TrendView._chart.resize(), 60);
       setTimeout(() => {
         if (document.getElementById('bump-view')?.classList.contains('visible')) BumpView._fitHeight();
         if (ScatterView._chart) ScatterView._chart.resize();
         if (BenchmarkView._gapChart) BenchmarkView._gapChart.resize();
+        if (DeptAnalysisView._trendChart) DeptAnalysisView._trendChart.resize();
       }, 60);
     };
     document.querySelectorAll('.nav-item[data-view], .mobile-nav-item[data-view]').forEach(el => el.addEventListener('click', () => switchView(el.dataset.view)));
@@ -225,20 +228,27 @@ const App = {
     // 창 리사이즈
     window.addEventListener('resize', () => {
       if (document.getElementById('bump-view')?.classList.contains('visible')) BumpView._fitHeight();
-      [TrendView._chart, BenchmarkView._gapChart, ScatterView._chart].forEach(c => c?.resize());
+      [TrendView._chart, BenchmarkView._gapChart, ScatterView._chart, DeptAnalysisView._trendChart].forEach(c => c?.resize());
+    });
+
+    // 계열 드롭다운 이벤트
+    document.getElementById('filter-dept')?.addEventListener('change', e => {
+      DeptAnalysisView.onDeptChange(e.target.value);
     });
 
     // 초기 데이터 로드
-    const [calcRules, benchmarkCache, manifest, baseUnivData] = await Promise.all([
+    const [calcRules, benchmarkCache, manifest, baseUnivData, deptClassification] = await Promise.all([
       DataService.fetchCalcRules(),
       DataService.fetchBenchmarkCache(),
       DataService.fetchManifest(),
       DataService.fetchBaseUnivData(),
+      DataService.fetchDeptClassification(),
     ]);
     AppState.raw.calcRules = calcRules;
     AppState.raw.benchmarkCache = benchmarkCache || [];
     AppState.raw.manifest = manifest || [];
     AppState.raw._baseUnivMap = DataService.buildBaseUnivMap(baseUnivData || []);
+    AppState.dept.deptClassification = deptClassification || [];
 
     FilterManager.init();
     FilterManager.renderItemSelect(calcRules);

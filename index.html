@@ -53,6 +53,10 @@
         <span class="nav-icon">🌡️</span>
         <span class="nav-label">산포도</span>
       </div>
+      <div class="nav-item" data-view="dept">
+        <span class="nav-icon">🔬</span>
+        <span class="nav-label">계열별 분석</span>
+      </div>
     </div>
 
     <div style="padding: 8px 10px; border-top: 1px solid var(--border);">
@@ -90,6 +94,7 @@
       <div class="mobile-nav-item" data-view="simulator">🎯 시뮬레이터</div>
       <div class="mobile-nav-item" data-view="benchmark">⚔️ 벤치마킹</div>
       <div class="mobile-nav-item" data-view="scatter">🌡️ 상관관계</div>
+      <div class="mobile-nav-item" data-view="dept">🔬 계열별</div>
     </div>
 
     <!-- 필터 바 -->
@@ -152,6 +157,13 @@
           <span>특별법법인·특별법국립 제외</span>
         </label>
       </div>
+      <!-- 계열별 분석 전용 필터 -->
+      <div class="filter-divider dept-only"></div>
+      <span class="filter-label dept-only">계열</span>
+      <select class="filter-select dept-only" id="filter-dept" style="min-width:130px;">
+        <option value="">계열 전체</option>
+      </select>
+
       <!-- 산포도 전용 필터 -->
       <span class="filter-label scatter-only">X축</span>
       <select class="filter-select scatter-only" id="scatter-x" style="min-width:160px;">
@@ -411,6 +423,28 @@
         </div>
       </div>
 
+      <!-- 계열별 분석 뷰 -->
+      <div id="dept-view">
+        <!-- 서브탭 -->
+        <div class="dept-sub-tabs">
+          <button class="dept-sub-btn active" data-sub="ranking" onclick="DeptAnalysisView.switchSubView('ranking')">📊 순위 보기</button>
+          <button class="dept-sub-btn" data-sub="trend" onclick="DeptAnalysisView.switchSubView('trend')">📉 추이 분석</button>
+        </div>
+        <!-- 순위 보기 패널 -->
+        <div id="dept-ranking-panel" class="card dept-sub-panel">
+          <div class="empty-state">
+            <div class="empty-icon">🔬</div>
+            <div class="empty-title">지표와 계열을 선택하세요</div>
+            <div class="empty-desc">상단 필터에서 지표를 선택한 후<br>계열을 선택하면 계열별 순위가 표시됩니다.</div>
+          </div>
+        </div>
+        <!-- 추이 분석 패널 -->
+        <div id="dept-trend-panel" class="card dept-sub-panel" style="display:none;">
+          <div id="dept-trend-chart" style="min-height:380px;"></div>
+          <div id="dept-trend-table-wrap" style="overflow-x:auto;margin-top:12px;"></div>
+        </div>
+      </div>
+
     </div><!-- /view-container -->
     </div><!-- /content-row -->
   </div><!-- /main-content -->
@@ -424,6 +458,7 @@
 <script src="js/views/simulator.js"></script>
 <script src="js/views/trend.js"></script>
 <script src="js/views/benchmark.js"></script>
+<script src="js/views/dept-analysis.js"></script>
 <script src="js/filter.js"></script>
 <script src="js/app.js"></script>
 </body>

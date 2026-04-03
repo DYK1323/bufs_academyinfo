@@ -1106,4 +1106,115 @@ select:focus { outline: 1px solid var(--primary); }
 #filter-bar.scatter-mode > *:not(.scatter-only) { display: none; }
 #filter-bar:not(.scatter-mode) .scatter-only    { display: none; }
 
+/* dept-mode: 계열 드롭다운 표시 */
+.dept-only                            { display: none; }
+#filter-bar.dept-mode .dept-only      { display: flex; align-items: center; }
+#filter-bar.dept-mode .dept-only.filter-divider { display: block; }
+#filter-bar.dept-mode .dept-only.filter-select  { display: block; }
+#filter-bar.dept-mode .dept-only.filter-label   { display: block; }
+
+/* dept-view */
+#dept-view {
+  display: none;
+  flex-direction: column;
+  gap: 14px;
+}
+#dept-view.visible { display: flex; }
+
+/* 서브탭 */
+.dept-sub-tabs {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.dept-sub-btn {
+  padding: 6px 16px;
+  border: 1.5px solid var(--border-mid);
+  border-radius: 6px;
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+.dept-sub-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.dept-sub-btn:hover:not(.active) {
+  background: var(--surface-1);
+  border-color: var(--primary);
+}
+
+/* 서브 패널 */
+.dept-sub-panel {
+  flex: 1;
+  overflow: hidden;
+}
+
+/* dept 순위 테이블 */
+.dept-rank-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.dept-rank-table th {
+  background: var(--surface-1);
+  padding: 7px 12px;
+  text-align: left;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.dept-rank-table td {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.dept-rank-table tr.our-row td {
+  background: var(--primary-light);
+  font-weight: 600;
+  color: var(--primary-dark);
+}
+.dept-rank-table tr:hover:not(.our-row) td {
+  background: var(--surface-1);
+}
+
+/* dept KPI 바 */
+.dept-kpi-bar {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-1);
+  flex-shrink: 0;
+}
+.dept-kpi-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dept-kpi-label {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.dept-kpi-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--primary);
+}
+.dept-kpi-divider {
+  width: 1px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
 

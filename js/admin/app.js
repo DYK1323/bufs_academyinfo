@@ -9,6 +9,10 @@ function switchTab(name, btn) {
   document.getElementById(`tab-${name}`).classList.add('active');
   btn.classList.add('active');
   const noSaveBar = name === 'data' || name === 'cache';
+  if (name === 'hakgwa') {
+    document.getElementById('tab-기준대학').style.display = 'none';
+    document.getElementById('tab-hakgwa').style.display = '';
+  }
   const saveBar = document.querySelector('.save-bar');
   if (saveBar) saveBar.style.display = noSaveBar ? 'none' : '';
   const restoreBanner = document.getElementById('restore-banner');
@@ -56,20 +60,23 @@ async function ghConnect() {
 }
 
 async function loadAll() {
-  const [기준대학, calc, manifest, fieldMapping, dataFiles] = await Promise.all([
+  const [기준대학, calc, manifest, fieldMapping, dataFiles, hakgwa] = await Promise.all([
     GH.getFile('data/기준대학.json'),
     GH.getFile('calc_rules.json'),
     GH.getFile('data/manifest.json'),
     GH.getFile('field_mapping.json'),
     GH.listDataFiles(),
+    GH.getFile('data/학과분류.json').catch(() => ({ sha: null, content: [] })),
   ]);
   State.dataFiles = dataFiles;
   State.sha.기준대학 = 기준대학.sha;
   State.sha.calc     = calc.sha;
   State.sha.manifest = manifest.sha;
+  State.sha.hakgwa   = hakgwa.sha;
   State.original.기준대학 = JSON.parse(JSON.stringify(기준대학.content));
   State.original.calc     = JSON.parse(JSON.stringify(calc.content));
   State.original.manifest = JSON.parse(JSON.stringify(manifest.content));
+  State.original.hakgwa   = JSON.parse(JSON.stringify(hakgwa.content));
   // field_mapping.json 구조: { "__shared": {}, "항목키": {} }
   // 소스별 필드 그룹 구성 (자동완성용) — __shared는 "(공통 필드)"로 표시
   State.fieldsBySource = Object.entries(fieldMapping.content)
@@ -80,6 +87,7 @@ async function loadAll() {
   renderMappingTable(기준대학.content);
   renderCalcRules(calc.content);
   renderManifest(manifest.content);
+  renderHakgwaTable(hakgwa.content || []);
   refreshDatalistOptions();
 }
 
@@ -94,10 +102,11 @@ async function saveAll() {
   btn.textContent = '저장 중…';
 
   try {
-    const [newData기준대학, newDataCalc, newDataManifest] = [
+    const [newData기준대학, newDataCalc, newDataManifest, newDataHakgwa] = [
       collectMappingData(),
       collectCalcRules(),
       collectManifest(),
+      collectHakgwaData(),
     ];
 
     const now = new Date().toISOString().slice(0,16).replace('T',' ');
@@ -112,6 +121,9 @@ async function saveAll() {
 
     const curManifest = await GH.getFile('data/manifest.json');
     State.sha.manifest = await GH.putFile('data/manifest.json', newDataManifest, curManifest.sha, msg);
+
+    const curHakgwa = await GH.getFile('data/학과분류.json').catch(() => ({ sha: null }));
+    State.sha.hakgwa = await GH.putFile('data/학과분류.json', newDataHakgwa, curHakgwa.sha, msg);
 
     clearDraft();
     setClean(`저장 완료 — ${now}`);

@@ -11,11 +11,12 @@ const DataService = {
       return await res.json();
     } catch { return fallback; }
   },
-  async fetchCalcRules()      { return this.fetchJSON('./calc_rules.json', {}); },
-  async fetchBenchmarkCache() { return this.fetchJSON(`${DATA_PATH}benchmark_cache.json`, null); },
-  async fetchManifest()         { return this.fetchJSON(`${DATA_PATH}manifest.json`, []); },
-  async fetchBaseUnivData()     { return this.fetchJSON(`${DATA_PATH}기준대학.json`, []); },
-  async fetchItemData(itemKey)  { return this.fetchJSON(`${DATA_PATH}${encodeURIComponent(itemKey)}.json`, []); },
+  async fetchCalcRules()           { return this.fetchJSON('./calc_rules.json', {}); },
+  async fetchBenchmarkCache()      { return this.fetchJSON(`${DATA_PATH}benchmark_cache.json`, null); },
+  async fetchManifest()            { return this.fetchJSON(`${DATA_PATH}manifest.json`, []); },
+  async fetchBaseUnivData()        { return this.fetchJSON(`${DATA_PATH}기준대학.json`, []); },
+  async fetchItemData(itemKey)     { return this.fetchJSON(`${DATA_PATH}${encodeURIComponent(itemKey)}.json`, []); },
+  async fetchDeptClassification()  { return this.fetchJSON(`${DATA_PATH}학과분류.json`, []); },
 
   /** 기준대학.json 로드 후 대학명→기준대학명 맵 구축 */
   buildBaseUnivMap(baseUnivList) {

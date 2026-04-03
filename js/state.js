@@ -73,4 +73,11 @@ const AppState = {
     yMin: null,
     yMax: null,
   },
+  dept: {
+    계열: '',          // 선택된 대계열 ('': 전체)
+    subView: 'ranking', // 'ranking' | 'trend'
+    deptMap: null,     // Map<학과명 → 대계열> (로드 완료 후 세팅)
+    계열List: [],       // 고유 대계열 목록 (정렬)
+    deptClassification: [], // 학과분류.json raw data
+  },
 };

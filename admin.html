@@ -38,6 +38,7 @@
   <button class="tab-btn" onclick="switchTab('manifest', this); renderManifest(manifestData)">공시항목</button>
   <button class="tab-btn" onclick="switchTab('data', this); DataViewer.init()">데이터 조회</button>
   <button class="tab-btn" onclick="switchTab('cache', this); CacheManager.init()">캐시 관리</button>
+  <button class="tab-btn" onclick="switchTab('hakgwa', this)">학과분류</button>
 </div>
 
 <!-- ══════════════════════════════════════════
@@ -214,6 +215,64 @@
   </div>
 </div>
 
+<!-- ══════════════════════════════════════════
+     탭 6: 학과분류
+══════════════════════════════════════════ -->
+<div class="tab-content" id="tab-hakgwa">
+  <div class="banner" id="banner-hakgwa"></div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">학과분류 매핑</div>
+        <div class="card-desc">
+          학과명 → 계열 매핑을 관리합니다.
+          <code>convert_학과분류.py</code>로 초기 데이터를 생성하거나, JSON/CSV 파일을 직접 업로드할 수 있습니다.
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="toolbar">
+        <input type="search" id="hk-search-input" placeholder="학과명 검색…" oninput="filterHakgwaRows()">
+        <span class="row-count" id="hk-row-count"></span>
+        <button class="btn btn-primary" onclick="addHakgwaRow()">+ 행 추가</button>
+        <button class="btn btn-secondary" onclick="loadHakgwaFile()">JSON/CSV 업로드</button>
+        <input type="file" id="hk-file-input" accept=".json,.csv" style="display:none" onchange="onHakgwaFileLoad(event)">
+      </div>
+      <div class="table-wrap">
+        <table id="hk-table">
+          <thead>
+            <tr>
+              <th style="width:36%">학과명 <span style="font-weight:400;opacity:.6">(학과(모집단위) 필드값)</span></th>
+              <th style="width:16%">대계열</th>
+              <th style="width:16%">중계열</th>
+              <th style="width:20%">비고</th>
+              <th style="width:8%"></th>
+            </tr>
+          </thead>
+          <tbody id="hk-table-body"></tbody>
+        </table>
+      </div>
+      <div id="hk-empty-hint" style="display:none;">등록된 학과분류가 없습니다. [+ 행 추가] 또는 파일 업로드로 추가하세요.</div>
+    </div>
+  </div>
+
+  <!-- 검증 패널 -->
+  <div class="card" style="margin-top:14px;">
+    <div class="card-header">
+      <div>
+        <div class="card-title">학과명 매칭 검증</div>
+        <div class="card-desc">
+          학과별자료 JSON 파일을 업로드하면 현재 분류표에 없는 학과명을 검출합니다.
+        </div>
+      </div>
+      <button class="btn btn-secondary" onclick="loadValidateFile()">🔍 데이터 파일 업로드 후 검증</button>
+      <input type="file" id="hk-validate-input" accept=".json" style="display:none" onchange="onValidateFileLoad(event)">
+    </div>
+    <div id="hk-validate-result" style="display:none;padding:0 18px 14px;"></div>
+  </div>
+</div>
+
 <!-- ── 전역 datalist ── -->
 <datalist id="dl-data-files"></datalist>
 
@@ -241,6 +300,7 @@
 <script src="js/admin/tab-manifest.js"></script>
 <script src="js/admin/data-viewer.js"></script>
 <script src="js/admin/cache.js"></script>
+<script src="js/admin/tab-hakgwa.js"></script>
 
 </body>
 </html>

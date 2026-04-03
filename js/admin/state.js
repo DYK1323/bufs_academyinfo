@@ -11,8 +11,8 @@ const METRO    = new Set(['서울', '경기', '인천']);
 ══════════════════════════════════════════ */
 const State = {
   connected: false,
-  sha: { 기준대학: null, calc: null, manifest: null },
-  original: { 기준대학: [], calc: {}, manifest: [] },
+  sha: { 기준대학: null, calc: null, manifest: null, hakgwa: null },
+  original: { 기준대학: [], calc: {}, manifest: [], hakgwa: [] },
   dirty: false,
   fieldKeys: [],        // field_mapping.json 키 목록 (연결 시 로드)
   fieldsBySource: [],   // [{ source, fields[] }] — 소스별 그룹 (자동완성용)
