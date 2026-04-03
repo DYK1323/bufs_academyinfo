@@ -17,22 +17,21 @@ const GH = {
   },
 
   async getFile(path) {
-    const res = await fetch(
-      `https://api.github.com/repos/${this.owner}/${this.repo}/contents/${path}`,
-      { headers: this.headers() }
-    );
-    if (res.status === 403 || res.status === 422) return this._getFileLarge(path);
-    if (!res.ok) throw new Error(`${res.status} — ${path}`);
-    const data = await res.json();
-    // content가 없거나 truncated인 경우 (2MB+ 파일: 200이지만 내용 잘림)
-    if (!data.content || data.truncated) return this._getFileLarge(path);
-    try {
-      const text = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ''))));
-      return { content: JSON.parse(text), sha: data.sha };
-    } catch {
-      return this._getFileLarge(path);
-    }
-  },
+  // 대용량/한글 파일: raw + sha 병렬 조회
+  const [contentRes, sha] = await Promise.all([
+    fetch(
+      `https://raw.githubusercontent.com/${this.owner}/${this.repo}/main/${path}`,
+      { headers: { Authorization: `Bearer ${this.token}` } }
+    ),
+    this.getFileSha(path),
+  ]);
+
+  if (!contentRes.ok) throw new Error(`${contentRes.status} — ${path}`);
+
+  // Response.json()은 브라우저 내부에서 스트리밍 파싱 → atob보다 훨씬 빠름
+  const content = await contentRes.json();
+  return { content, sha };
+},
 
   /** 1MB 초과 파일: raw.githubusercontent.com에서 직접 다운로드 + commit SHA 조회 */
   async _getFileLarge(path) {
