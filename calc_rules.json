@@ -476,7 +476,7 @@
     ],
     "multiply": 1,
     "visible": true,
-    "unit": "",
+    "unit": "건",
     "decimal_places": 3,
     "sort_asc": false
   },
@@ -490,7 +490,7 @@
     ],
     "multiply": 1,
     "visible": true,
-    "unit": "",
+    "unit": "건",
     "decimal_places": 3,
     "sort_asc": false
   },
@@ -504,8 +504,56 @@
     ],
     "multiply": 1,
     "visible": true,
-    "unit": "",
+    "unit": "건",
     "decimal_places": 3,
+    "sort_asc": false
+  },
+  "교외연구비_정부": {
+    "label": "교외연구비_정부",
+    "numerator": [
+      "연구비 지원_교외_중앙정부_연구비_남",
+      "연구비 지원_교외_중앙정부_연구비_여"
+    ],
+    "denominator_base": "1",
+    "multiply": 1,
+    "unit": "천원",
+    "decimal_places": 0,
+    "sort_asc": false
+  },
+  "교외연구비_지자체": {
+    "label": "교외연구비_지자체",
+    "numerator": [
+      "연구비 지원_교외_지자체_연구비_남",
+      "연구비 지원_교외_지자체_연구비_여"
+    ],
+    "denominator_base": "1",
+    "multiply": 1,
+    "unit": "천원",
+    "decimal_places": 0,
+    "sort_asc": false
+  },
+  "교외연구비_민간": {
+    "label": "교외연구비_민간",
+    "numerator": [
+      "연구비 지원_교외_민간_연구비_남",
+      "연구비 지원_교외_민간_연구비_여"
+    ],
+    "denominator_base": "1",
+    "multiply": 1,
+    "unit": "천원",
+    "decimal_places": 0,
+    "sort_asc": false
+  },
+  "교외연구비_외국": {
+    "label": "교외연구비_외국",
+    "numerator": [
+      "연구비 지원_교외_외국_연구비_남",
+      "연구비 지원_교외_외국_연구비_여"
+    ],
+    "denominator_base": "1",
+    "multiply": 1,
+    "unit": "천원",
+    "decimal_places": 0,
     "sort_asc": false
   }
 }
