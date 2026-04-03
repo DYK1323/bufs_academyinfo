@@ -58,27 +58,24 @@ async function ghConnect() {
     statusEl.className = 'error';
   }
 }
-
 async function loadAll() {
-  const [기준대학, calc, manifest, fieldMapping, dataFiles, hakgwa] = await Promise.all([
+  // 1단계: 핵심 파일만 먼저 로드 (빠름)
+  const [기준대학, calc, manifest, fieldMapping, dataFiles] = await Promise.all([
     GH.getFile('data/기준대학.json'),
     GH.getFile('calc_rules.json'),
     GH.getFile('data/manifest.json'),
     GH.getFile('field_mapping.json'),
     GH.listDataFiles(),
-    GH.getFile('data/학과분류.json').catch(() => ({ sha: null, content: [] })),
   ]);
+
   State.dataFiles = dataFiles;
   State.sha.기준대학 = 기준대학.sha;
   State.sha.calc     = calc.sha;
   State.sha.manifest = manifest.sha;
-  State.sha.hakgwa   = hakgwa.sha;
   State.original.기준대학 = JSON.parse(JSON.stringify(기준대학.content));
   State.original.calc     = JSON.parse(JSON.stringify(calc.content));
   State.original.manifest = JSON.parse(JSON.stringify(manifest.content));
-  State.original.hakgwa   = JSON.parse(JSON.stringify(hakgwa.content));
-  // field_mapping.json 구조: { "__shared": {}, "항목키": {} }
-  // 소스별 필드 그룹 구성 (자동완성용) — __shared는 "(공통 필드)"로 표시
+
   State.fieldsBySource = Object.entries(fieldMapping.content)
     .map(([src, sec]) => ({ source: src === '__shared' ? '(공통 필드)' : src, fields: Object.keys(sec) }))
     .filter(g => g.fields.length > 0);
@@ -87,10 +84,29 @@ async function loadAll() {
   renderMappingTable(기준대학.content);
   renderCalcRules(calc.content);
   renderManifest(manifest.content);
-  renderHakgwaTable(hakgwa.content || []);
   refreshDatalistOptions();
+
+  // 2단계: 학과분류는 비동기로 별도 로드 (탭 진입 전에 완료되면 충분)
+  loadHakgwaAsync();
 }
 
+async function loadHakgwaAsync() {
+  const bannerEl = document.getElementById('banner-hakgwa');
+  try {
+    const hakgwa = await GH.getFile('data/학과분류.json');
+    State.sha.hakgwa = hakgwa.sha;
+    State.original.hakgwa = hakgwa.content; // 딥카피 제거 — 대용량이라 불필요
+    renderHakgwaTable(hakgwa.content || []);
+  } catch {
+    State.sha.hakgwa = null;
+    State.original.hakgwa = [];
+    renderHakgwaTable([]);
+    if (bannerEl) {
+      bannerEl.className = 'banner error show';
+      bannerEl.textContent = '학과분류.json 로드 실패 — 파일 업로드로 직접 추가하세요.';
+    }
+  }
+}
 /* ══════════════════════════════════════════
    저장
 ══════════════════════════════════════════ */
