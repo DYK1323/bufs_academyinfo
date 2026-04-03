@@ -21,10 +21,46 @@ const GH = {
       `https://api.github.com/repos/${this.owner}/${this.repo}/contents/${path}`,
       { headers: this.headers() }
     );
+    // 1MB 초과 파일은 403 반환 → Git Blobs API로 fallback
+    if (res.status === 403 || res.status === 422) {
+      return this._getFileLarge(path);
+    }
     if (!res.ok) throw new Error(`${res.status} — ${path}`);
     const data = await res.json();
     const text = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ''))));
     return { content: JSON.parse(text), sha: data.sha };
+  },
+
+  /** 1MB 초과 파일: Git Trees API로 blob SHA를 찾은 뒤 Blobs API로 내용 조회 */
+  async _getFileLarge(path) {
+    const refRes = await fetch(
+      `https://api.github.com/repos/${this.owner}/${this.repo}/git/refs/heads/main`,
+      { headers: this.headers() }
+    );
+    if (!refRes.ok) throw new Error(`ref 조회 실패 — ${refRes.status}`);
+    const refData = await refRes.json();
+
+    const commitRes = await fetch(refData.object.url, { headers: this.headers() });
+    if (!commitRes.ok) throw new Error(`commit 조회 실패 — ${commitRes.status}`);
+    const commitData = await commitRes.json();
+
+    const treeRes = await fetch(
+      `${commitData.tree.url}?recursive=1`,
+      { headers: this.headers() }
+    );
+    if (!treeRes.ok) throw new Error(`tree 조회 실패 — ${treeRes.status}`);
+    const treeData = await treeRes.json();
+
+    const file = treeData.tree.find(f => f.path === path);
+    if (!file) throw new Error(`파일 없음 — ${path}`);
+
+    const blobRes = await fetch(
+      `https://api.github.com/repos/${this.owner}/${this.repo}/git/blobs/${file.sha}`,
+      { headers: { ...this.headers(), Accept: 'application/vnd.github.raw+json' } }
+    );
+    if (!blobRes.ok) throw new Error(`blob 조회 실패 — ${blobRes.status}`);
+    const text = await blobRes.text();
+    return { content: JSON.parse(text), sha: file.sha };
   },
 
   /** SHA만 조회 (대용량 파일도 안전 — content 디코딩 없음). 파일 없으면 null 반환. */
