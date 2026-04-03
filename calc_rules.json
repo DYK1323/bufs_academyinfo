@@ -555,5 +555,17 @@
     "unit": "천원",
     "decimal_places": 0,
     "sort_asc": false
+  },
+  "교외대응자금": {
+    "label": "교외대응자금",
+    "numerator": [
+      "대응자금_교외_남",
+      "대응자금_교외_여"
+    ],
+    "denominator_base": "1",
+    "multiply": 1,
+    "unit": "천원",
+    "decimal_places": 0,
+    "sort_asc": false
   }
 }
