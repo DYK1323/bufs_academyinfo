@@ -79,6 +79,7 @@ const FilterManager = {
     const cache = AppState.raw.benchmarkCache;
     if (!cache?.length) { Utils.showEmptyState('fetch-error'); return; }
     this._showLoading();
+    document.getElementById('tooltip-select-item')?.classList.remove('visible');
     // manifest에서 이 지표에 해당하는 항목 찾아 per-item JSON 로드
     const manifestItem = AppState.raw.manifest.find(m => m.indicator === indicatorKey) || null;
     AppState.raw.currentManifestItem = manifestItem;
@@ -101,6 +102,9 @@ const FilterManager = {
     AppState.raw.항목데이터 = fetched.flat();
     this._reAggregate();
     this._hideLoading();
+    // 지표 선택 유도 툴팁 숨김, 필터 안내 툴팁 표시
+    document.getElementById('tooltip-select-item')?.classList.remove('visible');
+    document.getElementById('tooltip-filter-guide')?.classList.add('visible');
   },
   onYearChange(year) { AppState.filters.연도 = year; this._reAggregate(); },
   _reAggregate() {

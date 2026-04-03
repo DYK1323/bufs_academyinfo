@@ -54,6 +54,8 @@ const App = {
       RankingView.renderPagination(AppState.computed.sorted.length, 1);
     });
 
+    document.getElementById('btn-trend-csv')?.addEventListener('click', () => TrendView.exportCSV());
+
     document.getElementById('btn-csv').addEventListener('click', () => {
       const { sorted } = AppState.computed;
       const calcRules = AppState.raw.calcRules;
@@ -242,6 +244,12 @@ const App = {
     FilterManager.renderItemSelect(calcRules);
     FilterManager.renderAllMultiSelects();
     Utils.showEmptyState('no-item');
+
+    // 툴팁 초기화
+    document.getElementById('tooltip-select-item')?.classList.add('visible');
+    document.getElementById('tooltip-filter-close')?.addEventListener('click', () => {
+      document.getElementById('tooltip-filter-guide')?.classList.remove('visible');
+    });
   },
 };
 

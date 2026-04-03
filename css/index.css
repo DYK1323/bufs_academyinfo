@@ -208,7 +208,7 @@ select:focus { outline: 1px solid var(--primary); }
 .scatter-range-auto:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
 
 /* 필터바 — 추이 뷰에서는 항목 선택만 표시 */
-#filter-bar.trend-mode > *:not(.filter-label):not(#filter-item) { display: none; }
+#filter-bar.trend-mode > *:not(.filter-label):not(#filter-item-wrap) { display: none; }
 #filter-bar.trend-mode > .filter-label:not(:first-child) { display: none; }
 
 .trend-univ-input {
@@ -474,6 +474,51 @@ select:focus { outline: 1px solid var(--primary); }
   align-self: center;
 }
 .filter-select:hover { border-color: var(--border-mid); }
+
+/* ── 필터 툴팁 */
+#filter-item-wrap { position: relative; display: inline-flex; align-items: center; }
+.filter-tooltip {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  white-space: nowrap;
+  background: var(--primary);
+  color: #fff;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  z-index: 300;
+  pointer-events: none;
+}
+.filter-tooltip::before {
+  content: '';
+  position: absolute;
+  top: -5px; left: 14px;
+  border: 5px solid transparent;
+  border-top: none;
+  border-bottom-color: var(--primary);
+}
+.filter-tooltip.visible { display: block; }
+.filter-tooltip--info {
+  background: var(--card-bg);
+  color: var(--text-body);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  padding-right: 28px;
+  pointer-events: auto;
+}
+.filter-tooltip--info::before { border-bottom-color: var(--border); }
+.filter-tooltip-close {
+  position: absolute;
+  top: 4px; right: 6px;
+  background: none; border: none;
+  font-size: 14px; line-height: 1;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 2px;
+}
 .filter-select:focus { outline: 1px solid var(--primary); border-color: var(--primary); background: var(--card-bg); }
 
 /* 커스텀 멀티셀렉트 */

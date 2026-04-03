@@ -26,6 +26,7 @@ const getCustomColors = () => [
 const TrendView = {
   _chart: null,
   _lastSeries: [],
+  _lastYears: [],
   _baseFilter(r) { return BenchmarkUtils.baseFilter(r); },
   _groupAvg(univRows, rankKey, extraFilter) {
     const rows = univRows.filter(r => this._baseFilter(r) && extraFilter(r));
@@ -96,6 +97,7 @@ const TrendView = {
     });
     const trendUnit = getIndicatorMeta(rankKey).unit;
     this._lastSeries = series;
+    this._lastYears  = years;
     if (AppState.trend.yMin === null && AppState.trend.yMax === null) this._applyAutoRange(series);
     this._renderChart(years, series, label, trendUnit);
     this._renderTable(years, series, trendUnit);
@@ -161,6 +163,28 @@ const TrendView = {
     this.updateDatalist();
     this.render();
     if (this._chart) setTimeout(() => this._chart.resize(), 60);
+  },
+  exportCSV() {
+    const years   = this._lastYears;
+    const series  = this._lastSeries;
+    if (!years.length || !series.length) return;
+    const rankKey  = AppState.computed.rankKey;
+    const { unit, decimal_places: dp } = getIndicatorMeta(rankKey);
+    const fmt = v => v != null ? Utils.formatValue(+v, unit, dp) : '-';
+    const header = ['구분', ...years.map(y => `${y}년`)].join(',');
+    const rowLines = series.map(s => [
+      `"${s.name}"`,
+      ...s.data.map(v => fmt(v)),
+    ].join(','));
+    const csv = [header, ...rowLines].join('\r\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const itemLabel = AppState.raw.calcRules[rankKey]?.label || rankKey;
+    a.href = url;
+    a.download = `추이_${itemLabel}_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
   },
 };
 
