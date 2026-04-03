@@ -17,20 +17,67 @@ const GH = {
   },
 
   async getFile(path) {
-  // 대용량/한글 파일: raw + sha 병렬 조회
-  const [contentRes, sha] = await Promise.all([
-    fetch(
-      `https://raw.githubusercontent.com/${this.owner}/${this.repo}/main/${path}`,
-      { headers: { Authorization: `Bearer ${this.token}` } }
-    ),
-    this.getFileSha(path),
-  ]);
+  // 1단계: contents API로 sha 취득 (내용은 안 씀)
+  const metaRes = await fetch(
+    `https://api.github.com/repos/${this.owner}/${this.repo}/contents/${path}`,
+    { headers: this.headers() }
+  );
 
-  if (!contentRes.ok) throw new Error(`${contentRes.status} — ${path}`);
+  let blobSha, fileSha;
 
-  // Response.json()은 브라우저 내부에서 스트리밍 파싱 → atob보다 훨씬 빠름
-  const content = await contentRes.json();
-  return { content, sha };
+  if (metaRes.ok) {
+    const meta = await metaRes.json();
+    blobSha = meta.sha;
+    fileSha = meta.sha;
+
+    // 1MB 이하 파일은 content가 있으면 바로 디코딩
+    if (meta.content && !meta.truncated) {
+      const text = new TextDecoder().decode(
+        Uint8Array.from(atob(meta.content.replace(/\n/g, '')), c => c.charCodeAt(0))
+      );
+      return { content: JSON.parse(text), sha: fileSha };
+    }
+  } else if (metaRes.status === 404) {
+    throw new Error(`파일 없음 — ${path}`);
+  } else {
+    // 403(1MB 초과) → trees API로 blob sha 확보
+    blobSha = await this._getBlobShaFromTree(path);
+    fileSha = blobSha;
+  }
+
+  // 2단계: Blob API로 내용 취득 (CORS OK, 크기 제한 없음)
+  const blobRes = await fetch(
+    `https://api.github.com/repos/${this.owner}/${this.repo}/git/blobs/${blobSha}`,
+    { headers: this.headers() }
+  );
+  if (!blobRes.ok) throw new Error(`blob 취득 실패 — ${blobRes.status}`);
+  const blob = await blobRes.json();
+
+  const text = new TextDecoder().decode(
+    Uint8Array.from(atob(blob.content.replace(/\n/g, '')), c => c.charCodeAt(0))
+  );
+  return { content: JSON.parse(text), sha: fileSha };
+},
+
+async _getBlobShaFromTree(path) {
+  const refRes = await fetch(
+    `https://api.github.com/repos/${this.owner}/${this.repo}/git/refs/heads/main`,
+    { headers: this.headers() }
+  );
+  if (!refRes.ok) throw new Error(`ref 조회 실패`);
+  const { object } = await refRes.json();
+
+  const commitRes = await fetch(object.url, { headers: this.headers() });
+  const commit = await commitRes.json();
+
+  const treeRes = await fetch(
+    `${commit.tree.url}?recursive=1`,
+    { headers: this.headers() }
+  );
+  const tree = await treeRes.json();
+  const file = tree.tree.find(f => f.path === path);
+  if (!file) throw new Error(`트리에서 파일 없음 — ${path}`);
+  return file.sha;
 },
 
   /** 1MB 초과 파일: raw.githubusercontent.com에서 직접 다운로드 + commit SHA 조회 */
