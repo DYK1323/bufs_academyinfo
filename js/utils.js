@@ -94,6 +94,22 @@ const Utils = {
     document.body.appendChild(a); a.click();
     document.body.removeChild(a); URL.revokeObjectURL(url);
   },
+  renderFormula(formula) {
+    if (!formula) return '';
+    const { numerator, denominator, multiplier = '', unit = '', note = '' } = formula;
+    const multHtml  = multiplier ? `<span class="formula-multiplier">${multiplier}</span>` : '';
+    const unitHtml  = unit       ? `<span class="formula-unit">${unit}</span>`             : '';
+    const noteHtml  = note       ? `<span class="formula-note">※ ${note}</span>`           : '';
+    return `<span class="formula-frac">
+      <span class="formula-expr">
+        <span class="formula-frac-inner">
+          <span class="formula-num">${numerator}</span>
+          <span class="formula-bar"></span>
+          <span class="formula-den">${denominator}</span>
+        </span>${multHtml}${unitHtml}
+      </span>${noteHtml}
+    </span>`;
+  },
 };
 
 /* ═══════════════════════════════════════════════════════

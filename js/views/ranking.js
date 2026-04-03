@@ -24,14 +24,23 @@ const RankingView = {
     const kpiEl = document.getElementById('kpi-bar');
     const ourIdx = sorted.findIndex(r => r._isOurs);
     const total = sorted.length;
-    const filterDesc = Utils.buildFilterDescription(AppState.filters);
-    const itemKey = AppState.filters.항목키 || '';
-    const year = AppState.filters.연도 || '';
     const calcRules = AppState.raw.calcRules;
     const rankKey = AppState.computed.rankKey;
     const rankLabel = rankKey && calcRules[rankKey] ? calcRules[rankKey].label : rankKey || '';
+    const manifestItem = AppState.raw.currentManifestItem;
+    const formula    = manifestItem?.formula       ?? null;
+    const pubYear    = AppState.filters.연도 || '';
+    const refDate    = (manifestItem?.reference_date ?? '')
+      .replace(/\(\{\{공시연도\}\}-1\)/g, pubYear ? String(pubYear - 1) : '')
+      .replace(/\{\{공시연도\}\}/g,        pubYear ? String(pubYear)     : '')
+      .replace(/\{\{기준연도\}\}/g,        pubYear ? String(pubYear - 1) : '');
+    const metaLine = (formula || refDate) ? `
+      <div class="kpi-meta">
+        ${refDate ? `<div class="kpi-refdate">기준일: ${refDate}</div>` : ''}
+        ${formula ? `<span class="kpi-formula-wrap">산식&nbsp;${Utils.renderFormula(formula)}</span>` : ''}
+      </div>` : '';
     if (ourIdx === -1) {
-      kpiEl.innerHTML = `<div class="card kpi-card"><div class="kpi-badge">🏫</div><div class="kpi-info"><div class="kpi-univ">${OUR_UNIV}</div><div class="kpi-context">${filterDesc} · ${year}년 · ${itemKey}</div></div><div class="kpi-warn">현재 필터 조건에 ${OUR_UNIV}이(가) 포함되어 있지 않습니다.</div></div>`;
+      kpiEl.innerHTML = `<div class="card kpi-card"><div class="kpi-badge">🏫</div><div class="kpi-info"><div class="kpi-univ">${OUR_UNIV}</div>${metaLine}</div><div class="kpi-warn">현재 필터 조건에 ${OUR_UNIV}이(가) 포함되어 있지 않습니다.</div></div>`;
       return;
     }
     const ourRow = sorted[ourIdx];
@@ -46,8 +55,7 @@ const RankingView = {
         <div class="kpi-badge">🏫</div>
         <div class="kpi-info">
           <div class="kpi-univ">${OUR_UNIV}</div>
-          <div class="kpi-context">${filterDesc} · ${year}년 · ${itemKey}</div>
-          <div class="kpi-rank-detail">${total}개교 중 순위 기준: ${rankLabel || itemKey}</div>
+          ${metaLine}
         </div>
         <div class="kpi-stats">
           <div class="kpi-stat"><div class="kpi-stat-pre">&nbsp;</div><div class="kpi-stat-value">${topPct}<span class="kpi-stat-unit">%</span></div><div class="kpi-stat-label">상위 백분율</div></div>

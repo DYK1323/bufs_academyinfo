@@ -626,6 +626,21 @@ select:focus { outline: 1px solid var(--primary); }
 .kpi-rank-detail { font-size: 11.5px; color: var(--text-muted); margin-top: 3px; }
 .kpi-warn { font-size: 12.5px; color: var(--caution-text); }
 
+/* ── KPI 산식·기준일 메타 */
+.kpi-meta { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; }
+.kpi-formula-wrap { display: inline-flex; align-items: baseline; gap: 5px; font-size: 11px; color: var(--text-muted); flex-wrap: wrap; }
+.kpi-refdate { font-size: 11px; color: var(--text-muted); }
+
+.formula-frac { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; vertical-align: middle; }
+.formula-expr { display: inline-flex; align-items: center; gap: 4px; }
+.formula-frac-inner { display: inline-flex; flex-direction: column; align-items: center; }
+.formula-num,
+.formula-den { display: block; text-align: center; line-height: 1.3; white-space: nowrap; font-size: 11px; }
+.formula-bar { display: block; height: 1px; background: currentColor; width: 100%; margin: 1px 0; }
+.formula-multiplier { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+.formula-unit { font-size: 10px; color: var(--text-muted); vertical-align: super; }
+.formula-note { font-size: 10px; color: var(--text-muted); opacity: 0.8; }
+
 /* ══════════════════════════════════════════════
    테이블 컨트롤
 ══════════════════════════════════════════════ */
