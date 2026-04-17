@@ -586,7 +586,7 @@
     "denominator_base": [
       "재학생 충원율"
     ],
-    "multiply": 0.001,
+    "multiply": 0.1,
     "unit": "",
     "decimal_places": 0,
     "sort_asc": false
