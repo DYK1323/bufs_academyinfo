@@ -587,7 +587,7 @@
       "재학생 충원율"
     ],
     "multiply": 0.001,
-    "unit": "천원",
+    "unit": "",
     "decimal_places": 0,
     "sort_asc": false
   },
