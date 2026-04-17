@@ -4,6 +4,8 @@
    DataService
 ═══════════════════════════════════════════════════════ */
 const DataService = {
+  _itemCache: new Map(), // 메모리 캐시 (페이지 새로고침 전까지 유지)
+
   async fetchJSON(path, fallback) {
     try {
       const res = await fetch(path);
@@ -15,8 +17,49 @@ const DataService = {
   async fetchBenchmarkCache()      { return this.fetchJSON(`${DATA_PATH}benchmark_cache.json`, null); },
   async fetchManifest()            { return this.fetchJSON(`${DATA_PATH}manifest.json`, []); },
   async fetchBaseUnivData()        { return this.fetchJSON(`${DATA_PATH}기준대학.json`, []); },
-  async fetchItemData(itemKey)     { return this.fetchJSON(`${DATA_PATH}${encodeURIComponent(itemKey)}.json`, []); },
   async fetchDeptClassification()  { return this.fetchJSON(`${DATA_PATH}학과분류.json`, []); },
+
+  /** 항목 데이터 fetch — 메모리 캐시 → LocalStorage 캐시 → 네트워크 순으로 조회 */
+  async fetchItemData(itemKey) {
+    // 1. 메모리 캐시
+    if (this._itemCache.has(itemKey)) return this._itemCache.get(itemKey);
+
+    // 2. LocalStorage 캐시
+    const lsKey = `bufs_item_${itemKey}`;
+    try {
+      const cached = localStorage.getItem(lsKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        this._itemCache.set(itemKey, parsed);
+        return parsed;
+      }
+    } catch { /* localStorage 접근 실패 시 무시 */ }
+
+    // 3. 네트워크 fetch
+    const data = await this.fetchJSON(`${DATA_PATH}${encodeURIComponent(itemKey)}.json`, []);
+
+    // 캐시 저장 (5MB 초과 추정 시 LocalStorage 저장 생략)
+    this._itemCache.set(itemKey, data);
+    try {
+      const serialized = JSON.stringify(data);
+      if (serialized.length < 4 * 1024 * 1024) { // 4MB 미만만 저장
+        localStorage.setItem(lsKey, serialized);
+      }
+    } catch { /* 저장 실패(용량 초과 등) 시 무시 */ }
+
+    return data;
+  },
+
+  /** LocalStorage 항목 캐시 전체 삭제 */
+  clearItemCache() {
+    this._itemCache.clear();
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k?.startsWith('bufs_item_')) keys.push(k);
+    }
+    keys.forEach(k => localStorage.removeItem(k));
+  },
 
   /** 기준대학.json 로드 후 대학명→기준대학명 맵 구축 */
   buildBaseUnivMap(baseUnivList) {

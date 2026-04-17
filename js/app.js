@@ -27,19 +27,30 @@ const App = {
       document.getElementById('filter-bar').classList.toggle('benchmark-mode', ['benchmark'].includes(viewName));
       document.getElementById('filter-bar').classList.toggle('scatter-mode', viewName === 'scatter');
       document.getElementById('filter-bar').classList.toggle('dept-mode', viewName === 'dept');
+      if (viewName !== 'dept') document.getElementById('filter-bar').classList.remove('dept-trend-mode');
 
       // 공유 사이드바 표시/숨김 및 모드 전환
       const sidePanel = document.getElementById('trend-side-panel');
       if (sidePanel) {
-        sidePanel.classList.toggle('active', ['trend', 'bump'].includes(viewName));
+        const isDeptTrend = viewName === 'dept' && AppState.dept.subView === 'trend';
+        sidePanel.classList.toggle('active', ['trend', 'bump'].includes(viewName) || isDeptTrend);
         sidePanel.classList.toggle('bump-active', viewName === 'bump');
+        sidePanel.classList.toggle('dept-trend-active', isDeptTrend);
       }
       if (viewName === 'trend') TrendView.activate();
       if (viewName === 'bump') BumpView.activate();
       if (viewName === 'simulator') SimulatorView.activate();
       if (viewName === 'benchmark') BenchmarkView.activate();
       if (viewName === 'scatter') ScatterView.activate();
-      if (viewName === 'dept') DeptAnalysisView.activate();
+      if (viewName === 'dept') {
+        // 지표를 취업률로 고정
+        const itemSel = document.getElementById('filter-item');
+        if (itemSel && itemSel.value !== '취업률') {
+          itemSel.value = '취업률';
+          FilterManager.onItemChange('취업률');
+        }
+        DeptAnalysisView.activate();
+      }
       if (TrendView._chart) setTimeout(() => TrendView._chart.resize(), 60);
       setTimeout(() => {
         if (document.getElementById('bump-view')?.classList.contains('visible')) BumpView._fitHeight();
@@ -79,10 +90,14 @@ const App = {
         if (cb.checked) { AppState.trend.groups.add(g); item.classList.add('is-checked'); }
         else { AppState.trend.groups.delete(g); item.classList.remove('is-checked'); }
         if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
+        // dept 추이 분석에서도 그룹 변경 반영
+        const deptView = document.getElementById('dept-view');
+        if (deptView?.classList.contains('visible') && AppState.dept.subView === 'trend') DeptAnalysisView._renderTrend();
       });
     });
 
-    // 공유 사이드바 — 연도 체크박스 (추이/순위변동 공용)
+    // 공유 사이드바 — 연도 체크박스 (추이/순위변동/계열별추이 공용)
+    const _isDeptTrend = () => document.getElementById('dept-view')?.classList.contains('visible') && AppState.dept.subView === 'trend';
     document.getElementById('trend-year-checks').addEventListener('change', e => {
       const cb = e.target;
       if (cb.type !== 'checkbox' || !cb.dataset.year) return;
@@ -93,6 +108,10 @@ const App = {
         if (cb.checked) { AppState.bump.selectedYears.add(y); item?.classList.add('is-checked'); }
         else { AppState.bump.selectedYears.delete(y); item?.classList.remove('is-checked'); }
         BumpView.render();
+      } else if (_isDeptTrend()) {
+        if (cb.checked) { AppState.dept.selectedYears.add(y); item?.classList.add('is-checked'); }
+        else { AppState.dept.selectedYears.delete(y); item?.classList.remove('is-checked'); }
+        DeptAnalysisView._renderTrend();
       } else {
         if (cb.checked) { AppState.trend.selectedYears.add(y); item?.classList.add('is-checked'); }
         else { AppState.trend.selectedYears.delete(y); item?.classList.remove('is-checked'); }
@@ -102,15 +121,26 @@ const App = {
 
     // Y축
     document.getElementById('trend-apply-axis').addEventListener('click', () => {
-      AppState.trend.yMin = parseFloat(document.getElementById('trend-ymin').value) || null;
-      AppState.trend.yMax = parseFloat(document.getElementById('trend-ymax').value) || null;
-      if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
+      if (_isDeptTrend()) {
+        AppState.dept.yMin = parseFloat(document.getElementById('trend-ymin').value) || null;
+        AppState.dept.yMax = parseFloat(document.getElementById('trend-ymax').value) || null;
+        DeptAnalysisView._renderTrend();
+      } else {
+        AppState.trend.yMin = parseFloat(document.getElementById('trend-ymin').value) || null;
+        AppState.trend.yMax = parseFloat(document.getElementById('trend-ymax').value) || null;
+        if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
+      }
     });
     document.getElementById('trend-auto-axis').addEventListener('click', () => {
-      AppState.trend.yMin = null; AppState.trend.yMax = null;
       document.getElementById('trend-ymin').value = '';
       document.getElementById('trend-ymax').value = '';
-      if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
+      if (_isDeptTrend()) {
+        AppState.dept.yMin = null; AppState.dept.yMax = null;
+        DeptAnalysisView._renderTrend();
+      } else {
+        AppState.trend.yMin = null; AppState.trend.yMax = null;
+        if (document.getElementById('trend-view').classList.contains('visible')) TrendView.render();
+      }
     });
 
     // 추이 대학 추가

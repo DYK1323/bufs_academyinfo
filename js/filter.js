@@ -73,6 +73,8 @@ const FilterManager = {
     AppState.bump.userRemoved = [];
     AppState.bump.selectedYears = new Set();
     AppState.trend.yMin = null; AppState.trend.yMax = null;
+    AppState.dept.yMin = null; AppState.dept.yMax = null;
+    AppState.dept.selectedYears.clear();
     document.getElementById('trend-ymin').value = '';
     document.getElementById('trend-ymax').value = '';
     if (!indicatorKey) { Utils.showEmptyState('no-item'); return; }
@@ -102,11 +104,16 @@ const FilterManager = {
     AppState.raw.항목데이터 = fetched.flat();
     this._reAggregate();
     this._hideLoading();
+    if (document.getElementById('dept-view')?.classList.contains('visible')) DeptAnalysisView.render();
     // 지표 선택 유도 툴팁 숨김, 필터 안내 툴팁 표시
     document.getElementById('tooltip-select-item')?.classList.remove('visible');
     document.getElementById('tooltip-filter-guide')?.classList.add('visible');
   },
-  onYearChange(year) { AppState.filters.연도 = year; this._reAggregate(); },
+  onYearChange(year) {
+    AppState.filters.연도 = year;
+    this._reAggregate();
+    if (document.getElementById('dept-view')?.classList.contains('visible')) DeptAnalysisView.render();
+  },
   _reAggregate() {
     const indicatorKey = AppState.filters.항목키;
     const year = AppState.filters.연도;
@@ -185,5 +192,6 @@ const FilterManager = {
   _triggerRender() {
     this.applyFilters();
     if (document.getElementById('bump-view')?.classList.contains('visible')) BumpView.render();
+    if (document.getElementById('dept-view')?.classList.contains('visible')) { FilterManager._showLoading(); setTimeout(() => { DeptAnalysisView.render(); FilterManager._hideLoading(); }, 0); }
   },
 };
