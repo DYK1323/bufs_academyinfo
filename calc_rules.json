@@ -590,5 +590,19 @@
     "unit": "원",
     "decimal_places": 2,
     "sort_asc": false
+  },
+  "국고보조금 비율": {
+    "label": "국고보조금 비율",
+    "numerator": [
+      "합계"
+    ],
+    "denominator_base": [
+      "등록금/재학생충원율"
+    ],
+    "multiply": 100,
+    "visible": true,
+    "unit": "%",
+    "decimal_places": 1,
+    "sort_asc": false
   }
 }
