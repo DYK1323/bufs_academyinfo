@@ -125,31 +125,69 @@ def flatten_headers(ws, header_rows: list) -> list:
     return flat
 
 
+def detect_first_row_header(ws) -> tuple[list[int], int] | None:
+    """첫 행이 단일 헤더이고 둘째 행부터 데이터인 시트를 감지."""
+    row1 = [clean_str(ws.cell(1, c).value) for c in range(1, ws.max_column + 1)]
+    row2 = [clean_str(ws.cell(2, c).value) for c in range(1, ws.max_column + 1)]
+
+    non_empty_row1 = [v for v in row1 if v]
+    non_empty_row2 = [v for v in row2 if v]
+    if len(non_empty_row1) < 2 or len(non_empty_row2) < 2:
+        return None
+
+    text_like_row1 = sum(
+        1 for v in non_empty_row1
+        if not re.fullmatch(r"[\d,.\-%/()]+", v)
+    )
+    if text_like_row1 < max(2, len(non_empty_row1) // 2):
+        return None
+
+    header_hints = {
+        "번호", "학교", "학교명", "대학명", "학급", "학종", "지역",
+        "조사연도", "기준연도", "교육부", "타기관", "지방자치단체", "합계",
+    }
+    if not any(v in header_hints for v in non_empty_row1):
+        return None
+
+    return [1], 2
+
+
 def extract_df(filepath: str) -> tuple:
     """xlsx → (df, sheet_name, header_rows, data_start) 반환"""
     wb   = openpyxl.load_workbook(filepath)
     ws, sheet_name = pick_sheet(wb)
 
-    data_start = detect_data_start(ws)   # 병합 해제 전에 먼저
     unmerge_and_fill(ws)
+    first_row_layout = detect_first_row_header(ws)
+    if first_row_layout is not None:
+        header_rows, data_start = first_row_layout
+    else:
+        data_start = detect_data_start(ws)
+        header_rows = []
 
-    header_rows = []
-    for r in range(1, data_start):
-        vals        = [clean_str(ws.cell(r, c).value) for c in range(1, ws.max_column + 1)]
-        unique_vals = set(v for v in vals if v)
-        if len(unique_vals) >= 2:
-            header_rows.append(r)
+        for r in range(1, data_start):
+            vals        = [clean_str(ws.cell(r, c).value) for c in range(1, ws.max_column + 1)]
+            unique_vals = set(v for v in vals if v)
+            if len(unique_vals) >= 2:
+                header_rows.append(r)
 
-    if not header_rows:
+    if header_rows:
+        headers = flatten_headers(ws, header_rows)
+    else:
         raise ValueError("헤더 행을 찾을 수 없습니다.")
-
-    headers = flatten_headers(ws, header_rows)
 
     data = [list(row) for row in ws.iter_rows(min_row=data_start, values_only=True)
             if any(v is not None for v in row)]
 
     df = pd.DataFrame(data, columns=headers)
     return df, sheet_name, header_rows, data_start
+
+
+def get_year_column(df: "pd.DataFrame") -> str:
+    """기준연도 컬럼명을 우선 사용하고, 없으면 첫 컬럼을 fallback으로 사용."""
+    if "기준연도" in df.columns:
+        return "기준연도"
+    return df.columns[0]
 
 
 HALF_YEAR_PATTERN = re.compile(r"^((19|20)\d{2})\s*년\s*(상|하)반기")
@@ -162,7 +200,7 @@ def normalize_half_year(df: "pd.DataFrame") -> "pd.DataFrame":
     """
     if df.empty:
         return df
-    year_col = df.columns[0]
+    year_col = get_year_column(df)
 
     def _match(val):
         return HALF_YEAR_PATTERN.match(str(val).strip())
@@ -192,6 +230,7 @@ def item_key_from_filename(filename: str) -> str:
     """
     stem = Path(filename).stem
     stem = YEAR_IN_FILENAME.sub("", stem)   # 앞 연도 제거
+    stem = re.sub(r"^\d{4}(?:년)?[_\s-]*", "", stem)
     stem = re.sub(r"^[_\s]+", "", stem)     # 앞 밑줄/공백 제거
     return stem
 
@@ -200,7 +239,8 @@ def pub_year_from_filename(filename: str) -> int | None:
     """파일명 앞 연도를 공시연도로 반환.
     예) '2025년__대학_4-사_중도탈락...' → 2025
     """
-    m = re.match(r"^(\d{4})년", Path(filename).name)
+    stem = Path(filename).stem
+    m = re.match(r"^(\d{4})(?:년)?(?=[_\s-]|$)", stem)
     return int(m.group(1)) if m else None
 
 
@@ -415,7 +455,7 @@ def accumulate_json(item_key: str, df: pd.DataFrame):
                     if str(row.get("공시연도", row.get("기준연도", ""))) not in new_pub_years]
     else:
         # 구버전 호환: 공시연도 없는 df는 기준연도 기반 제거
-        year_col  = df.columns[0]
+        year_col  = get_year_column(df)
         new_years = df[year_col].astype(str).unique().tolist()
         existing  = [row for row in existing if str(row.get("기준연도", "")) not in new_years]
 
@@ -466,7 +506,7 @@ def validate_df(df: pd.DataFrame) -> list[str]:
         return warnings
 
     # 기준연도 검사
-    year_col = df.columns[0]
+    year_col = get_year_column(df)
     bad_years = df[~df[year_col].astype(str).str.match(r"^(19|20)\d{2}$")][year_col]
     if not bad_years.empty:
         unique_bad = bad_years.dropna().unique()[:5]
@@ -498,7 +538,7 @@ def accumulate_csv(item_key: str, df: pd.DataFrame, output_dir: str) -> tuple[in
     os.makedirs(output_dir, exist_ok=True)
     csv_path = os.path.join(output_dir, f"{item_key}.csv")
 
-    year_col = df.columns[0]  # 첫 번째 컬럼이 기준연도
+    year_col = get_year_column(df)
     new_years = df[year_col].astype(str).unique().tolist()
 
     # 기존 CSV 로드 후 같은 연도 제거 (덮어쓰기)
@@ -767,7 +807,10 @@ class App(tk.Tk):
         input_dir  = self.var_input.get()
         output_dir = self.var_output.get()
 
-        xlsx_files = sorted(Path(input_dir).glob("*.xlsx"))
+        xlsx_files = sorted(
+            path for path in Path(input_dir).glob("*.xlsx")
+            if not path.name.startswith("~$")
+        )
         if not xlsx_files:
             messagebox.showwarning("파일 없음",
                 f"{input_dir}\n폴더에 xlsx 파일이 없습니다.")
