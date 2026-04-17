@@ -24,6 +24,21 @@ const CacheManager = {
       });
   },
 
+  async _refreshRuntimeState() {
+    const [baseUniv, calc, manifest] = await Promise.all([
+      GH.getFile('data/기준대학.json'),
+      GH.getFile('calc_rules.json'),
+      GH.getFile('data/manifest.json'),
+    ]);
+
+    State.sha.기준대학 = baseUniv.sha;
+    State.sha.calc = calc.sha;
+    State.sha.manifest = manifest.sha;
+    State.original.기준대학 = JSON.parse(JSON.stringify(baseUniv.content || []));
+    State.original.calc = JSON.parse(JSON.stringify(calc.content || {}));
+    State.original.manifest = JSON.parse(JSON.stringify(manifest.content || []));
+  },
+
   async init() {
     // 현재 캐시 메타 로드
     try {
@@ -182,10 +197,6 @@ const CacheManager = {
   async generate() {
     if (!State.connected) { alert('먼저 GitHub에 연결하세요.'); return; }
 
-    const config = this._getConfig();
-    const valid = config.filter(c => c.sources.length > 0);
-    if (!valid.length) { alert('공시항목 탭에서 소스 파일을 먼저 설정하세요.'); return; }
-
     const btn = document.getElementById('btn-cache-generate');
     btn.disabled = true;
     btn.textContent = '⏳ 생성 중…';
@@ -196,6 +207,13 @@ const CacheManager = {
     hideBanner('banner-cache');
 
     try {
+      await this._refreshRuntimeState();
+      this._renderList();
+
+      const config = this._getConfig();
+      const valid = config.filter(c => c.sources.length > 0);
+      if (!valid.length) { alert('공시항목 탭에서 소스 파일을 먼저 설정하세요.'); return; }
+
       const baseUnivMap   = this._buildBaseUnivMap();
       const calcRules     = State.original.calc || {};
       const allSources    = new Set(valid.flatMap(c => c.sources));
