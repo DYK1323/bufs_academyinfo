@@ -577,5 +577,18 @@
     "unit": "천원",
     "decimal_places": 0,
     "sort_asc": false
+  },
+  "등록금/재학생충원율": {
+    "label": "등록금/재학생충원율",
+    "numerator": [
+      "등록금수입(사립대)"
+    ],
+    "denominator_base": [
+      "재학생 충원율"
+    ],
+    "multiply": 1,
+    "unit": "원",
+    "decimal_places": 2,
+    "sort_asc": false
   }
 }
