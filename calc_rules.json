@@ -604,5 +604,18 @@
     "unit": "%",
     "decimal_places": 1,
     "sort_asc": false
+  },
+  "학생 1인당 교육비": {
+    "label": "학생 1인당 교육비",
+    "numerator": [
+      "총교육비 (E=A+B+C+D)"
+    ],
+    "denominator_base": [
+      "재학생수(F)"
+    ],
+    "multiply": 1,
+    "unit": "",
+    "decimal_places": 0,
+    "sort_asc": false
   }
 }
